@@ -1,0 +1,1160 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>图形化编程原型</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #111820;
+      --muted: #62707c;
+      --line: #111820;
+      --paper: #f3f3f3;
+      --program: #eeeeee;
+      --library: #fff59c;
+      --panel: #ffffff;
+      --action: #ffea00;
+      --look: #12a8dc;
+      --sound: #e5007e;
+      --control: #07994f;
+      --start: #c9c9c9;
+      --danger: #c83535;
+      --blue-line: #2d6dff;
+      --shadow: 0 12px 28px rgba(17, 24, 32, .2);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      width: 100%;
+      height: 100%;
+    }
+
+    body {
+      margin: 0;
+      overflow: hidden;
+      font-family: "Microsoft YaHei", "PingFang SC", "Segoe UI", Arial, sans-serif;
+      background: var(--paper);
+      color: var(--ink);
+    }
+
+    button {
+      font: inherit;
+    }
+
+    .app {
+      height: 100dvh;
+      min-width: 620px;
+      display: grid;
+      grid-template-rows: 50px 1fr;
+      background: var(--paper);
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 7px 10px;
+      background: var(--panel);
+      border-bottom: 1.5px solid var(--line);
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-width: 0;
+    }
+
+    .brand-mark {
+      width: 34px;
+      height: 34px;
+      display: grid;
+      place-items: center;
+      border: 2px solid var(--ink);
+      border-radius: 8px;
+      background: var(--action);
+      font-weight: 700;
+      flex: 0 0 auto;
+    }
+
+    .brand-title {
+      font-size: 17px;
+      font-weight: 700;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .toolbar {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      flex-wrap: nowrap;
+    }
+
+    .btn {
+      min-width: 56px;
+      min-height: 34px;
+      border: 1.5px solid var(--line);
+      border-radius: 8px;
+      background: var(--panel);
+      color: var(--ink);
+      padding: 6px 10px;
+      cursor: pointer;
+      font-weight: 600;
+    }
+
+    .btn.primary {
+      border-color: #12683e;
+      background: #16a260;
+      color: #fff;
+    }
+
+    .btn.danger {
+      color: var(--danger);
+    }
+
+    .btn[aria-expanded="true"] {
+      background: #dff3ea;
+      border-color: #12683e;
+    }
+
+    .btn:disabled {
+      cursor: not-allowed;
+      opacity: .55;
+    }
+
+    .workspace {
+      min-height: 0;
+      display: grid;
+      grid-template-rows: minmax(190px, 1fr) 138px;
+      border: 1.5px solid var(--line);
+      border-top: 0;
+      overflow: hidden;
+    }
+
+    .program-area {
+      position: relative;
+      min-height: 0;
+      background: var(--program);
+      overflow: hidden;
+    }
+
+    .program-canvas {
+      height: 100%;
+      overflow: auto;
+      padding: 20px 24px;
+    }
+
+    .chain {
+      min-width: 100%;
+      min-height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0;
+      padding: 34px 24px 48px;
+      border: 2px dashed transparent;
+      border-radius: 8px;
+    }
+
+    .chain.drag-over {
+      border-color: #16a260;
+      background: rgba(22, 162, 96, .08);
+    }
+
+    .empty-note {
+      display: grid;
+      place-items: center;
+      min-width: 170px;
+      min-height: 74px;
+      margin-left: 14px;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .block {
+      --block-color: var(--action);
+      position: relative;
+      width: 84px;
+      height: 72px;
+      display: grid;
+      place-items: center;
+      padding: 7px 8px;
+      border: 2px solid var(--ink);
+      border-radius: 10px;
+      background: var(--block-color);
+      color: var(--ink);
+      font-size: 15px;
+      font-weight: 700;
+      text-align: center;
+      user-select: none;
+      touch-action: none;
+      cursor: grab;
+      box-shadow: 0 2px 0 rgba(17, 24, 32, .2);
+      flex: 0 0 auto;
+      appearance: none;
+    }
+
+    .block + .block {
+      margin-left: -1px;
+    }
+
+    .block.start {
+      width: 78px;
+      --block-color: var(--start);
+      border-radius: 999px 10px 10px 999px;
+      cursor: pointer;
+      touch-action: manipulation;
+      transition: transform .12s ease, box-shadow .12s ease;
+    }
+
+    .block.start:hover {
+      transform: translateY(-1px);
+    }
+
+    .block.start:active {
+      transform: translateY(1px);
+      box-shadow: 0 1px 0 rgba(17, 24, 32, .18);
+    }
+
+    .block.start:disabled {
+      cursor: not-allowed;
+      opacity: .72;
+      transform: none;
+      box-shadow: 0 2px 0 rgba(17, 24, 32, .2);
+    }
+
+    .block.start:focus-visible {
+      outline: 3px solid rgba(22, 162, 96, .35);
+      outline-offset: 2px;
+    }
+
+    .block.active {
+      transform: translateY(-5px);
+      box-shadow: 0 0 0 5px rgba(255, 234, 0, .38), 0 8px 18px rgba(17, 24, 32, .18);
+      z-index: 2;
+    }
+
+    .program-block::after {
+      content: "";
+      position: absolute;
+      left: 18px;
+      right: 18px;
+      bottom: -13px;
+      height: 5px;
+      border: 1.5px solid var(--ink);
+      border-radius: 999px;
+      background: var(--block-color);
+      opacity: .95;
+    }
+
+    .drag-source-placeholder {
+      background: transparent;
+      border-style: dashed;
+      border-color: rgba(17, 24, 32, .45);
+      box-shadow: none;
+      color: transparent;
+      text-shadow: none;
+    }
+
+    .drag-source-placeholder::after {
+      display: none;
+    }
+
+    .stage-area {
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      width: min(330px, calc(100% - 24px));
+      display: grid;
+      grid-template-rows: 38px 130px 36px;
+      border: 1.5px solid var(--line);
+      border-radius: 8px;
+      background: var(--panel);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+      opacity: 0;
+      pointer-events: none;
+      transform: translateY(-8px) scale(.98);
+      transition: opacity .18s ease, transform .18s ease;
+      z-index: 4;
+    }
+
+    .stage-area.is-open {
+      opacity: 1;
+      pointer-events: auto;
+      transform: translateY(0) scale(1);
+    }
+
+    .stage-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 7px 10px;
+      border-bottom: 1px solid var(--line);
+      font-weight: 700;
+    }
+
+    .stage-close {
+      width: 28px;
+      height: 28px;
+      display: grid;
+      place-items: center;
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      background: var(--panel);
+      cursor: pointer;
+    }
+
+    .stage {
+      position: relative;
+      min-height: 130px;
+      background: #edf6f4;
+      overflow: hidden;
+    }
+
+    .track {
+      position: absolute;
+      left: 22px;
+      right: 22px;
+      bottom: 26px;
+      height: 4px;
+      border-radius: 999px;
+      background: rgba(17, 24, 32, .16);
+    }
+
+    .robot {
+      --robot-color: #ffea00;
+      position: absolute;
+      left: calc(50% - 38px);
+      bottom: 33px;
+      width: 76px;
+      height: 52px;
+      transform: translateX(var(--x, 0px)) rotate(var(--angle, 0deg));
+      transition: transform .45s ease, background .25s ease;
+    }
+
+    .robot-body {
+      position: absolute;
+      left: 8px;
+      top: 8px;
+      width: 60px;
+      height: 34px;
+      border: 2px solid var(--ink);
+      border-radius: 10px 12px 8px 8px;
+      background: var(--robot-color);
+    }
+
+    .robot-eye {
+      position: absolute;
+      top: 17px;
+      width: 7px;
+      height: 7px;
+      border-radius: 999px;
+      background: var(--ink);
+    }
+
+    .robot-eye.one {
+      left: 25px;
+    }
+
+    .robot-eye.two {
+      left: 44px;
+    }
+
+    .wheel {
+      position: absolute;
+      bottom: 0;
+      width: 18px;
+      height: 18px;
+      border: 2px solid var(--ink);
+      border-radius: 999px;
+      background: #d9dee2;
+    }
+
+    .wheel.left {
+      left: 13px;
+    }
+
+    .wheel.right {
+      right: 13px;
+    }
+
+    .bubble {
+      position: absolute;
+      left: 50%;
+      bottom: 88px;
+      transform: translateX(-50%);
+      min-width: 104px;
+      max-width: 210px;
+      padding: 6px 9px;
+      border: 1px solid #bec8ce;
+      border-radius: 8px;
+      background: var(--panel);
+      box-shadow: var(--shadow);
+      text-align: center;
+      font-weight: 700;
+      opacity: 0;
+      transition: opacity .25s ease;
+      pointer-events: none;
+    }
+
+    .bubble.show {
+      opacity: 1;
+    }
+
+    .status {
+      min-height: 36px;
+      display: flex;
+      align-items: center;
+      padding: 7px 10px;
+      color: var(--muted);
+      border-top: 1px solid #cdd6dc;
+      font-size: 13px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .library-area {
+      position: relative;
+      display: grid;
+      grid-template-rows: 43px 1fr;
+      background: var(--library);
+      border-top: 2px solid var(--blue-line);
+      min-height: 0;
+    }
+
+    .tabs {
+      position: relative;
+      top: -43px;
+      display: flex;
+      align-items: flex-end;
+      height: 86px;
+      pointer-events: none;
+    }
+
+    .tab {
+      min-width: 96px;
+      height: 43px;
+      margin-right: -18px;
+      padding: 0 20px 0 14px;
+      border: 2px solid var(--ink);
+      border-bottom: 0;
+      border-radius: 24px 28px 0 0;
+      background: var(--tab-color);
+      color: var(--ink);
+      font-size: 16px;
+      font-weight: 700;
+      cursor: pointer;
+      pointer-events: auto;
+    }
+
+    .tab[aria-selected="true"] {
+      height: 48px;
+      box-shadow: inset 0 -4px 0 rgba(255, 255, 255, .48);
+      z-index: 2;
+    }
+
+    .palette {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: clamp(22px, 8vw, 88px);
+      padding: 8px 18px 14px;
+      overflow-x: auto;
+      overflow-y: hidden;
+      min-height: 0;
+    }
+
+    .palette .block {
+      width: 74px;
+      height: 70px;
+      cursor: pointer;
+    }
+
+    .delete-overlay {
+      position: absolute;
+      inset: calc(var(--delete-overlay-overhang, 43px) * -1) 0 0 0;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 18px;
+      background: rgba(17, 24, 32, .28);
+      color: #fff;
+      font-size: 18px;
+      font-weight: 700;
+      text-align: center;
+      z-index: 3;
+      pointer-events: none;
+    }
+
+    .delete-overlay.is-visible {
+      display: flex;
+    }
+
+    .ghost {
+      position: fixed;
+      pointer-events: none;
+      opacity: .86;
+      z-index: 1000;
+      transform: translate(-50%, -50%);
+    }
+
+    .drop-marker {
+      width: 8px;
+      height: 80px;
+      margin: 0 6px;
+      border-radius: 999px;
+      background: #16a260;
+      flex: 0 0 auto;
+    }
+
+    .rotate-note {
+      display: none;
+    }
+
+    @media (max-height: 460px) {
+      .app {
+        grid-template-rows: 46px 1fr;
+      }
+
+      .topbar {
+        padding-block: 5px;
+      }
+
+      .brand-title {
+        font-size: 15px;
+      }
+
+      .btn {
+        min-height: 32px;
+        padding: 5px 9px;
+      }
+
+      .workspace {
+        grid-template-rows: minmax(174px, 1fr) 122px;
+      }
+
+      .program-canvas {
+        padding: 12px 16px;
+      }
+
+      .chain {
+        padding: 18px 16px 36px;
+      }
+
+      .block {
+        width: 72px;
+        height: 60px;
+        font-size: 13px;
+      }
+
+      .block.start {
+        width: 68px;
+      }
+
+      .library-area {
+        grid-template-rows: 36px 1fr;
+        --delete-overlay-overhang: 36px;
+      }
+
+      .tabs {
+        top: -37px;
+        height: 73px;
+      }
+
+      .tab {
+        min-width: 86px;
+        height: 37px;
+        font-size: 14px;
+      }
+
+      .tab[aria-selected="true"] {
+        height: 41px;
+      }
+
+      .palette {
+        gap: clamp(18px, 7vw, 70px);
+        padding-bottom: 10px;
+      }
+
+      .palette .block {
+        width: 68px;
+        height: 62px;
+      }
+
+      .stage-area {
+        width: 292px;
+        grid-template-rows: 34px 104px 32px;
+      }
+
+      .stage {
+        min-height: 104px;
+      }
+    }
+
+    @media (max-width: 680px) {
+      .app {
+        min-width: 0;
+      }
+
+      .brand-title {
+        display: none;
+      }
+
+      .toolbar {
+        gap: 5px;
+      }
+
+      .btn {
+        min-width: 46px;
+        padding-inline: 7px;
+      }
+
+      .palette {
+        justify-content: flex-start;
+        gap: 16px;
+      }
+    }
+
+    @media (orientation: portrait) and (max-width: 700px) {
+      .rotate-note {
+        position: fixed;
+        inset: 0;
+        display: grid;
+        place-items: center;
+        padding: 24px;
+        background: rgba(243, 243, 243, .96);
+        z-index: 20;
+        text-align: center;
+        font-size: 18px;
+        font-weight: 700;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true">A</div>
+        <div class="brand-title">图形化编程原型</div>
+      </div>
+      <div class="toolbar" aria-label="程序操作">
+        <button class="btn" id="previewBtn" type="button" aria-expanded="false" aria-controls="stagePanel">预览</button>
+        <button class="btn" id="saveBtn" type="button">保存</button>
+        <button class="btn" id="loadBtn" type="button">读取</button>
+        <button class="btn danger" id="clearBtn" type="button">清空</button>
+      </div>
+    </header>
+
+    <main class="workspace">
+      <section class="program-area" aria-label="程序区">
+        <div class="program-canvas">
+          <div class="chain" id="chain">
+            <button class="block start start-run" id="runBtn" type="button" aria-label="运行程序">开始</button>
+            <div class="empty-note" id="emptyNote">放入卡片</div>
+          </div>
+        </div>
+
+        <section class="stage-area" id="stagePanel" aria-label="运行预览">
+          <div class="stage-head">
+            <span>运行预览</span>
+            <button class="stage-close" id="closePreviewBtn" type="button" aria-label="隐藏预览">×</button>
+          </div>
+          <div class="stage">
+            <div class="track" aria-hidden="true"></div>
+            <div class="bubble" id="bubble">你好</div>
+            <div class="robot" id="robot" aria-label="小车预览">
+              <div class="robot-body"></div>
+              <div class="robot-eye one"></div>
+              <div class="robot-eye two"></div>
+              <div class="wheel left"></div>
+              <div class="wheel right"></div>
+            </div>
+          </div>
+          <div class="status" id="status">准备好了。</div>
+        </section>
+      </section>
+
+      <section class="library-area" aria-label="卡片库">
+        <div class="tabs" role="tablist" aria-label="卡片分类">
+          <button class="tab" id="tab-action" role="tab" type="button" aria-selected="true" style="--tab-color: var(--action)">选项卡A</button>
+          <button class="tab" id="tab-look" role="tab" type="button" aria-selected="false" style="--tab-color: var(--look)">选项卡B</button>
+          <button class="tab" id="tab-sound" role="tab" type="button" aria-selected="false" style="--tab-color: var(--sound)">选项卡C</button>
+          <button class="tab" id="tab-control" role="tab" type="button" aria-selected="false" style="--tab-color: var(--control)">选项卡D</button>
+        </div>
+        <div class="palette" id="palette" aria-live="polite"></div>
+        <div class="delete-overlay" id="deleteOverlay" aria-hidden="true">在此松手进行删除</div>
+      </section>
+    </main>
+  </div>
+  <div class="rotate-note">请将手机横屏使用</div>
+
+  <script>
+    const categories = {
+      action: {
+        color: "var(--action)",
+        cards: [
+          { id: "move-forward", label: "卡片A1", type: "action", actionName: "前进" },
+          { id: "move-back", label: "卡片A2", type: "action", actionName: "后退" },
+          { id: "turn-left", label: "卡片A3", type: "action", actionName: "左转" },
+          { id: "turn-right", label: "卡片A4", type: "action", actionName: "右转" }
+        ]
+      },
+      look: {
+        color: "var(--look)",
+        cards: [
+          { id: "color-yellow", label: "卡片B1", type: "look", actionName: "变黄色" },
+          { id: "color-blue", label: "卡片B2", type: "look", actionName: "变蓝色" },
+          { id: "say-hi", label: "卡片B3", type: "look", actionName: "说你好" }
+        ]
+      },
+      sound: {
+        color: "var(--sound)",
+        cards: [
+          { id: "beep", label: "卡片C1", type: "sound", actionName: "播放声音" },
+          { id: "ding", label: "卡片C2", type: "sound", actionName: "提示音" }
+        ]
+      },
+      control: {
+        color: "var(--control)",
+        cards: [
+          { id: "wait", label: "卡片D1", type: "control", actionName: "等待1秒" },
+          { id: "repeat-prev", label: "卡片D2", type: "control", actionName: "重复上张" },
+          { id: "stop", label: "卡片D3", type: "control", actionName: "停止" }
+        ]
+      }
+    };
+
+    const flatCards = Object.values(categories).flatMap(group => group.cards);
+    const cardById = Object.fromEntries(flatCards.map(card => [card.id, card]));
+    const chain = document.getElementById("chain");
+    const palette = document.getElementById("palette");
+    const deleteOverlay = document.getElementById("deleteOverlay");
+    const emptyNote = document.getElementById("emptyNote");
+    const statusEl = document.getElementById("status");
+    const robot = document.getElementById("robot");
+    const bubble = document.getElementById("bubble");
+    const stagePanel = document.getElementById("stagePanel");
+    const previewBtn = document.getElementById("previewBtn");
+
+    let activeCategory = "action";
+    let program = [];
+    let running = false;
+    let robotState = { x: 0, angle: 0, color: "#ffea00" };
+    let dragState = null;
+
+    function renderPalette() {
+      palette.innerHTML = "";
+      categories[activeCategory].cards.forEach(card => {
+        const block = createBlock(card, "palette");
+        palette.appendChild(block);
+      });
+    }
+
+    function renderProgram(activeIndex = -1) {
+      chain.querySelectorAll(".program-block, .drop-marker").forEach(el => el.remove());
+      emptyNote.style.display = program.length ? "none" : "grid";
+
+      program.forEach((item, index) => {
+        const block = createBlock(item, "program", index);
+        if (index === activeIndex) block.classList.add("active");
+        chain.insertBefore(block, emptyNote);
+      });
+    }
+
+    function createBlock(card, mode, index) {
+      const block = document.createElement("div");
+      block.className = mode === "program" ? "block program-block" : "block";
+      block.textContent = card.label;
+      block.style.setProperty("--block-color", categories[card.type].color);
+      block.dataset.cardId = card.id;
+      block.dataset.mode = mode;
+      if (mode === "program") block.dataset.index = index;
+      block.setAttribute("role", mode === "palette" ? "button" : "listitem");
+      block.setAttribute("aria-label", mode === "palette" ? `添加${card.label}` : card.label);
+
+      block.addEventListener("pointerdown", startDrag);
+      if (mode === "palette") {
+        block.addEventListener("click", event => {
+          if (event.detail === 0 || block.dataset.dragged === "true") return;
+          addCard(card.id);
+        });
+      }
+
+      return block;
+    }
+
+    function addCard(cardId, insertIndex = program.length) {
+      const source = cardById[cardId];
+      if (!source) return;
+      const item = { ...source, uid: `${cardId}-${Date.now()}-${Math.random().toString(16).slice(2)}` };
+      program.splice(insertIndex, 0, item);
+      renderProgram();
+      setStatus(`已添加：${source.label}`);
+    }
+
+    function setDeleteOverlayVisible(visible) {
+      deleteOverlay.classList.toggle("is-visible", visible);
+      deleteOverlay.setAttribute("aria-hidden", String(!visible));
+    }
+
+    function startDrag(event) {
+      if (running || event.button > 0) return;
+      const source = event.currentTarget;
+      source.dataset.dragged = "false";
+      const rect = source.getBoundingClientRect();
+      const cardId = source.dataset.cardId;
+      const fromProgram = source.dataset.mode === "program";
+      const originalIndex = fromProgram ? Number(source.dataset.index) : -1;
+      const ghost = source.cloneNode(true);
+
+      if (fromProgram) {
+        source.classList.add("drag-source-placeholder");
+        setDeleteOverlayVisible(true);
+      }
+
+      ghost.classList.add("ghost");
+      ghost.style.width = `${rect.width}px`;
+      ghost.style.height = `${rect.height}px`;
+
+      document.body.appendChild(ghost);
+
+      dragState = {
+        source,
+        cardId,
+        fromProgram,
+        originalIndex,
+        ghost,
+        startX: event.clientX,
+        startY: event.clientY,
+        lastIndex: program.length
+      };
+
+      source.setPointerCapture(event.pointerId);
+      moveGhost(event.clientX, event.clientY);
+      source.addEventListener("pointermove", moveDrag);
+      source.addEventListener("pointerup", endDrag);
+      source.addEventListener("pointercancel", cancelDrag);
+    }
+
+    function moveDrag(event) {
+      if (!dragState) return;
+      const distance = Math.hypot(event.clientX - dragState.startX, event.clientY - dragState.startY);
+      if (distance > 8) dragState.source.dataset.dragged = "true";
+      moveGhost(event.clientX, event.clientY);
+
+      const chainRect = chain.getBoundingClientRect();
+      const inside = event.clientX >= chainRect.left &&
+        event.clientX <= chainRect.right &&
+        event.clientY >= chainRect.top &&
+        event.clientY <= chainRect.bottom;
+
+      chain.classList.toggle("drag-over", inside);
+      removeMarker();
+
+      if (inside) {
+        const index = getDropIndex(event.clientX);
+        dragState.lastIndex = index;
+        const marker = document.createElement("div");
+        marker.className = "drop-marker";
+        const blocks = [...chain.querySelectorAll(".program-block")];
+        const before = blocks[index] || emptyNote;
+        chain.insertBefore(marker, before);
+      }
+
+    }
+
+    function endDrag(event) {
+      if (!dragState) return;
+      const movedEnough = Math.hypot(event.clientX - dragState.startX, event.clientY - dragState.startY) > 8;
+      const inChain = chain.classList.contains("drag-over");
+      const { cardId, fromProgram, originalIndex, lastIndex, source } = dragState;
+      const paletteRect = palette.getBoundingClientRect();
+      const inDeleteZone = fromProgram &&
+        event.clientX >= paletteRect.left &&
+        event.clientX <= paletteRect.right &&
+        event.clientY >= paletteRect.top &&
+        event.clientY <= paletteRect.bottom;
+
+      cleanupDrag(event);
+
+      if (!movedEnough) {
+        setTimeout(() => { source.dataset.dragged = "false"; }, 0);
+        return;
+      }
+
+      if (fromProgram && inDeleteZone) {
+        const [item] = program.splice(originalIndex, 1);
+        if (item) {
+          renderProgram();
+          setStatus(`已删除：${item.label}`);
+        }
+        setTimeout(() => { source.dataset.dragged = "false"; }, 0);
+        return;
+      }
+
+      if (!inChain) {
+        setTimeout(() => { source.dataset.dragged = "false"; }, 0);
+        return;
+      }
+
+      if (fromProgram) {
+        const [item] = program.splice(originalIndex, 1);
+        const target = lastIndex > originalIndex ? lastIndex - 1 : lastIndex;
+        program.splice(Math.max(0, target), 0, item);
+        setStatus("已调整顺序");
+      } else {
+        addCard(cardId, lastIndex);
+      }
+      renderProgram();
+      setTimeout(() => { source.dataset.dragged = "false"; }, 0);
+    }
+    function cancelDrag(event) {
+      cleanupDrag(event);
+    }
+
+    function cleanupDrag(event) {
+      if (!dragState) return;
+      dragState.source.removeEventListener("pointermove", moveDrag);
+      dragState.source.removeEventListener("pointerup", endDrag);
+      dragState.source.removeEventListener("pointercancel", cancelDrag);
+      dragState.source.classList.remove("drag-source-placeholder");
+      if (event && dragState.source.hasPointerCapture(event.pointerId)) {
+        dragState.source.releasePointerCapture(event.pointerId);
+      }
+      dragState.ghost.remove();
+      removeMarker();
+      setDeleteOverlayVisible(false);
+      chain.classList.remove("drag-over");
+      dragState = null;
+    }
+    function removeMarker() {
+      chain.querySelectorAll(".drop-marker").forEach(el => el.remove());
+    }
+
+    function moveGhost(x, y) {
+      if (!dragState) return;
+      dragState.ghost.style.left = `${x}px`;
+      dragState.ghost.style.top = `${y}px`;
+    }
+
+    function getDropIndex(pointerX) {
+      const blocks = [...chain.querySelectorAll(".program-block")];
+      for (let i = 0; i < blocks.length; i++) {
+        const rect = blocks[i].getBoundingClientRect();
+        if (pointerX < rect.left + rect.width / 2) return i;
+      }
+      return blocks.length;
+    }
+
+    async function runProgram() {
+      if (running) return;
+      if (!program.length) {
+        setStatus("先添加卡片");
+        return;
+      }
+
+      running = true;
+      setButtonsDisabled(true);
+      resetRobot();
+      hideBubble();
+
+      for (let i = 0; i < program.length; i++) {
+        const card = program[i];
+        renderProgram(i);
+        setStatus(`运行：${card.actionName}`);
+        const shouldStop = await executeCard(card, i);
+        if (shouldStop) break;
+      }
+
+      renderProgram();
+      setStatus("运行结束");
+      setButtonsDisabled(false);
+      running = false;
+    }
+
+    async function executeCard(card, index) {
+      switch (card.id) {
+        case "move-forward":
+          robotState.x = clamp(robotState.x + 46, -112, 112);
+          updateRobot();
+          await wait(520);
+          break;
+        case "move-back":
+          robotState.x = clamp(robotState.x - 46, -112, 112);
+          updateRobot();
+          await wait(520);
+          break;
+        case "turn-left":
+          robotState.angle -= 45;
+          updateRobot();
+          await wait(520);
+          break;
+        case "turn-right":
+          robotState.angle += 45;
+          updateRobot();
+          await wait(520);
+          break;
+        case "color-yellow":
+          robotState.color = "#ffea00";
+          updateRobot();
+          await wait(420);
+          break;
+        case "color-blue":
+          robotState.color = "#12a8dc";
+          updateRobot();
+          await wait(420);
+          break;
+        case "say-hi":
+          showBubble("你好！");
+          await wait(750);
+          hideBubble();
+          break;
+        case "beep":
+          playTone(440, 180);
+          await wait(360);
+          break;
+        case "ding":
+          playTone(660, 120);
+          await wait(220);
+          playTone(880, 140);
+          await wait(260);
+          break;
+        case "wait":
+          await wait(1000);
+          break;
+        case "repeat-prev":
+          if (index > 0) await executeCard(program[index - 1], index - 1);
+          break;
+        case "stop":
+          setStatus("已停止");
+          await wait(500);
+          return true;
+      }
+      return false;
+    }
+
+    function updateRobot() {
+      robot.style.setProperty("--x", `${robotState.x}px`);
+      robot.style.setProperty("--angle", `${robotState.angle}deg`);
+      robot.style.setProperty("--robot-color", robotState.color);
+    }
+
+    function resetRobot() {
+      robotState = { x: 0, angle: 0, color: "#ffea00" };
+      updateRobot();
+    }
+
+    function showBubble(text) {
+      bubble.textContent = text;
+      bubble.classList.add("show");
+    }
+
+    function hideBubble() {
+      bubble.classList.remove("show");
+    }
+
+    function playTone(frequency, duration) {
+      const AudioContext = window.AudioContext || window.webkitAudioContext;
+      if (!AudioContext) return;
+      const ctx = new AudioContext();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.frequency.value = frequency;
+      osc.type = "sine";
+      gain.gain.setValueAtTime(0.08, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration / 1000);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start();
+      osc.stop(ctx.currentTime + duration / 1000);
+    }
+
+    function wait(ms) {
+      return new Promise(resolve => setTimeout(resolve, ms));
+    }
+
+    function clamp(value, min, max) {
+      return Math.max(min, Math.min(max, value));
+    }
+
+    function setStatus(text) {
+      statusEl.textContent = text;
+    }
+
+    function setButtonsDisabled(disabled) {
+      document.querySelectorAll(".toolbar .btn, .start-run").forEach(btn => {
+        btn.disabled = disabled && btn.id !== "previewBtn";
+      });
+    }
+
+    function setPreviewOpen(open) {
+      stagePanel.classList.toggle("is-open", open);
+      previewBtn.setAttribute("aria-expanded", String(open));
+      previewBtn.textContent = open ? "收起" : "预览";
+    }
+
+    function saveProgram() {
+      localStorage.setItem("visualProgramV1", JSON.stringify(program));
+      setStatus("已保存");
+    }
+
+    function loadProgram() {
+      const raw = localStorage.getItem("visualProgramV1");
+      if (!raw) {
+        setStatus("没有保存内容");
+        return;
+      }
+      try {
+        const loaded = JSON.parse(raw);
+        program = loaded.filter(item => cardById[item.id]);
+        renderProgram();
+        setStatus("已读取");
+      } catch {
+        setStatus("读取失败");
+      }
+    }
+
+    document.querySelectorAll(".tab").forEach(tab => {
+      tab.addEventListener("click", () => {
+        activeCategory = tab.id.replace("tab-", "");
+        document.querySelectorAll(".tab").forEach(item => item.setAttribute("aria-selected", "false"));
+        tab.setAttribute("aria-selected", "true");
+        renderPalette();
+      });
+    });
+
+    document.getElementById("runBtn").addEventListener("click", runProgram);
+    document.getElementById("previewBtn").addEventListener("click", () => {
+      setPreviewOpen(!stagePanel.classList.contains("is-open"));
+    });
+    document.getElementById("closePreviewBtn").addEventListener("click", () => setPreviewOpen(false));
+    document.getElementById("saveBtn").addEventListener("click", saveProgram);
+    document.getElementById("loadBtn").addEventListener("click", loadProgram);
+    document.getElementById("clearBtn").addEventListener("click", () => {
+      program = [];
+      renderProgram();
+      resetRobot();
+      hideBubble();
+      setStatus("已清空");
+    });
+
+    chain.addEventListener("dragover", event => event.preventDefault());
+
+    renderPalette();
+    renderProgram();
+    updateRobot();
+  </script>
+</body>
+</html>

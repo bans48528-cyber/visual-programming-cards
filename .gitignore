@@ -1,0 +1,15 @@
+# Local caches
+.DS_Store
+Thumbs.db
+
+# Editor files
+.vscode/
+.idea/
+
+# Logs
+*.log
+
+# Dependencies and build output for future frontend versions
+node_modules/
+dist/
+build/
