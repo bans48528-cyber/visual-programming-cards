@@ -1048,6 +1048,20 @@
       if (updateStatus) setStatus("已清除抓取标记");
     }
 
+    function clearGrabSelectionOnOutsidePointerDown(event) {
+      if (!grabMarkedPaths.size) return;
+      if (dragState || grabToolState || eraserState) return;
+      if (event.button > 0) return;
+      if (event.pointerType === "touch" && event.isPrimary === false) return;
+
+      const target = event.target instanceof Element ? event.target : null;
+      if (!target) return;
+      if (target.closest(".program-block.grab-marked")) return;
+      if (target.closest("#grabTool, #eraserTool, #paramEditor, #eraseConfirm")) return;
+
+      clearGrabSelection();
+    }
+
     function updateGrabMarkStatus() {
       const count = getEffectiveGrabPaths().length;
       setStatus(count ? `已抓取标记 ${count} 张卡片` : "没有抓取标记");
@@ -1835,6 +1849,7 @@
     });
 
     document.addEventListener("pointerdown", event => {
+      clearGrabSelectionOnOutsidePointerDown(event);
       if (paramEditor.hidden) return;
       if (paramEditor.contains(event.target)) return;
       if (event.target.closest(".icon-card.program-block")) return;
