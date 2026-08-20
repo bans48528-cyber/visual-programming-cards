@@ -277,12 +277,14 @@
         block.appendChild(icon);
 
         if (card.paramsSchema) {
-          const bubble = document.createElement("span");
+          const isProgramControl = mode === "program";
+          const bubble = document.createElement(isProgramControl ? "button" : "span");
           bubble.className = "param-bubble";
           bubble.textContent = getParamBubbleText(card, item);
-          bubble.setAttribute("aria-hidden", "true");
 
-          if (mode === "program") {
+          if (isProgramControl) {
+            bubble.type = "button";
+            bubble.setAttribute("aria-label", `编辑${card.actionName || card.label}参数`);
             bubble.addEventListener("pointerdown", event => {
               event.preventDefault();
               event.stopPropagation();
@@ -292,6 +294,8 @@
               event.stopPropagation();
               openParamEditor(nodePath, block);
             });
+          } else {
+            bubble.setAttribute("aria-hidden", "true");
           }
 
           block.appendChild(bubble);
@@ -1132,6 +1136,8 @@
         startY: event.clientY,
         lastX: event.clientX,
         lastY: event.clientY,
+        scrollLeft: programCanvas.scrollLeft,
+        scrollTop: programCanvas.scrollTop,
         moved: false,
         timer: setTimeout(() => activateBlankGrab(event.pointerId), BLANK_GRAB_HOLD_DELAY)
       };
@@ -1149,10 +1155,19 @@
         event.clientX - blankGrabPending.startX,
         event.clientY - blankGrabPending.startY
       );
-      if (distance <= BLANK_GRAB_MOVE_LIMIT) return;
+      if (!blankGrabPending.moved) {
+        if (distance <= BLANK_GRAB_MOVE_LIMIT) return;
+        blankGrabPending.moved = true;
+        clearTimeout(blankGrabPending.timer);
+        blankGrabPending.timer = null;
+        programCanvas.classList.add("is-panning");
+      }
 
-      blankGrabPending.moved = true;
-      cleanupBlankGrabHold();
+      event.preventDefault();
+      programCanvas.scrollLeft = blankGrabPending.scrollLeft
+        + blankGrabPending.startX - event.clientX;
+      programCanvas.scrollTop = blankGrabPending.scrollTop
+        + blankGrabPending.startY - event.clientY;
     }
 
     function endBlankGrabHold(event) {
@@ -1181,6 +1196,7 @@
       document.removeEventListener("pointermove", moveBlankGrabHold);
       document.removeEventListener("pointerup", endBlankGrabHold);
       document.removeEventListener("pointercancel", cancelBlankGrabHold);
+      programCanvas.classList.remove("is-panning");
       blankGrabPending = null;
     }
 
