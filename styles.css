@@ -377,8 +377,16 @@
       border-color: #6d34d2;
       background: #8f5af7;
       color: #fff;
-      font-size: 22px;
       box-shadow: inset 0 -3px 0 rgba(17, 24, 32, .14), 0 2px 4px rgba(17, 24, 32, .12);
+    }
+
+    .matrix-param-trigger::before {
+      content: "";
+      width: 0;
+      height: 0;
+      border-left: 7px solid transparent;
+      border-right: 7px solid transparent;
+      border-top: 9px solid currentColor;
     }
 
     .block + .block {
@@ -763,18 +771,20 @@
     }
 
     .param-popover {
+      --param-arrow-left: 50%;
       position: fixed;
       z-index: 1100;
       display: flex;
       align-items: center;
-      gap: 12px;
       padding: 10px 12px;
       border: 2px solid var(--ink);
-      border-radius: 18px;
+      border-radius: 12px;
       background: #fff;
       box-shadow: var(--shadow);
       user-select: none;
-      touch-action: none;
+      touch-action: manipulation;
+      max-width: calc(100vw - 16px);
+      max-height: calc(100dvh - 16px);
     }
 
     .param-popover[hidden] {
@@ -784,40 +794,41 @@
     .param-popover::before {
       content: "";
       position: absolute;
-      left: 50%;
-      top: -10px;
-      width: 18px;
-      height: 18px;
-      border-left: 2px solid var(--ink);
-      border-top: 2px solid var(--ink);
-      background: #fff;
-      transform: translateX(-50%) rotate(45deg);
+      left: var(--param-arrow-left);
+      top: -12px;
+      width: 0;
+      height: 0;
+      border-left: 11px solid transparent;
+      border-right: 11px solid transparent;
+      border-bottom: 12px solid var(--ink);
+      transform: translateX(-50%);
     }
 
-    .param-editor-icon {
-      width: 36px;
-      height: 36px;
-      display: grid;
-      place-items: center;
-      border-radius: 10px;
-      background: var(--loop);
+    .param-popover::after {
+      content: "";
+      position: absolute;
+      left: var(--param-arrow-left);
+      top: -9px;
+      width: 0;
+      height: 0;
+      border-left: 8px solid transparent;
+      border-right: 8px solid transparent;
+      border-bottom: 9px solid #fff;
+      transform: translateX(-50%);
     }
 
-    .param-editor-icon svg {
-      width: 24px;
-      height: 24px;
-      fill: none;
-      stroke: #fff;
-      stroke-width: 4;
-      stroke-linecap: round;
-      stroke-linejoin: round;
+    .param-popover.is-above-anchor::before {
+      top: auto;
+      bottom: -12px;
+      border-top: 12px solid var(--ink);
+      border-bottom: 0;
     }
 
-    .param-editor-icon .matrix-preview {
-      width: 28px;
-      height: 28px;
-      gap: 1.5px;
-      padding: 3px;
+    .param-popover.is-above-anchor::after {
+      top: auto;
+      bottom: -9px;
+      border-top: 9px solid #fff;
+      border-bottom: 0;
     }
 
     .param-stepper {
@@ -847,15 +858,36 @@
     }
 
     .param-current {
-      min-width: 64px;
-      display: grid;
-      place-items: center;
-      padding: 6px 10px;
+      min-width: 78px;
+      height: 38px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 4px 8px;
       border: 1.5px solid rgba(17, 24, 32, .24);
       border-radius: 999px;
       background: #f7f7f7;
       font-size: 20px;
       font-weight: 800;
+    }
+
+    .param-current:focus-within {
+      border-color: var(--blue-line);
+      box-shadow: 0 0 0 3px rgba(45, 109, 255, .16);
+    }
+
+    .param-value-input {
+      width: 46px;
+      min-width: 0;
+      padding: 0;
+      border: 0;
+      outline: 0;
+      background: transparent;
+      color: var(--ink);
+      font: inherit;
+      line-height: 1;
+      text-align: center;
+      user-select: text;
     }
 
     .param-editor-panel {
@@ -892,26 +924,26 @@
 
     .matrix-editor-panel {
       display: grid;
-      gap: 10px;
-      padding: 12px;
+      gap: 7px;
+      padding: 8px;
       border: 2px solid var(--ink);
-      border-radius: 14px;
+      border-radius: 10px;
       background: var(--matrix);
       box-shadow: inset 0 -3px 0 rgba(17, 24, 32, .14);
     }
 
     .matrix-editor-grid {
       display: grid;
-      grid-template-columns: repeat(5, 28px);
-      grid-template-rows: repeat(5, 28px);
-      gap: 6px;
+      grid-template-columns: repeat(5, 24px);
+      grid-template-rows: repeat(5, 24px);
+      gap: 4px;
     }
 
     .matrix-cell {
-      width: 28px;
-      height: 28px;
+      width: 24px;
+      height: 24px;
       border: 0;
-      border-radius: 6px;
+      border-radius: 5px;
       background: #5d2bc4;
       box-shadow: inset 0 -2px 0 rgba(17, 24, 32, .12);
       cursor: pointer;
@@ -941,7 +973,7 @@
     }
 
     .param-unit {
-      margin-left: 3px;
+      margin-left: 2px;
       font-size: 13px;
       font-weight: 700;
       color: var(--muted);
@@ -1137,6 +1169,23 @@
       .palette .block {
         width: 68px;
         height: 62px;
+      }
+
+      .matrix-editor-panel {
+        gap: 5px;
+        padding: 6px;
+      }
+
+      .matrix-editor-grid {
+        grid-template-columns: repeat(5, 20px);
+        grid-template-rows: repeat(5, 20px);
+        gap: 3px;
+      }
+
+      .matrix-cell {
+        width: 20px;
+        height: 20px;
+        border-radius: 4px;
       }
     }
 

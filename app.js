@@ -280,19 +280,28 @@
           const isProgramControl = mode === "program";
           const bubble = document.createElement(isProgramControl ? "button" : "span");
           bubble.className = "param-bubble";
+          bubble.classList.toggle("matrix-param-trigger", card.id === "matrix-display");
           bubble.textContent = getParamBubbleText(card, item);
 
           if (isProgramControl) {
             bubble.type = "button";
             bubble.setAttribute("aria-label", `编辑${card.actionName || card.label}参数`);
+            let lastTouchOpenTime = 0;
             bubble.addEventListener("pointerdown", event => {
-              event.preventDefault();
               event.stopPropagation();
+            });
+            bubble.addEventListener("pointerup", event => {
+              event.stopPropagation();
+              if (event.pointerType === "mouse") return;
+              event.preventDefault();
+              lastTouchOpenTime = performance.now();
+              openParamEditor(nodePath, bubble);
             });
             bubble.addEventListener("click", event => {
               event.preventDefault();
               event.stopPropagation();
-              openParamEditor(nodePath, block);
+              if (performance.now() - lastTouchOpenTime < 700) return;
+              openParamEditor(nodePath, bubble);
             });
           } else {
             bubble.setAttribute("aria-hidden", "true");
@@ -548,7 +557,7 @@
       }
 
       if (card.id === "matrix-display") {
-        return "⌄";
+        return "";
       }
 
       return "";
@@ -604,9 +613,7 @@
 
       paramEditor.replaceChildren();
       paramEditor.hidden = false;
-
-      const icon = createParamEditorIcon(card, item);
-      paramEditor.appendChild(icon);
+      paramEditor.classList.toggle("is-matrix", card.id === "matrix-display");
 
       if (card.id === "wait") {
         paramEditor.appendChild(createNumberStepper(card, item, "seconds", "减少等待时间", "增加等待时间"));
@@ -620,14 +627,6 @@
       }
 
       positionParamEditor(anchor || findProgramBlockByPath(activeParamEditor.nodePath));
-    }
-
-    function createParamEditorIcon(card, item = null) {
-      const icon = document.createElement("span");
-      icon.className = "param-editor-icon";
-      icon.style.background = getCardColor(card);
-      icon.appendChild(createCardIcon(card, item).firstElementChild.cloneNode(true));
-      return icon;
     }
 
     function createUltrasonicParamEditor(card, item) {
@@ -705,9 +704,21 @@
       minus.disabled = value <= definition.min;
       minus.addEventListener("click", () => adjustActiveNumberParam(key, -1));
 
-      const current = document.createElement("div");
+      const current = document.createElement("label");
       current.className = "param-current";
-      current.innerHTML = `${formatParamNumber(value)}<span class="param-unit">${definition.unit || ""}</span>`;
+      const input = document.createElement("input");
+      input.className = "param-value-input";
+      input.type = "text";
+      input.inputMode = definition.integer ? "numeric" : "decimal";
+      input.value = formatParamNumber(value);
+      input.setAttribute("aria-label", definition.label || "参数值");
+      input.autocomplete = "off";
+      input.spellcheck = false;
+
+      const unit = document.createElement("span");
+      unit.className = "param-unit";
+      unit.textContent = definition.unit || "";
+      current.append(input, unit);
 
       const plus = document.createElement("button");
       plus.className = "param-step-btn";
@@ -716,6 +727,32 @@
       plus.setAttribute("aria-label", increaseLabel);
       plus.disabled = value >= definition.max;
       plus.addEventListener("click", () => adjustActiveNumberParam(key, 1));
+
+      const commitInput = () => {
+        if (!activeParamEditor) return;
+        const rawValue = input.value.trim();
+        const nextValue = normalizeParamValue(
+          definition,
+          rawValue === "" ? definition.default : rawValue.replace(",", ".")
+        );
+        const currentValue = getParamValue(card, getNodeAtPath(activeParamEditor.nodePath), key);
+        input.value = formatParamNumber(nextValue);
+        minus.disabled = nextValue <= definition.min;
+        plus.disabled = nextValue >= definition.max;
+        if (nextValue === currentValue) return;
+        setActiveParamValue(key, nextValue, false);
+      };
+
+      input.addEventListener("blur", commitInput);
+      input.addEventListener("keydown", event => {
+        if (event.key === "Enter") {
+          event.preventDefault();
+          input.blur();
+        } else if (event.key === "Escape") {
+          input.value = formatParamNumber(getParamValue(card, getNodeAtPath(activeParamEditor.nodePath), key));
+          input.blur();
+        }
+      });
 
       stepper.append(minus, current, plus);
       return stepper;
@@ -732,7 +769,7 @@
       setActiveParamValue(key, current + direction * (definition.step || 1));
     }
 
-    function setActiveParamValue(key, value) {
+    function setActiveParamValue(key, value, rerenderEditor = true) {
       if (!activeParamEditor) return;
       const item = getNodeAtPath(activeParamEditor.nodePath);
       const card = cardById[item?.id];
@@ -746,9 +783,14 @@
       };
 
       const block = refreshProgramBlock(activeParamEditor.nodePath);
-      renderParamEditor(block);
+      if (rerenderEditor) {
+        renderParamEditor(block);
+      } else {
+        positionParamEditor(block);
+      }
       commitHistory();
       setStatus(`${getCardDisplayLabel(card, item)}`);
+      return next;
     }
 
     function refreshProgramBlock(nodePath) {
@@ -770,18 +812,42 @@
     function positionParamEditor(anchor) {
       if (!anchor || paramEditor.hidden) return;
 
-      const anchorRect = anchor.getBoundingClientRect();
+      const block = anchor.closest?.(".program-block") || anchor;
+      const control = anchor.matches?.(".param-bubble")
+        ? anchor
+        : block.querySelector?.(".param-bubble") || anchor;
+      const anchorRect = control.getBoundingClientRect();
       const editorRect = paramEditor.getBoundingClientRect();
+      const viewport = window.visualViewport;
+      const viewportLeft = viewport?.offsetLeft || 0;
+      const viewportTop = viewport?.offsetTop || 0;
+      const viewportWidth = viewport?.width || window.innerWidth;
+      const viewportHeight = viewport?.height || window.innerHeight;
+      const viewportRight = viewportLeft + viewportWidth;
+      const viewportBottom = viewportTop + viewportHeight;
       const gap = 14;
       const margin = 8;
       let left = anchorRect.left + anchorRect.width / 2 - editorRect.width / 2;
-      let top = anchorRect.bottom + gap;
+      const belowTop = anchorRect.bottom + gap;
+      const aboveTop = anchorRect.top - editorRect.height - gap;
+      const fitsBelow = belowTop + editorRect.height <= viewportBottom - margin;
+      const fitsAbove = aboveTop >= viewportTop + margin;
+      const placeAbove = !fitsBelow && (fitsAbove || anchorRect.top - viewportTop > viewportBottom - anchorRect.bottom);
+      let top = placeAbove ? aboveTop : belowTop;
 
-      left = Math.max(margin, Math.min(left, window.innerWidth - editorRect.width - margin));
-      if (top + editorRect.height > window.innerHeight - margin) {
-        top = anchorRect.top - editorRect.height - gap;
-      }
-      top = Math.max(margin, top);
+      left = Math.max(viewportLeft + margin, Math.min(
+        left,
+        viewportRight - editorRect.width - margin
+      ));
+      const maxTop = Math.max(viewportTop + margin, viewportBottom - editorRect.height - margin);
+      top = Math.max(viewportTop + margin, Math.min(top, maxTop));
+
+      paramEditor.classList.toggle("is-above-anchor", placeAbove);
+      const arrowLeft = Math.max(16, Math.min(
+        anchorRect.left + anchorRect.width / 2 - left,
+        editorRect.width - 16
+      ));
+      paramEditor.style.setProperty("--param-arrow-left", `${Math.round(arrowLeft)}px`);
 
       paramEditor.style.left = `${Math.round(left)}px`;
       paramEditor.style.top = `${Math.round(top)}px`;
@@ -790,6 +856,8 @@
     function closeParamEditor() {
       activeParamEditor = null;
       paramEditor.hidden = true;
+      paramEditor.classList.remove("is-matrix", "is-above-anchor");
+      paramEditor.style.removeProperty("--param-arrow-left");
       paramEditor.replaceChildren();
     }
 
