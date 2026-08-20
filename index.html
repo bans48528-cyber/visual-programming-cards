@@ -26,7 +26,6 @@
     <main class="workspace">
       <section class="program-area" aria-label="程序区">
         <button class="grab-tool" id="grabTool" type="button" aria-label="同时抓取多张卡片">✋</button>
-        <button class="eraser-tool" id="eraserTool" type="button" aria-label="橡皮擦批量删除">⌫</button>
         <div class="program-canvas">
           <div class="chain sequence-zone" id="chain" data-sequence-path="">
             <div class="block start" id="startBlock" role="listitem" aria-label="程序开始">开始</div>
@@ -41,20 +40,15 @@
           <button class="tab" id="tab-look" role="tab" type="button" aria-selected="false" style="--tab-color: var(--look)">选项卡B</button>
           <button class="tab" id="tab-sound" role="tab" type="button" aria-selected="false" style="--tab-color: var(--sound)">选项卡C</button>
           <button class="tab" id="tab-control" role="tab" type="button" aria-selected="false" style="--tab-color: var(--control)">选项卡D</button>
+          <button class="tab" id="tab-staging" role="tab" type="button" aria-selected="false" style="--tab-color: var(--staging)">暂存</button>
         </div>
         <div class="palette" id="palette" aria-live="polite"></div>
+        <div class="staging-scroll-strip" id="stagingScrollStrip" aria-hidden="true"></div>
         <div class="delete-overlay" id="deleteOverlay" aria-hidden="true">在此松手进行删除</div>
       </section>
     </main>
   </div>
   <div class="rotate-note">请将手机横屏使用</div>
-  <div class="erase-confirm" id="eraseConfirm" hidden role="dialog" aria-modal="false" aria-labelledby="eraseConfirmText">
-    <p class="erase-confirm-text" id="eraseConfirmText">是否删除标记卡片？</p>
-    <div class="erase-confirm-actions">
-      <button class="btn" id="eraseCancelBtn" type="button">取消</button>
-      <button class="btn danger" id="eraseOkBtn" type="button">确定</button>
-    </div>
-  </div>
   <div class="param-popover" id="paramEditor" hidden aria-live="polite"></div>
 
   <script src="app.js"></script>

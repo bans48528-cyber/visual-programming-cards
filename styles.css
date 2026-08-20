@@ -14,6 +14,7 @@
       --loop: #f4a000;
       --matrix: #8f5af7;
       --start: #c9c9c9;
+      --staging: #cfe0ff;
       --danger: #c83535;
       --blue-line: #2d6dff;
       --shadow: 0 12px 28px rgba(17, 24, 32, .2);
@@ -57,6 +58,9 @@
       display: grid;
       grid-template-rows: 50px 1fr;
       background: var(--paper);
+      -webkit-touch-callout: none;
+      -webkit-user-select: none;
+      user-select: none;
     }
 
     .topbar {
@@ -168,7 +172,6 @@
       overscroll-behavior: contain;
     }
 
-    .eraser-tool,
     .grab-tool {
       position: absolute;
       top: 14px;
@@ -180,7 +183,6 @@
       border: 2px solid var(--ink);
       border-radius: 15px;
       background: #fff;
-      color: var(--danger);
       box-shadow: 0 3px 0 rgba(17, 24, 32, .2);
       font-size: 24px;
       font-weight: 800;
@@ -190,17 +192,11 @@
       touch-action: none;
     }
 
-    .eraser-tool {
-      right: 14px;
-      color: var(--danger);
-    }
-
     .grab-tool {
-      right: 72px;
+      right: 14px;
       color: var(--blue-line);
     }
 
-    .eraser-tool.is-dragging,
     .grab-tool.is-dragging {
       cursor: grabbing;
       box-shadow: 0 12px 26px rgba(17, 24, 32, .24);
@@ -321,6 +317,7 @@
       position: absolute;
       left: 50%;
       bottom: -21px;
+      transform: translateX(-50%);
       min-width: 44px;
       height: 32px;
       display: grid;
@@ -367,24 +364,11 @@
       z-index: 2;
     }
 
-    .program-block.erase-marked {
-      outline: 4px solid rgba(200, 53, 53, .88);
-      outline-offset: 5px;
-      border-radius: 14px;
-      z-index: 3;
-    }
-
     .program-block.grab-marked {
       outline: 4px solid rgba(45, 109, 255, .9);
       outline-offset: 5px;
       border-radius: 14px;
       z-index: 3;
-    }
-
-    .loop-block.erase-marked .loop-top,
-    .loop-block.erase-marked .loop-left,
-    .loop-block.erase-marked .loop-tail {
-      filter: saturate(1.2) brightness(.96);
     }
 
     .loop-block.grab-marked .loop-top,
@@ -587,6 +571,11 @@
       z-index: 2;
     }
 
+    .tab.is-drop-hover {
+      box-shadow: 0 0 0 4px rgba(45, 109, 255, .34);
+      z-index: 4;
+    }
+
     .palette {
       display: flex;
       align-items: center;
@@ -602,6 +591,71 @@
       width: 74px;
       height: 70px;
       cursor: pointer;
+    }
+
+    .palette.is-staging {
+      justify-content: flex-start;
+      gap: 18px;
+      padding-bottom: 30px;
+    }
+
+    .staged-group {
+      flex: 0 0 auto;
+      padding: 7px 9px 13px;
+      border: 3px solid var(--blue-line);
+      border-radius: 8px;
+      background: rgba(255, 255, 255, .72);
+      cursor: grab;
+      touch-action: none;
+    }
+
+    .staged-group:active {
+      cursor: grabbing;
+    }
+
+    .staged-group-drag-preview {
+      width: max-content;
+      height: max-content;
+    }
+
+    .staged-group-preview {
+      display: flex;
+      align-items: flex-end;
+      zoom: .6;
+    }
+
+    .staged-group-preview > .program-block {
+      pointer-events: none;
+    }
+
+    .staged-group .param-bubble {
+      pointer-events: none;
+    }
+
+    .staged-group-preview > .program-block + .program-block {
+      margin-left: -1px;
+    }
+
+    .staging-scroll-strip {
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      z-index: 2;
+      display: none;
+      height: 26px;
+      border-top: 1px solid rgba(17, 24, 32, .12);
+      background: var(--library);
+      cursor: ew-resize;
+      touch-action: none;
+    }
+
+    .library-area.is-staging .staging-scroll-strip {
+      display: block;
+    }
+
+    .staging-scroll-strip.is-panning {
+      cursor: grabbing;
     }
 
     .delete-overlay {
@@ -628,41 +682,8 @@
       background: rgba(200, 53, 53, .48);
     }
 
-    .erase-confirm {
-      position: fixed;
-      left: 50%;
-      right: auto;
-      bottom: 18px;
-      z-index: 1150;
-      width: min(260px, calc(100vw - 36px));
-      padding: 14px;
-      border: 2px solid var(--ink);
-      border-radius: 16px;
-      background: #fff;
-      box-shadow: var(--shadow);
-      transform: translateX(-50%);
-    }
-
-    .erase-confirm[hidden] {
-      display: none;
-    }
-
-    .erase-confirm-text {
-      margin: 0 0 12px;
-      color: var(--ink);
-      font-size: 15px;
-      font-weight: 700;
-      line-height: 1.4;
-    }
-
-    .erase-confirm-actions {
-      display: flex;
-      justify-content: flex-end;
-      gap: 8px;
-    }
-
-    .erase-confirm-actions .btn {
-      min-width: 58px;
+    .delete-overlay.is-staging {
+      background: rgba(45, 109, 255, .3);
     }
 
     .param-popover {

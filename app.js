@@ -116,6 +116,7 @@
     const statusEl = document.getElementById("status");
     const programArea = document.querySelector(".program-area");
     const programCanvas = document.querySelector(".program-canvas");
+    const appElement = document.querySelector(".app");
     const topbar = document.querySelector(".topbar");
     const libraryArea = document.querySelector(".library-area");
     const tabs = document.querySelector(".tabs");
@@ -124,38 +125,91 @@
     const redoBtn = document.getElementById("redoBtn");
     const paramEditor = document.getElementById("paramEditor");
     const grabTool = document.getElementById("grabTool");
-    const eraserTool = document.getElementById("eraserTool");
-    const eraseConfirm = document.getElementById("eraseConfirm");
-    const eraseConfirmText = document.getElementById("eraseConfirmText");
-    const eraseOkBtn = document.getElementById("eraseOkBtn");
-    const eraseCancelBtn = document.getElementById("eraseCancelBtn");
+    const stagingTab = document.getElementById("tab-staging");
+    const stagingScrollStrip = document.getElementById("stagingScrollStrip");
 
     let activeCategory = "action";
     let program = [];
+    let stagedGroups = [];
     let dragState = null;
     let grabToolState = null;
     let grabMarkedPaths = new Set();
-    let eraserState = null;
-    let eraserMarkedPaths = new Set();
+    let stagingHoverTimer = null;
+    let stagingPanState = null;
+    let blankGrabPending = null;
     let programAnchorFrame = null;
     let activeParamEditor = null;
     let historySnapshots = [];
     let historyIndex = -1;
     const HISTORY_LIMIT = 80;
+    const STAGING_HOVER_DELAY = 1000;
+    const BLANK_GRAB_HOLD_DELAY = 500;
+    const BLANK_GRAB_MOVE_LIMIT = 10;
 
     function renderPalette() {
       palette.innerHTML = "";
+      palette.classList.toggle("is-staging", activeCategory === "staging");
+      libraryArea.classList.toggle("is-staging", activeCategory === "staging");
+      if (activeCategory === "staging") {
+        stagedGroups.forEach(group => palette.appendChild(createStagedGroupElement(group)));
+        return;
+      }
+
       categories[activeCategory].cards.forEach(card => {
         const block = createBlock(card, "palette");
         palette.appendChild(block);
       });
     }
 
+    function selectCategory(category) {
+      activeCategory = category;
+      document.querySelectorAll(".tab").forEach(tab => {
+        tab.setAttribute("aria-selected", String(tab.id === `tab-${category}`));
+      });
+      renderPalette();
+    }
+
+    function createStagedGroupElement(group) {
+      const element = document.createElement("div");
+      element.className = "staged-group";
+      element.dataset.mode = "staging";
+      element.dataset.stagedGroupId = group.id;
+      element.dataset.dragged = "false";
+      element.setAttribute("role", "button");
+      element.setAttribute("aria-label", `暂存组合，${countProgramItems(group.items)}张卡片`);
+      const preview = document.createElement("div");
+      preview.className = "staged-group-preview";
+      group.items.forEach(item => preview.appendChild(createStagedPreviewNode(item)));
+      element.appendChild(preview);
+      element.addEventListener("pointerdown", startDrag);
+      return element;
+    }
+
+    function createStagedPreviewNode(item) {
+      const preview = createProgramNode(item, []).cloneNode(true);
+      cleanupClonedProgramBlock(preview);
+      preview.setAttribute("aria-hidden", "true");
+      delete preview.dataset.mode;
+      delete preview.dataset.nodePath;
+      preview.querySelectorAll(".sequence-zone").forEach(zone => {
+        zone.classList.remove("sequence-zone", "drag-over");
+        delete zone.dataset.sequencePath;
+      });
+      return preview;
+    }
+
+    function createStagedGroupDragGhost(items) {
+      const ghost = document.createElement("div");
+      ghost.className = "staged-group staged-group-drag-preview";
+      const preview = document.createElement("div");
+      preview.className = "staged-group-preview";
+      items.forEach(item => preview.appendChild(createStagedPreviewNode(item)));
+      ghost.appendChild(preview);
+      return ghost;
+    }
+
     function renderProgram() {
       closeParamEditor();
-      hideEraseConfirm();
-      clearGrabSelection(false);
-      clearEraserMarks();
       clearGrabSelection(false);
       clearDropHints();
       chain.querySelectorAll(".program-block").forEach(el => el.remove());
@@ -737,8 +791,82 @@
 
     function setDeleteOverlayVisible(visible) {
       deleteOverlay.classList.toggle("is-visible", visible);
-      deleteOverlay.classList.remove("is-hot");
+      deleteOverlay.classList.remove("is-hot", "is-staging");
+      deleteOverlay.textContent = "在此松手进行删除";
       deleteOverlay.setAttribute("aria-hidden", String(!visible));
+    }
+
+    function setLibraryOverlayMode(mode) {
+      const isStaging = mode === "staging";
+      deleteOverlay.classList.toggle("is-staging", isStaging);
+      deleteOverlay.textContent = isStaging ? "暂存组合" : "在此松手进行删除";
+    }
+
+    function canStageCurrentDrag() {
+      if (!dragState?.fromProgram || !dragState.grabMovePaths?.length) return false;
+      const items = dragState.grabMovePaths.map(getNodeAtPath).filter(Boolean);
+      return items.length === dragState.grabMovePaths.length && countProgramItems(items) > 1;
+    }
+
+    function isPointOverLibraryArea(x, y) {
+      return [libraryArea, tabs].some(element => (
+        isPointInRect(x, y, element.getBoundingClientRect())
+      ));
+    }
+
+    function isPointInStagingZone(x, y) {
+      return canStageCurrentDrag()
+        && activeCategory === "staging"
+        && isPointOverLibraryArea(x, y);
+    }
+
+    function updateStagingAreaHover(x, y) {
+      const overLibrary = isPointOverLibraryArea(x, y);
+      if (!canStageCurrentDrag()) {
+        clearStagingAreaHover();
+        return;
+      }
+
+      if (dragState.autoSwitchedToStaging) {
+        if (!overLibrary) restoreCategoryAfterStagingExit();
+        clearStagingAreaHover();
+        return;
+      }
+
+      if (activeCategory === "staging" || !overLibrary) {
+        clearStagingAreaHover();
+        return;
+      }
+
+      stagingTab.classList.add("is-drop-hover");
+      if (stagingHoverTimer) return;
+      stagingHoverTimer = setTimeout(() => {
+        stagingHoverTimer = null;
+        if (!dragState || !canStageCurrentDrag()) return;
+        if (!isPointOverLibraryArea(dragState.lastX, dragState.lastY)) return;
+        stagingTab.classList.remove("is-drop-hover");
+        dragState.stagingReturnCategory = activeCategory;
+        dragState.autoSwitchedToStaging = true;
+        selectCategory("staging");
+        setLibraryOverlayMode("staging");
+      }, STAGING_HOVER_DELAY);
+    }
+
+    function restoreCategoryAfterStagingExit() {
+      if (!dragState?.autoSwitchedToStaging) return;
+      const returnCategory = dragState.stagingReturnCategory;
+      dragState.autoSwitchedToStaging = false;
+      dragState.stagingReturnCategory = null;
+      if (returnCategory && returnCategory !== "staging") selectCategory(returnCategory);
+      setLibraryOverlayMode("delete");
+    }
+
+    function clearStagingAreaHover() {
+      if (stagingHoverTimer) {
+        clearTimeout(stagingHoverTimer);
+        stagingHoverTimer = null;
+      }
+      stagingTab.classList.remove("is-drop-hover");
     }
 
     function startDrag(event) {
@@ -746,7 +874,7 @@
       event.preventDefault();
       event.stopPropagation();
 
-      if (dragState || grabToolState || eraserState || (event.pointerType === "touch" && event.isPrimary === false)) {
+      if (dragState || grabToolState || (event.pointerType === "touch" && event.isPrimary === false)) {
         return;
       }
 
@@ -758,9 +886,13 @@
       const rect = source.getBoundingClientRect();
       const cardId = source.dataset.cardId;
       const fromProgram = source.dataset.mode === "program";
+      const fromStaging = source.dataset.mode === "staging";
+      const stagedGroup = fromStaging
+        ? stagedGroups.find(group => group.id === source.dataset.stagedGroupId)
+        : null;
+      if (fromStaging && !stagedGroup) return;
       const sourcePath = fromProgram ? keyToPath(source.dataset.nodePath) : null;
       const grabMovePaths = getGrabMovePathsForSource(sourcePath);
-      const isGrabSelectionDrag = fromProgram && grabMovePaths.length > 0;
       const isGroupDrag = grabMovePaths.length > 1;
       const placeholderSources = fromProgram
         ? (isGroupDrag ? getBlocksByPaths(grabMovePaths) : [source])
@@ -768,8 +900,9 @@
       if (fromProgram && grabMarkedPaths.size) {
         clearGrabSelection(false);
       }
-      cancelEraseSelection(false);
-      const ghost = isGroupDrag ? createGrabGroupGhost(grabMovePaths) : source.cloneNode(true);
+      const ghost = fromStaging
+        ? createStagedGroupDragGhost(stagedGroup.items)
+        : (isGroupDrag ? createGrabGroupGhost(grabMovePaths) : source.cloneNode(true));
       const ghostRect = isGroupDrag ? getElementsUnionRect(placeholderSources) : rect;
 
       if (fromProgram) {
@@ -778,14 +911,19 @@
       }
 
       ghost.classList.add("ghost");
-      ghost.style.width = `${ghostRect.width}px`;
-      ghost.style.height = `${ghostRect.height}px`;
+      if (!fromStaging) {
+        ghost.style.width = `${ghostRect.width}px`;
+        ghost.style.height = `${ghostRect.height}px`;
+      }
       document.body.appendChild(ghost);
 
       dragState = {
         source,
         cardId,
         fromProgram,
+        fromStaging,
+        stagedGroupId: stagedGroup?.id || null,
+        stagedItems: stagedGroup?.items || null,
         sourcePath,
         grabMovePaths,
         placeholderSources,
@@ -793,6 +931,10 @@
         pointerId: event.pointerId,
         startX: event.clientX,
         startY: event.clientY,
+        lastX: event.clientX,
+        lastY: event.clientY,
+        autoSwitchedToStaging: false,
+        stagingReturnCategory: null,
         canvasScrollLeft: programCanvas.scrollLeft,
         canvasScrollTop: programCanvas.scrollTop,
         windowScrollX: window.scrollX,
@@ -816,12 +958,20 @@
 
       const distance = Math.hypot(event.clientX - dragState.startX, event.clientY - dragState.startY);
       if (distance > 8) dragState.source.dataset.dragged = "true";
+      dragState.lastX = event.clientX;
+      dragState.lastY = event.clientY;
       moveGhost(event.clientX, event.clientY);
 
-      const overDelete = dragState.fromProgram && isPointInDeleteZone(event.clientX, event.clientY);
+      updateStagingAreaHover(event.clientX, event.clientY);
+      const overStaging = isPointInStagingZone(event.clientX, event.clientY);
+      const overDelete = dragState.fromProgram && !overStaging
+        && isPointInDeleteZone(event.clientX, event.clientY);
+      setLibraryOverlayMode(!overDelete && canStageCurrentDrag() && activeCategory === "staging"
+        ? "staging"
+        : "delete");
       deleteOverlay.classList.toggle("is-hot", overDelete);
 
-      if (overDelete) {
+      if (overStaging || overDelete) {
         if (dragState.lastTarget) clearDropHints();
         dragState.lastTarget = null;
         return;
@@ -840,10 +990,27 @@
       event.preventDefault();
       restoreDragScroll();
 
+      if (dragState.autoSwitchedToStaging && !isPointOverLibraryArea(event.clientX, event.clientY)) {
+        restoreCategoryAfterStagingExit();
+      }
+
       const movedEnough = Math.hypot(event.clientX - dragState.startX, event.clientY - dragState.startY) > 8;
-      const inDeleteZone = dragState.fromProgram && isPointInDeleteZone(event.clientX, event.clientY);
-      const target = inDeleteZone ? null : findDropTarget(event.clientX, event.clientY);
-      const { cardId, fromProgram, source, sourcePath, grabMovePaths } = dragState;
+      const inStagingZone = isPointInStagingZone(event.clientX, event.clientY);
+      const inDeleteZone = dragState.fromProgram && !inStagingZone
+        && isPointInDeleteZone(event.clientX, event.clientY);
+      const target = (inStagingZone || inDeleteZone)
+        ? null
+        : findDropTarget(event.clientX, event.clientY);
+      const {
+        cardId,
+        fromProgram,
+        fromStaging,
+        stagedGroupId,
+        stagedItems,
+        source,
+        sourcePath,
+        grabMovePaths
+      } = dragState;
 
       cleanupDrag(event);
 
@@ -852,12 +1019,47 @@
         return;
       }
 
+      if (fromProgram && inStagingZone) {
+        const items = takeProgramNodes(grabMovePaths);
+        const itemCount = countProgramItems(items);
+        if (itemCount > 1) {
+          stagedGroups.push({
+            id: `staged-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+            items
+          });
+          renderProgram();
+          renderPalette();
+          commitHistory();
+          setStatus(`已暂存 ${itemCount} 张卡片`);
+        }
+        setTimeout(() => { source.dataset.dragged = "false"; }, 0);
+        return;
+      }
+
       if (fromProgram && inDeleteZone) {
-        const removed = removeNodeAtPath(sourcePath);
-        if (removed) {
+        const pathsToRemove = grabMovePaths?.length ? grabMovePaths : [sourcePath];
+        const removedItems = [...pathsToRemove]
+          .sort(comparePathsForRemoval)
+          .map(removeNodeAtPath)
+          .filter(Boolean);
+        if (removedItems.length) {
           renderProgram();
           commitHistory();
-          setStatus(`已删除：${getNodeLabel(removed)}`);
+          setStatus(removedItems.length > 1
+            ? `已删除 ${removedItems.length} 张卡片`
+            : `已删除：${getNodeLabel(removedItems[0])}`);
+        }
+        setTimeout(() => { source.dataset.dragged = "false"; }, 0);
+        return;
+      }
+
+      if (fromStaging) {
+        if (target && insertNodesAtPath(target.sequencePath, target.index, stagedItems)) {
+          stagedGroups = stagedGroups.filter(group => group.id !== stagedGroupId);
+          renderProgram();
+          renderPalette();
+          commitHistory();
+          setStatus(`已放回 ${countProgramItems(stagedItems)} 张卡片`);
         }
         setTimeout(() => { source.dataset.dragged = "false"; }, 0);
         return;
@@ -905,48 +1107,124 @@
       }
       dragState.ghost.remove();
       setDeleteOverlayVisible(false);
+      clearStagingAreaHover();
       clearDropHints();
       restoreDragScroll();
       setDragScrollLocked(false);
       dragState = null;
     }
 
-    function startGrabToolDrag(event) {
+    function isProgramBlankTarget(target) {
+      return target instanceof Element
+        && programArea.contains(target)
+        && !target.closest(".program-block, #startBlock, #grabTool, button");
+    }
+
+    function startBlankGrabHold(event) {
+      if (!isProgramBlankTarget(event.target)) return;
+      if (event.button > 0 || dragState || grabToolState || blankGrabPending) return;
+      if (event.pointerType === "touch" && event.isPrimary === false) return;
+
+      blankGrabPending = {
+        pointerId: event.pointerId,
+        pointerEvent: event,
+        startX: event.clientX,
+        startY: event.clientY,
+        lastX: event.clientX,
+        lastY: event.clientY,
+        moved: false,
+        timer: setTimeout(() => activateBlankGrab(event.pointerId), BLANK_GRAB_HOLD_DELAY)
+      };
+
+      document.addEventListener("pointermove", moveBlankGrabHold);
+      document.addEventListener("pointerup", endBlankGrabHold);
+      document.addEventListener("pointercancel", cancelBlankGrabHold);
+    }
+
+    function moveBlankGrabHold(event) {
+      if (!blankGrabPending || event.pointerId !== blankGrabPending.pointerId) return;
+      blankGrabPending.lastX = event.clientX;
+      blankGrabPending.lastY = event.clientY;
+      const distance = Math.hypot(
+        event.clientX - blankGrabPending.startX,
+        event.clientY - blankGrabPending.startY
+      );
+      if (distance <= BLANK_GRAB_MOVE_LIMIT) return;
+
+      blankGrabPending.moved = true;
+      cleanupBlankGrabHold();
+    }
+
+    function endBlankGrabHold(event) {
+      if (!blankGrabPending || event.pointerId !== blankGrabPending.pointerId) return;
+      const wasTap = !blankGrabPending.moved;
+      cleanupBlankGrabHold();
+      if (wasTap && grabMarkedPaths.size) clearGrabSelection();
+    }
+
+    function cancelBlankGrabHold(event) {
+      if (!blankGrabPending || event.pointerId !== blankGrabPending.pointerId) return;
+      cleanupBlankGrabHold();
+    }
+
+    function activateBlankGrab(pointerId) {
+      if (!blankGrabPending || blankGrabPending.pointerId !== pointerId) return;
+      const { pointerEvent, lastX, lastY } = blankGrabPending;
+      cleanupBlankGrabHold();
+      startGrabToolDrag(pointerEvent, true, { x: lastX, y: lastY });
+      if (grabToolState) setStatus("合并抓手已启动，拖过卡片进行合并");
+    }
+
+    function cleanupBlankGrabHold() {
+      if (!blankGrabPending) return;
+      clearTimeout(blankGrabPending.timer);
+      document.removeEventListener("pointermove", moveBlankGrabHold);
+      document.removeEventListener("pointerup", endBlankGrabHold);
+      document.removeEventListener("pointercancel", cancelBlankGrabHold);
+      blankGrabPending = null;
+    }
+
+    function startGrabToolDrag(event, startAtPointer = false, pointerPosition = null) {
       if (event.button > 0) return;
       event.preventDefault();
       event.stopPropagation();
 
-      if (dragState || grabToolState || eraserState || (event.pointerType === "touch" && event.isPrimary === false)) {
+      if (dragState || grabToolState || (event.pointerType === "touch" && event.isPrimary === false)) {
         return;
       }
 
       closeParamEditor();
-      cancelEraseSelection(false);
 
       const rect = grabTool.getBoundingClientRect();
+      const pointerSource = startAtPointer ? programArea : grabTool;
+      const pointerX = pointerPosition?.x ?? event.clientX;
+      const pointerY = pointerPosition?.y ?? event.clientY;
+      const left = startAtPointer ? pointerX - rect.width / 2 : rect.left;
+      const top = startAtPointer ? pointerY - rect.height / 2 : rect.top;
       grabToolState = {
         pointerId: event.pointerId,
-        startX: event.clientX,
-        startY: event.clientY,
-        offsetX: event.clientX - rect.left,
-        offsetY: event.clientY - rect.top,
+        startX: pointerX,
+        startY: pointerY,
+        offsetX: pointerX - left,
+        offsetY: pointerY - top,
+        pointerSource,
         moved: false,
         touchedPathKeys: new Set()
       };
 
       grabTool.classList.add("is-dragging");
       grabTool.style.position = "fixed";
-      grabTool.style.left = `${rect.left}px`;
-      grabTool.style.top = `${rect.top}px`;
+      grabTool.style.left = `${left}px`;
+      grabTool.style.top = `${top}px`;
       grabTool.style.right = "auto";
       grabTool.style.width = `${rect.width}px`;
       grabTool.style.height = `${rect.height}px`;
 
       setDragScrollLocked(true);
-      grabTool.setPointerCapture?.(event.pointerId);
-      grabTool.addEventListener("pointermove", moveGrabToolDrag);
-      grabTool.addEventListener("pointerup", endGrabToolDrag);
-      grabTool.addEventListener("pointercancel", cancelGrabToolDrag);
+      pointerSource.setPointerCapture?.(event.pointerId);
+      pointerSource.addEventListener("pointermove", moveGrabToolDrag);
+      pointerSource.addEventListener("pointerup", endGrabToolDrag);
+      pointerSource.addEventListener("pointercancel", cancelGrabToolDrag);
       markCardsTouchedByGrabTool();
     }
 
@@ -978,11 +1256,12 @@
     function cleanupGrabToolDrag(event) {
       if (!grabToolState) return;
 
-      grabTool.removeEventListener("pointermove", moveGrabToolDrag);
-      grabTool.removeEventListener("pointerup", endGrabToolDrag);
-      grabTool.removeEventListener("pointercancel", cancelGrabToolDrag);
-      if (grabTool.hasPointerCapture?.(grabToolState.pointerId)) {
-        grabTool.releasePointerCapture(grabToolState.pointerId);
+      const { pointerSource } = grabToolState;
+      pointerSource.removeEventListener("pointermove", moveGrabToolDrag);
+      pointerSource.removeEventListener("pointerup", endGrabToolDrag);
+      pointerSource.removeEventListener("pointercancel", cancelGrabToolDrag);
+      if (pointerSource.hasPointerCapture?.(grabToolState.pointerId)) {
+        pointerSource.releasePointerCapture(grabToolState.pointerId);
       }
 
       grabTool.classList.remove("is-dragging");
@@ -994,6 +1273,41 @@
       grabTool.style.height = "";
       setDragScrollLocked(false);
       grabToolState = null;
+    }
+
+    function startStagingPan(event) {
+      if (event.button > 0 || activeCategory !== "staging" || dragState || grabToolState) return;
+      event.preventDefault();
+      event.stopPropagation();
+
+      stagingPanState = {
+        pointerId: event.pointerId,
+        startX: event.clientX,
+        scrollLeft: palette.scrollLeft
+      };
+      stagingScrollStrip.classList.add("is-panning");
+      stagingScrollStrip.setPointerCapture?.(event.pointerId);
+      stagingScrollStrip.addEventListener("pointermove", moveStagingPan);
+      stagingScrollStrip.addEventListener("pointerup", endStagingPan);
+      stagingScrollStrip.addEventListener("pointercancel", endStagingPan);
+    }
+
+    function moveStagingPan(event) {
+      if (!stagingPanState || event.pointerId !== stagingPanState.pointerId) return;
+      event.preventDefault();
+      palette.scrollLeft = stagingPanState.scrollLeft + stagingPanState.startX - event.clientX;
+    }
+
+    function endStagingPan(event) {
+      if (!stagingPanState || event.pointerId !== stagingPanState.pointerId) return;
+      stagingScrollStrip.removeEventListener("pointermove", moveStagingPan);
+      stagingScrollStrip.removeEventListener("pointerup", endStagingPan);
+      stagingScrollStrip.removeEventListener("pointercancel", endStagingPan);
+      if (stagingScrollStrip.hasPointerCapture?.(stagingPanState.pointerId)) {
+        stagingScrollStrip.releasePointerCapture(stagingPanState.pointerId);
+      }
+      stagingScrollStrip.classList.remove("is-panning");
+      stagingPanState = null;
     }
 
     function isActiveGrabToolPointer(event) {
@@ -1013,8 +1327,8 @@
       const touchedPathKeys = new Set();
       let changed = false;
 
-      getErasableBlocks().forEach(block => {
-        if (!isBlockTouchedByEraser(block, grabRect)) return;
+      getGrabbableBlocks().forEach(block => {
+        if (!isBlockTouchedByGrabTool(block, grabRect)) return;
 
         const pathKey = block.dataset.nodePath;
         if (!pathKey) return;
@@ -1028,6 +1342,23 @@
 
       grabToolState.touchedPathKeys = touchedPathKeys;
       if (changed) updateGrabMarkStatus();
+    }
+
+    function getGrabbableBlocks() {
+      return [...document.querySelectorAll(".program-block:not(.drop-projection)")];
+    }
+
+    function isBlockTouchedByGrabTool(block, grabRect) {
+      if (block.classList.contains("loop-block")) {
+        const loopFrameParts = [...block.children].filter(child => (
+          child.classList.contains("loop-top") ||
+          child.classList.contains("loop-left") ||
+          child.classList.contains("loop-tail")
+        ));
+        return loopFrameParts.some(part => rectsIntersect(grabRect, part.getBoundingClientRect()));
+      }
+
+      return rectsIntersect(grabRect, block.getBoundingClientRect());
     }
 
     function toggleGrabMark(block, pathKey) {
@@ -1050,14 +1381,15 @@
 
     function clearGrabSelectionOnOutsidePointerDown(event) {
       if (!grabMarkedPaths.size) return;
-      if (dragState || grabToolState || eraserState) return;
+      if (dragState || grabToolState) return;
       if (event.button > 0) return;
       if (event.pointerType === "touch" && event.isPrimary === false) return;
 
       const target = event.target instanceof Element ? event.target : null;
       if (!target) return;
       if (target.closest(".program-block.grab-marked")) return;
-      if (target.closest("#grabTool, #eraserTool, #paramEditor, #eraseConfirm")) return;
+      if (target.closest("#grabTool, #paramEditor")) return;
+      if (isProgramBlankTarget(target)) return;
 
       clearGrabSelection();
     }
@@ -1134,220 +1466,11 @@
     }
 
     function cleanupClonedProgramBlock(clone) {
-      clone.classList.remove("grab-marked", "erase-marked", "drag-source-placeholder", "ghost", "drop-projection");
-      clone.querySelectorAll(".grab-marked, .erase-marked, .drag-source-placeholder, .ghost, .drop-projection").forEach(item => {
-        item.classList.remove("grab-marked", "erase-marked", "drag-source-placeholder", "ghost", "drop-projection");
+      clone.classList.remove("grab-marked", "drag-source-placeholder", "ghost", "drop-projection");
+      clone.querySelectorAll(".grab-marked, .drag-source-placeholder, .ghost, .drop-projection").forEach(item => {
+        item.classList.remove("grab-marked", "drag-source-placeholder", "ghost", "drop-projection");
       });
       clone.querySelectorAll("[id]").forEach(item => item.removeAttribute("id"));
-    }
-
-    function startEraserDrag(event) {
-      if (event.button > 0) return;
-      event.preventDefault();
-      event.stopPropagation();
-
-      if (dragState || eraserState || (event.pointerType === "touch" && event.isPrimary === false)) {
-        return;
-      }
-
-      closeParamEditor();
-      hideEraseConfirm();
-      clearEraserMarks();
-
-      const rect = eraserTool.getBoundingClientRect();
-      eraserState = {
-        pointerId: event.pointerId,
-        startX: event.clientX,
-        startY: event.clientY,
-        offsetX: event.clientX - rect.left,
-        offsetY: event.clientY - rect.top,
-        moved: false,
-        touchedPathKeys: new Set()
-      };
-
-      eraserTool.classList.add("is-dragging");
-      eraserTool.style.position = "fixed";
-      eraserTool.style.left = `${rect.left}px`;
-      eraserTool.style.top = `${rect.top}px`;
-      eraserTool.style.right = "auto";
-      eraserTool.style.width = `${rect.width}px`;
-      eraserTool.style.height = `${rect.height}px`;
-
-      setDragScrollLocked(true);
-      eraserTool.setPointerCapture?.(event.pointerId);
-      eraserTool.addEventListener("pointermove", moveEraserDrag);
-      eraserTool.addEventListener("pointerup", endEraserDrag);
-      eraserTool.addEventListener("pointercancel", cancelEraserDrag);
-      markCardsTouchedByEraser();
-    }
-
-    function moveEraserDrag(event) {
-      if (!isActiveEraserPointer(event)) return;
-      event.preventDefault();
-
-      const distance = Math.hypot(event.clientX - eraserState.startX, event.clientY - eraserState.startY);
-      if (distance > 6) eraserState.moved = true;
-
-      moveEraser(event.clientX, event.clientY);
-      markCardsTouchedByEraser();
-    }
-
-    function endEraserDrag(event) {
-      if (!isActiveEraserPointer(event)) return;
-      event.preventDefault();
-
-      const moved = eraserState.moved;
-      cleanupEraserDrag(event);
-
-      const markedPaths = getEffectiveMarkedPaths();
-      if (moved && markedPaths.length) {
-        showEraseConfirm(markedPaths.length);
-      } else {
-        clearEraserMarks();
-        setStatus("未标记卡片");
-      }
-    }
-
-    function cancelEraserDrag(event) {
-      if (eraserState && event && !isActiveEraserPointer(event)) return;
-      cleanupEraserDrag(event);
-      cancelEraseSelection();
-    }
-
-    function cleanupEraserDrag(event) {
-      if (!eraserState) return;
-
-      eraserTool.removeEventListener("pointermove", moveEraserDrag);
-      eraserTool.removeEventListener("pointerup", endEraserDrag);
-      eraserTool.removeEventListener("pointercancel", cancelEraserDrag);
-      if (eraserTool.hasPointerCapture?.(eraserState.pointerId)) {
-        eraserTool.releasePointerCapture(eraserState.pointerId);
-      }
-
-      eraserTool.classList.remove("is-dragging");
-      eraserTool.style.position = "";
-      eraserTool.style.left = "";
-      eraserTool.style.top = "";
-      eraserTool.style.right = "";
-      eraserTool.style.width = "";
-      eraserTool.style.height = "";
-      setDragScrollLocked(false);
-      eraserState = null;
-    }
-
-    function isActiveEraserPointer(event) {
-      return eraserState && (!event || event.pointerId === eraserState.pointerId);
-    }
-
-    function moveEraser(x, y) {
-      if (!eraserState) return;
-      eraserTool.style.left = `${x - eraserState.offsetX}px`;
-      eraserTool.style.top = `${y - eraserState.offsetY}px`;
-    }
-
-    function markCardsTouchedByEraser() {
-      if (!eraserState) return;
-
-      const eraserRect = eraserTool.getBoundingClientRect();
-      const touchedPathKeys = new Set();
-      let changed = false;
-
-      getErasableBlocks().forEach(block => {
-        if (!isBlockTouchedByEraser(block, eraserRect)) return;
-
-        const pathKey = block.dataset.nodePath;
-        if (!pathKey) return;
-
-        touchedPathKeys.add(pathKey);
-        if (eraserState.touchedPathKeys.has(pathKey)) return;
-
-        toggleEraserMark(block, pathKey);
-        changed = true;
-      });
-
-      eraserState.touchedPathKeys = touchedPathKeys;
-      if (changed) updateEraserMarkStatus();
-    }
-
-    function toggleEraserMark(block, pathKey) {
-      if (eraserMarkedPaths.has(pathKey)) {
-        eraserMarkedPaths.delete(pathKey);
-        block.classList.remove("erase-marked");
-      } else {
-        eraserMarkedPaths.add(pathKey);
-        block.classList.add("erase-marked");
-      }
-    }
-
-    function updateEraserMarkStatus() {
-      const count = getEffectiveMarkedPaths().length;
-      setStatus(count ? `已标记 ${count} 张卡片` : "没有标记卡片");
-    }
-
-    function getErasableBlocks() {
-      return [...document.querySelectorAll(".program-block:not(.drop-projection)")];
-    }
-
-    function isBlockTouchedByEraser(block, eraserRect) {
-      if (block.classList.contains("loop-block")) {
-        const loopFrameParts = [...block.children].filter(child => (
-          child.classList.contains("loop-top") ||
-          child.classList.contains("loop-left") ||
-          child.classList.contains("loop-tail")
-        ));
-        return loopFrameParts.some(part => rectsIntersect(eraserRect, part.getBoundingClientRect()));
-      }
-
-      return rectsIntersect(eraserRect, block.getBoundingClientRect());
-    }
-
-    function showEraseConfirm(count) {
-      eraseConfirmText.textContent = `是否删除已标记的 ${count} 张卡片？`;
-      eraseConfirm.hidden = false;
-    }
-
-    function hideEraseConfirm() {
-      eraseConfirm.hidden = true;
-    }
-
-    function cancelEraseSelection(updateStatus = true) {
-      hideEraseConfirm();
-      clearEraserMarks();
-      if (updateStatus) setStatus("已取消删除");
-    }
-
-    function clearEraserMarks() {
-      document.querySelectorAll(".program-block.erase-marked").forEach(block => {
-        block.classList.remove("erase-marked");
-      });
-      eraserMarkedPaths.clear();
-    }
-
-    function deleteMarkedCards() {
-      const markedPaths = getEffectiveMarkedPaths();
-      if (!markedPaths.length) {
-        cancelEraseSelection(false);
-        return;
-      }
-
-      const sortedPaths = markedPaths.sort(comparePathsForRemoval);
-      let removedCount = 0;
-      sortedPaths.forEach(path => {
-        if (removeNodeAtPath(path)) removedCount += 1;
-      });
-
-      hideEraseConfirm();
-      clearEraserMarks();
-      renderProgram();
-      commitHistory();
-      setStatus(`已删除 ${removedCount} 张标记卡片`);
-    }
-
-    function getEffectiveMarkedPaths() {
-      const paths = [...eraserMarkedPaths].map(keyToPath).filter(path => path.length);
-      return paths.filter(path => (
-        !paths.some(otherPath => otherPath !== path && startsWithPath(path, otherPath))
-      ));
     }
 
     function comparePathsForRemoval(a, b) {
@@ -1378,7 +1501,7 @@
     }
 
     function preventDragTouchScroll(event) {
-      if (dragState || grabToolState || eraserState) event.preventDefault();
+      if (dragState || grabToolState) event.preventDefault();
     }
 
     function restoreDragScroll() {
@@ -1430,10 +1553,12 @@
     }
 
     function createDropProjection() {
-      const projection = dragState.grabMovePaths?.length > 1
-        ? createGrabGroupProjection(dragState.grabMovePaths)
-        : createProjectionSourceElement().cloneNode(true);
-      projection.classList.remove("ghost", "drag-source-placeholder", "grab-marked", "erase-marked");
+      const projection = dragState.fromStaging
+        ? createStagedItemsProjection(dragState.stagedItems)
+        : (dragState.grabMovePaths?.length > 1
+          ? createGrabGroupProjection(dragState.grabMovePaths)
+          : createProjectionSourceElement().cloneNode(true));
+      projection.classList.remove("ghost", "drag-source-placeholder", "grab-marked");
       projection.classList.add("drop-projection");
       projection.removeAttribute("id");
       projection.setAttribute("aria-hidden", "true");
@@ -1447,8 +1572,8 @@
       projection.querySelectorAll(".ghost, .drag-source-placeholder").forEach(item => {
         item.classList.remove("ghost", "drag-source-placeholder");
       });
-      projection.querySelectorAll(".grab-marked, .erase-marked").forEach(item => {
-        item.classList.remove("grab-marked", "erase-marked");
+      projection.querySelectorAll(".grab-marked").forEach(item => {
+        item.classList.remove("grab-marked");
       });
       projection.querySelectorAll(".sequence-zone").forEach(item => {
         item.classList.remove("sequence-zone", "drag-over");
@@ -1456,6 +1581,13 @@
       });
 
       return projection;
+    }
+
+    function createStagedItemsProjection(items) {
+      const group = document.createElement("div");
+      group.className = "grab-group-projection program-block";
+      items.forEach(item => group.appendChild(createStagedPreviewNode(item)));
+      return group;
     }
 
     function createProjectionSourceElement() {
@@ -1615,6 +1747,23 @@
       return true;
     }
 
+    function takeProgramNodes(sourcePaths) {
+      if (!sourcePaths?.length) return [];
+      const sortedPaths = [...sourcePaths].sort(comparePathsAscending);
+      const items = sortedPaths.map(getNodeAtPath).filter(Boolean);
+      if (items.length !== sortedPaths.length) return [];
+
+      [...sortedPaths].sort(comparePathsForRemoval).forEach(removeNodeAtPath);
+      return items;
+    }
+
+    function insertNodesAtPath(sequencePath, index, items) {
+      const sequence = getSequenceByPath(sequencePath);
+      if (!sequence || !items?.length) return false;
+      sequence.splice(clampIndex(index, sequence.length), 0, ...items);
+      return true;
+    }
+
     function insertNodeAtPath(sequencePath, index, item) {
       const sequence = getSequenceByPath(sequencePath);
       if (!sequence || !item) return false;
@@ -1711,14 +1860,41 @@
       });
     }
 
+    function serializeWorkspaceState() {
+      return {
+        program: serializeSequence(program),
+        stagedGroups: stagedGroups.map(group => ({
+          id: group.id,
+          items: serializeSequence(group.items)
+        }))
+      };
+    }
+
+    function applyWorkspaceState(rawState) {
+      if (Array.isArray(rawState)) {
+        program = normalizeSequence(rawState);
+        stagedGroups = [];
+        return;
+      }
+
+      program = normalizeSequence(rawState?.program);
+      stagedGroups = Array.isArray(rawState?.stagedGroups)
+        ? rawState.stagedGroups.map((group, index) => ({
+            id: group?.id || `staged-restored-${index}`,
+            items: normalizeSequence(group?.items)
+          })).filter(group => group.items.length)
+        : [];
+    }
+
     function getProgramSnapshot() {
-      return JSON.stringify(serializeSequence(program));
+      return JSON.stringify(serializeWorkspaceState());
     }
 
     function restoreProgramSnapshot(snapshot) {
       try {
-        program = normalizeSequence(JSON.parse(snapshot));
+        applyWorkspaceState(JSON.parse(snapshot));
         renderProgram();
+        renderPalette();
       } catch {
         setStatus("历史记录恢复失败");
       }
@@ -1764,7 +1940,7 @@
     }
 
     function saveProgram() {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(serializeSequence(program)));
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(serializeWorkspaceState()));
       setStatus("已保存");
     }
 
@@ -1776,8 +1952,9 @@
       }
 
       try {
-        program = normalizeSequence(JSON.parse(raw));
+        applyWorkspaceState(JSON.parse(raw));
         renderProgram();
+        renderPalette();
         commitHistory();
         setStatus("已读取");
       } catch {
@@ -1787,6 +1964,13 @@
 
     function getNodeLabel(item) {
       return cardById[item.id]?.label || "卡片";
+    }
+
+    function countProgramItems(items) {
+      if (!Array.isArray(items)) return 0;
+      return items.reduce((count, item) => (
+        count + 1 + countProgramItems(item?.children)
+      ), 0);
     }
 
     function pathToKey(path) {
@@ -1816,10 +2000,7 @@
 
     document.querySelectorAll(".tab").forEach(tab => {
       tab.addEventListener("click", () => {
-        activeCategory = tab.id.replace("tab-", "");
-        document.querySelectorAll(".tab").forEach(item => item.setAttribute("aria-selected", "false"));
-        tab.setAttribute("aria-selected", "true");
-        renderPalette();
+        selectCategory(tab.id.replace("tab-", ""));
       });
     });
 
@@ -1829,19 +2010,28 @@
     redoBtn.addEventListener("click", redoProgram);
     document.getElementById("clearBtn").addEventListener("click", () => {
       closeParamEditor();
-      cancelEraseSelection(false);
       program = [];
+      stagedGroups = [];
       renderProgram();
+      renderPalette();
       commitHistory();
       setStatus("已清空");
     });
 
     grabTool.addEventListener("pointerdown", startGrabToolDrag);
-    eraserTool.addEventListener("pointerdown", startEraserDrag);
-    eraseOkBtn.addEventListener("click", deleteMarkedCards);
-    eraseCancelBtn.addEventListener("click", () => cancelEraseSelection());
-    eraseConfirm.addEventListener("pointerdown", event => {
-      event.stopPropagation();
+    programArea.addEventListener("pointerdown", startBlankGrabHold);
+    programArea.addEventListener("contextmenu", event => {
+      event.preventDefault();
+    });
+    stagingScrollStrip.addEventListener("pointerdown", startStagingPan);
+
+    appElement.addEventListener("selectstart", event => {
+      if (event.target instanceof Element && event.target.closest("input, textarea, [contenteditable='true']")) return;
+      event.preventDefault();
+    });
+    appElement.addEventListener("contextmenu", event => {
+      if (event.target instanceof Element && event.target.closest("input, textarea, [contenteditable='true']")) return;
+      event.preventDefault();
     });
 
     paramEditor.addEventListener("pointerdown", event => {
