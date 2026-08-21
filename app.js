@@ -116,6 +116,7 @@
     const statusEl = document.getElementById("status");
     const programArea = document.querySelector(".program-area");
     const programCanvas = document.querySelector(".program-canvas");
+    programCanvas.style.overflowAnchor = "none";
     const appElement = document.querySelector(".app");
     const topbar = document.querySelector(".topbar");
     const libraryArea = document.querySelector(".library-area");
@@ -216,7 +217,7 @@
       chain.querySelectorAll(".program-block").forEach(el => el.remove());
       emptyNote.style.display = program.length ? "none" : "grid";
       renderSequence(program, chain, [], emptyNote);
-      scheduleProgramAnchorUpdate();
+      updateProgramAnchor();
     }
 
     function renderSequence(sequence, container, sequencePath, beforeElement = null) {
@@ -1052,9 +1053,10 @@
 
       const target = findDropTarget(event.clientX, event.clientY);
       if (isSameDropTarget(dragState.lastTarget, target)) return;
-      clearDropHints();
+      const preservedStartTop = target ? startBlock.getBoundingClientRect().top : null;
+      clearDropHints({ updateAnchor: !target });
       dragState.lastTarget = target;
-      if (target) showDropMarker(target);
+      if (target) showDropMarker(target, preservedStartTop);
     }
 
     function endDrag(event) {
@@ -1738,7 +1740,7 @@
       };
     }
 
-    function showDropMarker(target) {
+    function showDropMarker(target, preserveStartTop = startBlock.getBoundingClientRect().top) {
       target.zone.classList.add("drag-over");
 
       const marker = createDropProjection();
@@ -1746,6 +1748,7 @@
       const blocks = getDirectProgramBlocks(target.zone);
       const before = blocks[target.index] || getDirectEmptyNote(target.zone);
       target.zone.insertBefore(marker, before || null);
+      updateProgramAnchor({ allowDuringDrag: true, includeDropProjection: true, preserveStartTop });
     }
 
     function createDropProjection() {
@@ -1799,15 +1802,22 @@
       return a.zone === b.zone && a.index === b.index && pathsEqual(a.sequencePath, b.sequencePath);
     }
 
-    function clearDropHints() {
+    function clearDropHints({ updateAnchor = true } = {}) {
       document.querySelectorAll(".sequence-zone.drag-over").forEach(zone => {
         zone.classList.remove("drag-over");
       });
-      removeMarker();
+      removeMarker({ updateAnchor });
     }
 
-    function removeMarker() {
-      document.querySelectorAll(".drop-projection").forEach(el => el.remove());
+    function removeMarker({ updateAnchor = true } = {}) {
+      const markers = document.querySelectorAll(".drop-projection");
+      const preserveStartTop = updateAnchor && markers.length
+        ? startBlock.getBoundingClientRect().top
+        : null;
+      markers.forEach(el => el.remove());
+      if (markers.length && updateAnchor) {
+        updateProgramAnchor({ allowDuringDrag: true, preserveStartTop });
+      }
     }
 
     function moveGhost(x, y) {
@@ -1847,14 +1857,17 @@
       });
     }
 
-    function updateProgramAnchor() {
-      if (dragState) return;
+    function updateProgramAnchor({ allowDuringDrag = false, includeDropProjection = false, preserveStartTop = null } = {}) {
+      if (dragState && !allowDuringDrag) return;
       const programHeight = programArea.clientHeight;
       if (!programHeight) return;
 
+      const preserveStartPosition = Number.isFinite(preserveStartTop);
+      const startTopBefore = preserveStartPosition ? preserveStartTop : 0;
+      const scrollTopBefore = programCanvas.scrollTop;
       const startHeight = startBlock.offsetHeight || 72;
       const layoutItems = [...chain.children].filter(child => (
-        !child.classList.contains("drop-projection") &&
+        (includeDropProjection || !child.classList.contains("drop-projection")) &&
         getComputedStyle(child).display !== "none"
       ));
       const maxItemHeight = Math.max(
@@ -1869,6 +1882,18 @@
 
       chain.style.setProperty("--chain-pad-top", `${Math.round(topSpace)}px`);
       chain.style.setProperty("--chain-pad-bottom", `${Math.round(bottomSpace)}px`);
+
+      if (!preserveStartPosition) return;
+      const scrollTopAfterLayout = programCanvas.scrollTop;
+      const startTopAfter = startBlock.getBoundingClientRect().top;
+      const startShift = startTopAfter - startTopBefore;
+      if (Math.abs(startShift) < 0.5) return;
+
+      programCanvas.scrollTop = scrollTopAfterLayout + startShift;
+      const totalScrollShift = programCanvas.scrollTop - scrollTopBefore;
+      if (dragState && allowDuringDrag && totalScrollShift) {
+        dragState.canvasScrollTop += totalScrollShift;
+      }
     }
 
     function isPointInDeleteZone(x, y) {

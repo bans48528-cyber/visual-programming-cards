@@ -170,6 +170,7 @@
       overflow: auto;
       padding: 20px 24px;
       overscroll-behavior: contain;
+      overflow-anchor: none;
       scrollbar-width: none;
       -ms-overflow-style: none;
       touch-action: none;
@@ -573,7 +574,8 @@
     }
 
     .loop-block.drag-source-placeholder {
-      border: 2px dashed rgba(17, 24, 32, .45);
+      outline: 2px dashed rgba(17, 24, 32, .45);
+      outline-offset: -2px;
       border-radius: 18px;
       background: transparent;
       box-shadow: none;
