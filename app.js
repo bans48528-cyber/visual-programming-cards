@@ -2,26 +2,190 @@
     const LEGACY_STORAGE_KEY = "visualProgramV1";
 
     const categories = {
-      action: {
-        color: "var(--action)",
+      motor: {
+        color: "var(--motor)",
         cards: [
-          { id: "move-forward", label: "卡片A1", type: "action", actionName: "前进" },
-          { id: "move-back", label: "卡片A2", type: "action", actionName: "后退" },
-          { id: "turn-left", label: "卡片A3", type: "action", actionName: "左转" },
-          { id: "turn-right", label: "卡片A4", type: "action", actionName: "右转" }
+          {
+            id: "motor-forward",
+            label: "电机正转",
+            type: "motor",
+            actionName: "电机正转",
+            paramsSchema: {
+              port: { label: "电机端口", type: "select", default: "A", options: ["A", "B", "C", "D"] },
+              duration: { label: "运行时间", type: "number", default: 1, min: 0.1, step: 0.1, unit: "秒" }
+            }
+          },
+          {
+            id: "motor-reverse",
+            label: "电机反转",
+            type: "motor",
+            actionName: "电机反转",
+            paramsSchema: {
+              port: { label: "电机端口", type: "select", default: "A", options: ["A", "B", "C", "D"] },
+              duration: { label: "运行时间", type: "number", default: 1, min: 0.1, step: 0.1, unit: "秒" }
+            }
+          },
+          {
+            id: "motor-stop",
+            label: "电机停止",
+            type: "motor",
+            actionName: "电机停止",
+            paramsSchema: {
+              port: { label: "电机端口", type: "select", default: "A", options: ["A", "B", "C", "D"] }
+            }
+          }
         ]
       },
-      look: {
-        color: "var(--look)",
+      combo: {
+        color: "var(--combo)",
         cards: [
-          { id: "color-yellow", label: "卡片B1", type: "look", actionName: "变黄色" },
-          { id: "color-blue", label: "卡片B2", type: "look", actionName: "变蓝色" },
-          { id: "say-hi", label: "卡片B3", type: "look", actionName: "说你好" },
+          {
+            id: "combo-forward",
+            label: "组合前进",
+            type: "combo",
+            actionName: "组合前进",
+            paramsSchema: {
+              duration: { label: "运行时间", type: "number", default: 1, min: 0.1, step: 0.1, unit: "秒" }
+            }
+          },
+          {
+            id: "combo-backward",
+            label: "组合后退",
+            type: "combo",
+            actionName: "组合后退",
+            paramsSchema: {
+              duration: { label: "运行时间", type: "number", default: 1, min: 0.1, step: 0.1, unit: "秒" }
+            }
+          },
+          {
+            id: "combo-turn-left",
+            label: "组合左转",
+            type: "combo",
+            actionName: "组合左转",
+            paramsSchema: {
+              duration: { label: "运行时间", type: "number", default: 1, min: 0.1, step: 0.1, unit: "秒" }
+            }
+          },
+          {
+            id: "combo-turn-right",
+            label: "组合右转",
+            type: "combo",
+            actionName: "组合右转",
+            paramsSchema: {
+              duration: { label: "运行时间", type: "number", default: 1, min: 0.1, step: 0.1, unit: "秒" }
+            }
+          },
+          { id: "combo-stop", label: "组合停止", type: "combo", actionName: "组合停止" }
+        ]
+      },
+      sensor: {
+        color: "var(--sensor)",
+        cards: [
+          {
+            id: "ultrasonic-sensor",
+            label: "超声波传感器",
+            type: "sensor",
+            actionName: "超声波传感器",
+            icon: "ultrasonic",
+            color: "var(--sensor)",
+            paramsSchema: {
+              operator: {
+                label: "比较符号",
+                type: "select",
+                default: "<",
+                options: [
+                  { label: "小于", value: "<", display: "<" },
+                  { label: "大于", value: ">", display: ">" },
+                  { label: "等于", value: "==", display: "=" }
+                ]
+              },
+              distance: { label: "距离", type: "number", default: 10, min: 0, max: 100, step: 1, unit: "cm", integer: true }
+            }
+          },
+          {
+            id: "grayscale-sensor",
+            label: "灰度传感器",
+            type: "sensor",
+            actionName: "灰度传感器",
+            paramsSchema: {
+              operator: {
+                label: "比较符号",
+                type: "select",
+                default: "<",
+                options: [
+                  { label: "小于", value: "<", display: "<" },
+                  { label: "大于", value: ">", display: ">" },
+                  { label: "等于", value: "==", display: "=" }
+                ]
+              },
+              value: { label: "数值", type: "number", default: 500, min: 0, max: 1000, step: 1, unit: "cm", integer: true }
+            }
+          },
+          {
+            id: "button-sensor",
+            label: "按键传感器",
+            type: "sensor",
+            actionName: "按键传感器",
+            paramsSchema: {
+              state: { label: "按键状态", type: "select", default: "按下", options: ["按下", "松开"] }
+            }
+          },
+          {
+            id: "host-button",
+            label: "主机按键",
+            type: "sensor",
+            actionName: "主机按键",
+            paramsSchema: {
+              button: { label: "按键", type: "select", default: "左键", options: ["左键", "右键"] }
+            }
+          }
+        ]
+      },
+      logic: {
+        color: "var(--logic)",
+        cards: [
+          {
+            id: "wait-time",
+            label: "等待时间",
+            type: "logic",
+            actionName: "等待时间",
+            icon: "hourglass",
+            color: "var(--logic)",
+            paramsSchema: {
+              duration: { label: "等待时间", type: "number", default: 1, min: 0.1, step: 0.1, unit: "秒" }
+            }
+          },
+          {
+            id: "loop-count",
+            label: "循环次数",
+            type: "logic",
+            actionName: "循环次数",
+            kind: "loop",
+            color: "var(--loop)",
+            paramsSchema: {
+              count: { label: "次数", type: "number", default: 1, min: 1, step: 1, integer: true }
+            }
+          },
+          { id: "loop", label: "循环", type: "logic", actionName: "循环", kind: "loop", color: "var(--loop)" }
+        ]
+      },
+      light: {
+        color: "var(--light)",
+        cards: [
+          {
+            id: "play-note",
+            label: "演奏音",
+            type: "light",
+            actionName: "演奏音",
+            paramsSchema: {
+              note: { label: "音符", type: "select", default: "1", options: ["1", "2", "3", "4", "5"] }
+            }
+          },
           {
             id: "matrix-display",
-            label: "点阵屏",
-            type: "look",
-            actionName: "点阵屏",
+            label: "点阵",
+            type: "light",
+            actionName: "点阵",
             icon: "matrix",
             color: "var(--matrix)",
             paramsSchema: {
@@ -39,70 +203,6 @@
               }
             }
           }
-        ]
-      },
-      sound: {
-        color: "var(--sound)",
-        cards: [
-          { id: "beep", label: "卡片C1", type: "sound", actionName: "播放声音" },
-          { id: "ding", label: "卡片C2", type: "sound", actionName: "提示音" }
-        ]
-      },
-      control: {
-        color: "var(--control)",
-        cards: [
-          {
-            id: "wait",
-            label: "等待",
-            type: "control",
-            actionName: "等待",
-            icon: "hourglass",
-            color: "var(--loop)",
-            paramsSchema: {
-              seconds: {
-                label: "等待时间",
-                type: "number",
-                default: 1,
-                min: 0.5,
-                max: 60,
-                step: 0.5,
-                unit: "秒"
-              }
-            }
-          },
-          {
-            id: "ultrasonic-compare",
-            label: "超声波",
-            type: "control",
-            actionName: "超声波检测",
-            icon: "ultrasonic",
-            color: "var(--look)",
-            paramsSchema: {
-              operator: {
-                label: "比较符号",
-                type: "select",
-                default: ">",
-                options: [
-                  { label: "大于", value: ">", display: ">" },
-                  { label: "小于", value: "<", display: "<" },
-                  { label: "等于", value: "==", display: "=" }
-                ]
-              },
-              distance: {
-                label: "距离",
-                type: "number",
-                default: 20,
-                min: 0,
-                max: 200,
-                step: 1,
-                unit: "cm",
-                integer: true
-              }
-            }
-          },
-          { id: "loop", label: "循环", type: "control", actionName: "循环", kind: "loop", color: "var(--loop)" },
-          { id: "repeat-prev", label: "卡片D2", type: "control", actionName: "重复上张" },
-          { id: "stop", label: "卡片D3", type: "control", actionName: "停止" }
         ]
       }
     };
@@ -127,9 +227,8 @@
     const paramEditor = document.getElementById("paramEditor");
     const grabTool = document.getElementById("grabTool");
     const stagingTab = document.getElementById("tab-staging");
-    const stagingScrollStrip = document.getElementById("stagingScrollStrip");
 
-    let activeCategory = "action";
+    let activeCategory = "motor";
     let program = [];
     let stagedGroups = [];
     let dragState = null;
@@ -137,7 +236,8 @@
     let grabSelectionBoxState = null;
     let grabMarkedPaths = new Set();
     let stagingHoverTimer = null;
-    let stagingPanState = null;
+    let stagedGroupPointerState = null;
+    let matrixPaintState = null;
     let blankGrabPending = null;
     let programAnchorFrame = null;
     let activeParamEditor = null;
@@ -147,6 +247,8 @@
     const STAGING_HOVER_DELAY = 1000;
     const BLANK_GRAB_HOLD_DELAY = 500;
     const BLANK_GRAB_MOVE_LIMIT = 10;
+    const STAGED_GROUP_PAN_THRESHOLD = 6;
+    const STAGED_GROUP_PULL_THRESHOLD = 18;
 
     function renderPalette() {
       palette.innerHTML = "";
@@ -183,7 +285,7 @@
       preview.className = "staged-group-preview";
       group.items.forEach(item => preview.appendChild(createStagedPreviewNode(item)));
       element.appendChild(preview);
-      element.addEventListener("pointerdown", startDrag);
+      element.addEventListener("pointerdown", startStagedGroupPointer);
       return element;
     }
 
@@ -241,6 +343,7 @@
 
       const block = document.createElement("div");
       block.className = mode === "program" ? "block program-block" : "block";
+      block.classList.toggle("has-param-bubble", Boolean(card.paramsSchema));
       block.style.setProperty("--block-color", getCardColor(card));
       block.dataset.cardId = card.id;
       block.dataset.mode = mode;
@@ -270,52 +373,67 @@
     function renderBlockContent(block, card, mode, item = null, nodePath = []) {
       block.replaceChildren();
       block.classList.toggle("icon-card", Boolean(card.icon));
-      block.classList.toggle("wait-card", card.id === "wait");
-      block.classList.toggle("sensor-card", card.id === "ultrasonic-compare");
+      block.classList.toggle("wait-card", card.icon === "hourglass");
+      block.classList.toggle("sensor-card", card.icon === "ultrasonic");
       block.classList.toggle("matrix-card", card.id === "matrix-display");
 
       if (card.icon) {
         const icon = createCardIcon(card, item);
+        const label = document.createElement("span");
+        label.className = "block-label icon-label";
+        label.textContent = card.label;
         block.appendChild(icon);
+        block.appendChild(label);
 
         if (card.paramsSchema) {
-          const isProgramControl = mode === "program";
-          const bubble = document.createElement(isProgramControl ? "button" : "span");
-          bubble.className = "param-bubble";
-          bubble.classList.toggle("matrix-param-trigger", card.id === "matrix-display");
-          bubble.textContent = getParamBubbleText(card, item);
-
-          if (isProgramControl) {
-            bubble.type = "button";
-            bubble.setAttribute("aria-label", `编辑${card.actionName || card.label}参数`);
-            let lastTouchOpenTime = 0;
-            bubble.addEventListener("pointerdown", event => {
-              event.stopPropagation();
-            });
-            bubble.addEventListener("pointerup", event => {
-              event.stopPropagation();
-              if (event.pointerType === "mouse") return;
-              event.preventDefault();
-              lastTouchOpenTime = performance.now();
-              openParamEditor(nodePath, bubble);
-            });
-            bubble.addEventListener("click", event => {
-              event.preventDefault();
-              event.stopPropagation();
-              if (performance.now() - lastTouchOpenTime < 700) return;
-              openParamEditor(nodePath, bubble);
-            });
-          } else {
-            bubble.setAttribute("aria-hidden", "true");
-          }
-
-          block.appendChild(bubble);
+          block.appendChild(createParamBubble(card, mode, item, nodePath));
         }
 
         return;
       }
 
-      block.textContent = card.label;
+      const label = document.createElement("span");
+      label.className = "block-label";
+      label.textContent = card.label;
+      block.appendChild(label);
+
+      if (card.paramsSchema) {
+        block.appendChild(createParamBubble(card, mode, item, nodePath));
+      }
+    }
+
+    function createParamBubble(card, mode, item, nodePath) {
+      const isProgramControl = mode === "program";
+      const bubble = document.createElement(isProgramControl ? "button" : "span");
+      bubble.className = "param-bubble";
+      bubble.classList.toggle("matrix-param-trigger", card.id === "matrix-display");
+      bubble.textContent = getParamBubbleText(card, item);
+
+      if (!isProgramControl) {
+        bubble.setAttribute("aria-hidden", "true");
+        return bubble;
+      }
+
+      bubble.type = "button";
+      bubble.setAttribute("aria-label", `编辑${card.actionName || card.label}参数`);
+      let lastTouchOpenTime = 0;
+      bubble.addEventListener("pointerdown", event => {
+        event.stopPropagation();
+      });
+      bubble.addEventListener("pointerup", event => {
+        event.stopPropagation();
+        if (event.pointerType === "mouse") return;
+        event.preventDefault();
+        lastTouchOpenTime = performance.now();
+        openParamEditor(nodePath, bubble);
+      });
+      bubble.addEventListener("click", event => {
+        event.preventDefault();
+        event.stopPropagation();
+        if (performance.now() - lastTouchOpenTime < 700) return;
+        openParamEditor(nodePath, bubble);
+      });
+      return bubble;
     }
 
     function createCardIcon(card, item = null) {
@@ -364,7 +482,9 @@
     function createPaletteLoopBlock(card) {
       const loop = document.createElement("div");
       loop.className = "loop-block loop-palette-card";
+      loop.classList.toggle("has-param-bubble", Boolean(card.paramsSchema));
       loop.style.setProperty("--loop-color", getCardColor(card));
+      loop.style.setProperty("--block-color", getCardColor(card));
       loop.dataset.cardId = card.id;
       loop.dataset.mode = "palette";
       loop.setAttribute("role", "button");
@@ -391,6 +511,9 @@
       const tail = document.createElement("div");
       tail.className = "loop-tail";
       tail.textContent = card.label;
+      if (card.paramsSchema) {
+        tail.appendChild(createParamBubble(card, "palette", null, []));
+      }
 
       loop.append(top, left, inner, tail);
       return loop;
@@ -404,15 +527,17 @@
 
       const loop = document.createElement("div");
       loop.className = "loop-block program-block";
+      loop.classList.toggle("has-param-bubble", Boolean(card.paramsSchema));
       if (hasNestedLoop) {
         loop.classList.add("has-nested-loop");
       }
       loop.style.setProperty("--loop-color", getCardColor(card));
+      loop.style.setProperty("--block-color", getCardColor(card));
       loop.dataset.cardId = card.id;
       loop.dataset.mode = "program";
       loop.dataset.nodePath = pathToKey(nodePath);
       loop.setAttribute("role", "listitem");
-      loop.setAttribute("aria-label", `循环卡，内部${children.length}张卡片`);
+      loop.setAttribute("aria-label", `${getCardDisplayLabel(card, item)}，内部${children.length}张卡片`);
       loop.addEventListener("pointerdown", startDrag);
 
       const top = document.createElement("div");
@@ -441,6 +566,9 @@
       const tail = document.createElement("div");
       tail.className = "loop-tail";
       tail.textContent = card.label;
+      if (card.paramsSchema) {
+        tail.appendChild(createParamBubble(card, "program", item, nodePath));
+      }
 
       loop.append(top, left, inner, tail);
       return loop;
@@ -548,20 +676,25 @@
     }
 
     function getParamBubbleText(card, item = null) {
-      if (card.id === "wait") {
-        return formatParamNumber(getParamValue(card, item, "seconds"));
-      }
-
-      if (card.id === "ultrasonic-compare") {
-        const operator = getParamOptionDisplay(card.paramsSchema.operator, getParamValue(card, item, "operator"));
-        const distance = formatParamNumber(getParamValue(card, item, "distance"));
-        return `${operator}${distance}`;
-      }
-
       if (card.id === "matrix-display") {
         return "";
       }
 
+      return Object.entries(card.paramsSchema || {})
+        .filter(([, definition]) => definition.type !== "matrix")
+        .map(([key, definition]) => formatParamBubblePart(card, item, key, definition))
+        .filter(Boolean)
+        .join("/");
+    }
+
+    function formatParamBubblePart(card, item, key, definition) {
+      const value = getParamValue(card, item, key);
+      if (definition.type === "select") {
+        return getParamOptionDisplay(definition, value);
+      }
+      if (definition.type === "number") {
+        return `${formatParamNumber(value)}${definition.unit || ""}`;
+      }
       return "";
     }
 
@@ -578,18 +711,7 @@
     }
 
     function getCardDisplayLabel(card, item = null) {
-      if (card.id === "wait") {
-        const seconds = formatParamNumber(getParamValue(card, item, "seconds"));
-        return `等待 ${seconds} 秒`;
-      }
-      if (card.id === "ultrasonic-compare") {
-        const operator = getParamOptionDisplay(card.paramsSchema.operator, getParamValue(card, item, "operator"));
-        const distance = formatParamNumber(getParamValue(card, item, "distance"));
-        return `超声波 ${operator} ${distance} 厘米`;
-      }
-      if (card.id === "matrix-display") {
-        return "点阵屏图案";
-      }
+      if (card.paramsSchema && item) return `${card.label} ${getParamBubbleText(card, item)}`.trim();
       return card.label;
     }
 
@@ -616,64 +738,65 @@
       paramEditor.replaceChildren();
       paramEditor.hidden = false;
       paramEditor.classList.toggle("is-matrix", card.id === "matrix-display");
-
-      if (card.id === "wait") {
-        paramEditor.appendChild(createNumberStepper(card, item, "seconds", "减少等待时间", "增加等待时间"));
-      } else if (card.id === "ultrasonic-compare") {
-        paramEditor.appendChild(createUltrasonicParamEditor(card, item));
-      } else if (card.id === "matrix-display") {
-        paramEditor.appendChild(createMatrixParamEditor(card, item));
-      } else {
-        closeParamEditor();
-        return;
-      }
+      paramEditor.appendChild(createGenericParamEditor(card, item));
 
       positionParamEditor(anchor || findProgramBlockByPath(activeParamEditor.nodePath));
     }
 
-    function createUltrasonicParamEditor(card, item) {
+    function createGenericParamEditor(card, item) {
       const panel = document.createElement("div");
       panel.className = "param-editor-panel";
 
-      const operatorDefinition = card.paramsSchema.operator;
-      const currentOperator = getParamValue(card, item, "operator");
-      const optionRow = document.createElement("div");
-      optionRow.className = "param-option-row";
-
-      operatorDefinition.options.forEach(option => {
-        const value = typeof option === "object" ? option.value : option;
-        const button = document.createElement("button");
-        button.className = "param-option-btn";
-        button.classList.toggle("is-selected", value === currentOperator);
-        button.type = "button";
-        button.textContent = typeof option === "object" ? (option.display || option.label || option.value) : option;
-        button.setAttribute("aria-label", typeof option === "object" ? option.label : option);
-        button.addEventListener("click", () => setActiveParamValue("operator", value));
-        optionRow.appendChild(button);
+      Object.entries(card.paramsSchema || {}).forEach(([key, definition]) => {
+        if (definition.type === "select") {
+          panel.appendChild(createSelectParamEditor(card, item, key, definition));
+        } else if (definition.type === "number") {
+          panel.appendChild(createNumberStepper(card, item, key, `减少${definition.label || "数值"}`, `增加${definition.label || "数值"}`));
+        } else if (definition.type === "matrix") {
+          panel.appendChild(createMatrixParamEditor(card, item, key));
+        }
       });
 
-      panel.append(
-        optionRow,
-        createNumberStepper(card, item, "distance", "减少检测距离", "增加检测距离")
-      );
       return panel;
     }
 
-    function createMatrixParamEditor(card, item) {
+    function createSelectParamEditor(card, item, key, definition) {
+      const optionRow = document.createElement("div");
+      optionRow.className = "param-option-row";
+      const currentValue = getParamValue(card, item, key);
+
+      definition.options.forEach(option => {
+        const value = typeof option === "object" ? option.value : option;
+        const button = document.createElement("button");
+        button.className = "param-option-btn";
+        button.classList.toggle("is-selected", value === currentValue);
+        button.type = "button";
+        button.textContent = typeof option === "object" ? (option.display || option.label || option.value) : option;
+        button.setAttribute("aria-label", typeof option === "object" ? option.label : option);
+        button.addEventListener("click", () => setActiveParamValue(key, value));
+        optionRow.appendChild(button);
+      });
+
+      return optionRow;
+    }
+
+    function createMatrixParamEditor(card, item, key = "pattern") {
       const panel = document.createElement("div");
       panel.className = "matrix-editor-panel";
 
-      const pattern = getMatrixPattern(card, item);
+      const pattern = getParamValue(card, item, key);
       const grid = document.createElement("div");
       grid.className = "matrix-editor-grid";
+      grid.addEventListener("pointerdown", startMatrixPaint);
+      grid.dataset.paramKey = key;
 
       pattern.forEach((value, index) => {
         const button = document.createElement("button");
         button.className = "matrix-cell";
         button.classList.toggle("is-on", Boolean(value));
         button.type = "button";
+        button.dataset.matrixIndex = String(index);
         button.setAttribute("aria-label", `点阵第${index + 1}格`);
-        button.addEventListener("click", () => toggleMatrixCell(index));
         grid.appendChild(button);
       });
 
@@ -681,15 +804,90 @@
       return panel;
     }
 
-    function toggleMatrixCell(index) {
-      if (!activeParamEditor) return;
+    function startMatrixPaint(event) {
+      if (event.button > 0) return;
+      const cell = event.target.closest(".matrix-cell");
+      if (!cell) return;
+      event.preventDefault();
+      event.stopPropagation();
+
+      const grid = event.currentTarget;
       const item = getNodeAtPath(activeParamEditor.nodePath);
       const card = cardById[item?.id];
-      if (!item || card?.id !== "matrix-display") return;
+      const paramKey = grid.dataset.paramKey || "pattern";
+      const definition = card?.paramsSchema?.[paramKey];
+      if (!item || definition?.type !== "matrix") return;
 
-      const pattern = [...getMatrixPattern(card, item)];
+      matrixPaintState = {
+        pointerId: event.pointerId,
+        grid,
+        paramKey,
+        paintedIndexes: new Set(),
+        pattern: [...getParamValue(card, item, paramKey)],
+        lastX: event.clientX,
+        lastY: event.clientY
+      };
+      grid.setPointerCapture?.(event.pointerId);
+      paintMatrixCell(Number(cell.dataset.matrixIndex));
+      grid.addEventListener("pointermove", moveMatrixPaint);
+      grid.addEventListener("pointerup", endMatrixPaint);
+      grid.addEventListener("pointercancel", endMatrixPaint);
+    }
+
+    function moveMatrixPaint(event) {
+      if (!matrixPaintState || event.pointerId !== matrixPaintState.pointerId) return;
+      event.preventDefault();
+
+      paintMatrixCellsAlongPath(
+        matrixPaintState.lastX,
+        matrixPaintState.lastY,
+        event.clientX,
+        event.clientY
+      );
+      matrixPaintState.lastX = event.clientX;
+      matrixPaintState.lastY = event.clientY;
+    }
+
+    function endMatrixPaint(event) {
+      if (!matrixPaintState || event.pointerId !== matrixPaintState.pointerId) return;
+      const { grid, pointerId, pattern, paramKey } = matrixPaintState;
+      grid.removeEventListener("pointermove", moveMatrixPaint);
+      grid.removeEventListener("pointerup", endMatrixPaint);
+      grid.removeEventListener("pointercancel", endMatrixPaint);
+      if (grid.hasPointerCapture?.(pointerId)) {
+        grid.releasePointerCapture(pointerId);
+      }
+      setActiveParamValue(paramKey, pattern);
+      matrixPaintState = null;
+    }
+
+    function paintMatrixCell(index) {
+      if (!activeParamEditor) return;
+      if (!Number.isInteger(index) || index < 0) return;
+      if (matrixPaintState?.paintedIndexes.has(index)) return;
+
+      const pattern = matrixPaintState?.pattern;
+      if (!pattern) return;
+      if (index >= pattern.length) return;
+      matrixPaintState?.paintedIndexes.add(index);
       pattern[index] = pattern[index] ? 0 : 1;
-      setActiveParamValue("pattern", pattern);
+      matrixPaintState?.grid
+        .querySelector(`.matrix-cell[data-matrix-index="${index}"]`)
+        ?.classList.toggle("is-on", Boolean(pattern[index]));
+    }
+
+    function paintMatrixCellsAlongPath(fromX, fromY, toX, toY) {
+      const distance = Math.hypot(toX - fromX, toY - fromY);
+      const steps = Math.max(1, Math.ceil(distance / 6));
+      for (let step = 1; step <= steps; step += 1) {
+        const progress = step / steps;
+        const x = fromX + (toX - fromX) * progress;
+        const y = fromY + (toY - fromY) * progress;
+        const target = document.elementFromPoint(x, y);
+        const cell = target?.closest?.(".matrix-cell");
+        if (!cell || !matrixPaintState?.grid.contains(cell)) continue;
+        paintMatrixCell(Number(cell.dataset.matrixIndex));
+      }
     }
 
     function createNumberStepper(card, item, key, decreaseLabel, increaseLabel) {
@@ -784,8 +982,11 @@
         [key]: next
       };
 
-      const block = refreshProgramBlock(activeParamEditor.nodePath);
-      if (rerenderEditor) {
+      const editorPath = [...activeParamEditor.nodePath];
+      const block = card.kind === "loop"
+        ? refreshProgramAfterLoopParamChange(editorPath)
+        : refreshProgramBlock(editorPath);
+      if (rerenderEditor || card.kind === "loop") {
         renderParamEditor(block);
       } else {
         positionParamEditor(block);
@@ -793,6 +994,12 @@
       commitHistory();
       setStatus(`${getCardDisplayLabel(card, item)}`);
       return next;
+    }
+
+    function refreshProgramAfterLoopParamChange(nodePath) {
+      renderProgram();
+      activeParamEditor = { nodePath };
+      return findProgramBlockByPath(nodePath);
     }
 
     function refreshProgramBlock(nodePath) {
@@ -979,17 +1186,11 @@
         : (isGroupDrag ? createGrabGroupGhost(grabMovePaths) : source.cloneNode(true));
       const ghostRect = isGroupDrag ? getElementsUnionRect(placeholderSources) : rect;
 
-      if (fromProgram) {
-        placeholderSources.forEach(block => block.classList.add("drag-source-placeholder"));
-        setDeleteOverlayVisible(true);
-      }
-
       ghost.classList.add("ghost");
       if (!fromStaging) {
         ghost.style.width = `${ghostRect.width}px`;
         ghost.style.height = `${ghostRect.height}px`;
       }
-      document.body.appendChild(ghost);
 
       dragState = {
         source,
@@ -1003,6 +1204,8 @@
         placeholderSources,
         ghost,
         pointerId: event.pointerId,
+        pointerType: event.pointerType,
+        active: false,
         startX: event.clientX,
         startY: event.clientY,
         lastX: event.clientX,
@@ -1016,22 +1219,29 @@
         lastTarget: null
       };
 
-      setDragScrollLocked(true);
       if (source.setPointerCapture) source.setPointerCapture(event.pointerId);
-      moveGhost(event.clientX, event.clientY);
       source.addEventListener("pointermove", moveDrag);
       source.addEventListener("pointerup", endDrag);
       source.addEventListener("pointercancel", cancelDrag);
+      source.addEventListener("lostpointercapture", cancelDrag);
+      document.addEventListener("pointerup", endDrag);
+      document.addEventListener("pointercancel", cancelDrag);
+      window.addEventListener("blur", cancelDrag);
     }
 
     function moveDrag(event) {
       if (!dragState) return;
       if (!isActiveDragPointer(event)) return;
       event.preventDefault();
-      restoreDragScroll();
 
       const distance = Math.hypot(event.clientX - dragState.startX, event.clientY - dragState.startY);
-      if (distance > 8) dragState.source.dataset.dragged = "true";
+      const threshold = dragState.pointerType === "touch" ? 14 : 8;
+      if (!dragState.active) {
+        if (distance <= threshold) return;
+        activateDrag();
+      }
+      restoreDragScroll();
+      dragState.source.dataset.dragged = "true";
       dragState.lastX = event.clientX;
       dragState.lastY = event.clientY;
       moveGhost(event.clientX, event.clientY);
@@ -1063,13 +1273,14 @@
       if (!dragState) return;
       if (!isActiveDragPointer(event)) return;
       event.preventDefault();
+      const wasActive = dragState.active;
       restoreDragScroll();
 
       if (dragState.autoSwitchedToStaging && !isPointOverLibraryArea(event.clientX, event.clientY)) {
         restoreCategoryAfterStagingExit();
       }
 
-      const movedEnough = Math.hypot(event.clientX - dragState.startX, event.clientY - dragState.startY) > 8;
+      const movedEnough = wasActive;
       const inStagingZone = isPointInStagingZone(event.clientX, event.clientY);
       const inDeleteZone = dragState.fromProgram && !inStagingZone
         && isPointInDeleteZone(event.clientX, event.clientY);
@@ -1164,8 +1375,22 @@
     }
 
     function cancelDrag(event) {
-      if (dragState && event && !isActiveDragPointer(event)) return;
+      if (dragState && event && "pointerId" in event && !isActiveDragPointer(event)) return;
       cleanupDrag(event);
+    }
+
+    function activateDrag() {
+      if (!dragState || dragState.active) return;
+      dragState.active = true;
+      dragState.lastX = dragState.startX;
+      dragState.lastY = dragState.startY;
+      if (dragState.fromProgram) {
+        dragState.placeholderSources.forEach(block => block.classList.add("drag-source-placeholder"));
+        setDeleteOverlayVisible(true);
+      }
+      document.body.appendChild(dragState.ghost);
+      setDragScrollLocked(true);
+      moveGhost(dragState.startX, dragState.startY);
     }
 
     function cleanupDrag(event) {
@@ -1174,6 +1399,10 @@
       dragState.source.removeEventListener("pointermove", moveDrag);
       dragState.source.removeEventListener("pointerup", endDrag);
       dragState.source.removeEventListener("pointercancel", cancelDrag);
+      dragState.source.removeEventListener("lostpointercapture", cancelDrag);
+      document.removeEventListener("pointerup", endDrag);
+      document.removeEventListener("pointercancel", cancelDrag);
+      window.removeEventListener("blur", cancelDrag);
       (dragState.placeholderSources || [dragState.source]).forEach(block => {
         block.classList.remove("drag-source-placeholder");
       });
@@ -1417,39 +1646,86 @@
       grabToolState = null;
     }
 
-    function startStagingPan(event) {
-      if (event.button > 0 || activeCategory !== "staging" || dragState || grabToolState || grabSelectionBoxState) return;
+    function startStagedGroupPointer(event) {
+      if (event.button > 0 || activeCategory !== "staging" || dragState || grabToolState || grabSelectionBoxState || stagedGroupPointerState) return;
+      if (event.pointerType === "touch" && event.isPrimary === false) return;
       event.preventDefault();
       event.stopPropagation();
 
-      stagingPanState = {
+      const source = event.currentTarget;
+      source.dataset.dragged = "false";
+      stagedGroupPointerState = {
+        source,
         pointerId: event.pointerId,
         startX: event.clientX,
-        scrollLeft: palette.scrollLeft
+        startY: event.clientY,
+        scrollLeft: palette.scrollLeft,
+        mode: "pending"
       };
-      stagingScrollStrip.classList.add("is-panning");
-      stagingScrollStrip.setPointerCapture?.(event.pointerId);
-      stagingScrollStrip.addEventListener("pointermove", moveStagingPan);
-      stagingScrollStrip.addEventListener("pointerup", endStagingPan);
-      stagingScrollStrip.addEventListener("pointercancel", endStagingPan);
+      source.setPointerCapture?.(event.pointerId);
+      source.addEventListener("pointermove", moveStagedGroupPointer);
+      source.addEventListener("pointerup", endStagedGroupPointer);
+      source.addEventListener("pointercancel", endStagedGroupPointer);
     }
 
-    function moveStagingPan(event) {
-      if (!stagingPanState || event.pointerId !== stagingPanState.pointerId) return;
+    function moveStagedGroupPointer(event) {
+      if (!stagedGroupPointerState || event.pointerId !== stagedGroupPointerState.pointerId) return;
       event.preventDefault();
-      palette.scrollLeft = stagingPanState.scrollLeft + stagingPanState.startX - event.clientX;
+      event.stopPropagation();
+
+      const state = stagedGroupPointerState;
+      const deltaX = event.clientX - state.startX;
+      const deltaY = event.clientY - state.startY;
+      const absX = Math.abs(deltaX);
+      const absY = Math.abs(deltaY);
+
+      if (state.mode === "pending") {
+        if (deltaY < -STAGED_GROUP_PULL_THRESHOLD && absY > absX * 0.7) {
+          const source = state.source;
+          const startX = state.startX;
+          const startY = state.startY;
+          cleanupStagedGroupPointer();
+          startDrag(event);
+          if (dragState) {
+            dragState.startX = startX;
+            dragState.startY = startY;
+            dragState.source.dataset.dragged = "true";
+            moveDrag(event);
+          } else {
+            source.dataset.dragged = "false";
+          }
+          return;
+        }
+
+        if (absX <= STAGED_GROUP_PAN_THRESHOLD || absX < absY) return;
+        state.mode = "panning";
+        state.source.classList.add("is-panning");
+      }
+
+      if (state.mode === "panning") {
+        palette.scrollLeft = state.scrollLeft + state.startX - event.clientX;
+        if (absX > 8) state.source.dataset.dragged = "true";
+      }
     }
 
-    function endStagingPan(event) {
-      if (!stagingPanState || event.pointerId !== stagingPanState.pointerId) return;
-      stagingScrollStrip.removeEventListener("pointermove", moveStagingPan);
-      stagingScrollStrip.removeEventListener("pointerup", endStagingPan);
-      stagingScrollStrip.removeEventListener("pointercancel", endStagingPan);
-      if (stagingScrollStrip.hasPointerCapture?.(stagingPanState.pointerId)) {
-        stagingScrollStrip.releasePointerCapture(stagingPanState.pointerId);
+    function endStagedGroupPointer(event) {
+      if (!stagedGroupPointerState || event.pointerId !== stagedGroupPointerState.pointerId) return;
+      const source = stagedGroupPointerState.source;
+      cleanupStagedGroupPointer();
+      setTimeout(() => { source.dataset.dragged = "false"; }, 0);
+    }
+
+    function cleanupStagedGroupPointer() {
+      if (!stagedGroupPointerState) return;
+      const { source, pointerId } = stagedGroupPointerState;
+      source.removeEventListener("pointermove", moveStagedGroupPointer);
+      source.removeEventListener("pointerup", endStagedGroupPointer);
+      source.removeEventListener("pointercancel", endStagedGroupPointer);
+      if (source.hasPointerCapture?.(pointerId)) {
+        source.releasePointerCapture(pointerId);
       }
-      stagingScrollStrip.classList.remove("is-panning");
-      stagingPanState = null;
+      source.classList.remove("is-panning");
+      stagedGroupPointerState = null;
     }
 
     function isActiveGrabToolPointer(event) {
@@ -2244,7 +2520,6 @@
     programArea.addEventListener("contextmenu", event => {
       event.preventDefault();
     });
-    stagingScrollStrip.addEventListener("pointerdown", startStagingPan);
 
     appElement.addEventListener("selectstart", event => {
       if (event.target instanceof Element && event.target.closest("input, textarea, [contenteditable='true']")) return;

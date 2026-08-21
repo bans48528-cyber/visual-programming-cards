@@ -7,10 +7,15 @@
       --program: #eeeeee;
       --library: #fff59c;
       --panel: #ffffff;
-      --action: #ffea00;
-      --look: #12a8dc;
-      --sound: #e5007e;
-      --control: #07994f;
+      --motor: #ffea00;
+      --combo: #ff8a3d;
+      --sensor: #12a8dc;
+      --logic: #07994f;
+      --light: #e5007e;
+      --action: var(--motor);
+      --look: var(--sensor);
+      --sound: var(--light);
+      --control: var(--logic);
       --loop: #f4a000;
       --matrix: #8f5af7;
       --start: #c9c9c9;
@@ -87,7 +92,7 @@
       place-items: center;
       border: 2px solid var(--ink);
       border-radius: 8px;
-      background: var(--action);
+      background: var(--motor);
       font-weight: 700;
       flex: 0 0 auto;
     }
@@ -268,7 +273,7 @@
     }
 
     .block {
-      --block-color: var(--action);
+      --block-color: var(--motor);
       position: relative;
       width: 84px;
       height: 72px;
@@ -292,15 +297,47 @@
 
     .block.icon-card {
       overflow: visible;
-      padding: 8px;
+      grid-template-rows: 1fr auto;
+      gap: 2px;
+      padding: 6px 6px 7px;
+    }
+
+    .block.has-param-bubble {
+      padding: 6px 7px 29px;
+    }
+
+    .block.icon-card.has-param-bubble {
+      grid-template-rows: 1fr auto;
+      padding: 5px 6px 28px;
+    }
+
+    .block.icon-card.has-param-bubble .card-icon {
+      width: 28px;
+      height: 28px;
+    }
+
+    .block.icon-card.has-param-bubble .icon-label {
+      font-size: 10px;
+    }
+
+    .block-label {
+      max-width: 100%;
+      line-height: 1.15;
+      overflow-wrap: anywhere;
     }
 
     .card-icon {
-      width: 40px;
-      height: 40px;
+      width: 34px;
+      height: 34px;
       display: grid;
       place-items: center;
       pointer-events: none;
+    }
+
+    .icon-label {
+      font-size: 11px;
+      font-weight: 800;
+      line-height: 1.05;
     }
 
     .card-icon svg {
@@ -316,8 +353,8 @@
     }
 
     .matrix-preview {
-      width: 38px;
-      height: 38px;
+      width: 34px;
+      height: 34px;
       display: grid;
       grid-template-columns: repeat(5, 1fr);
       grid-template-rows: repeat(5, 1fr);
@@ -341,22 +378,27 @@
 
     .param-bubble {
       position: absolute;
-      left: 50%;
-      bottom: -21px;
-      transform: translateX(-50%);
-      min-width: 44px;
-      height: 32px;
-      display: grid;
-      place-items: center;
-      padding: 0 12px;
-      border: 1.5px solid var(--block-color);
-      border-radius: 999px;
-      background: #fff;
+      left: 7px;
+      right: 7px;
+      bottom: 5px;
+      transform: none;
+      width: auto;
+      min-width: 0;
+      max-width: none;
+      min-height: 22px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 2px 5px;
+      border: 1.5px solid rgba(17, 24, 32, .36);
+      border-radius: 6px;
+      background: rgba(255, 255, 255, .72);
       color: var(--ink);
-      font-size: 16px;
-      font-weight: 700;
+      font-size: 12px;
+      font-weight: 800;
       line-height: 1;
-      box-shadow: 0 2px 4px rgba(17, 24, 32, .12);
+      white-space: nowrap;
+      box-shadow: inset 0 -1px 0 rgba(17, 24, 32, .08);
       pointer-events: none;
     }
 
@@ -381,14 +423,14 @@
     }
 
     .program-block .param-bubble:active {
-      transform: translateX(-50%) scale(.96);
+      transform: scale(.96);
     }
 
     .matrix-card .param-bubble {
-      border-color: #6d34d2;
-      background: #8f5af7;
+      border-color: rgba(255, 255, 255, .48);
+      background: rgba(255, 255, 255, .24);
       color: #fff;
-      box-shadow: inset 0 -3px 0 rgba(17, 24, 32, .14), 0 2px 4px rgba(17, 24, 32, .12);
+      box-shadow: inset 0 -1px 0 rgba(17, 24, 32, .12);
     }
 
     .matrix-param-trigger::before {
@@ -495,6 +537,7 @@
     }
 
     .loop-tail {
+      position: relative;
       grid-column: 3;
       grid-row: 2;
       display: grid;
@@ -505,6 +548,16 @@
       font-size: 14px;
       font-weight: 700;
       text-align: center;
+    }
+
+    .loop-block.has-param-bubble .loop-tail {
+      padding: 0 7px 29px;
+    }
+
+    .loop-tail .param-bubble {
+      left: 7px;
+      right: 7px;
+      bottom: 5px;
     }
 
     .loop-inner {
@@ -692,7 +745,7 @@
     .palette.is-staging {
       justify-content: flex-start;
       gap: 18px;
-      padding-bottom: 30px;
+      padding-bottom: 14px;
     }
 
     .staged-group {
@@ -705,7 +758,8 @@
       touch-action: none;
     }
 
-    .staged-group:active {
+    .staged-group:active,
+    .staged-group.is-panning {
       cursor: grabbing;
     }
 
@@ -730,28 +784,6 @@
 
     .staged-group-preview > .program-block + .program-block {
       margin-left: -1px;
-    }
-
-    .staging-scroll-strip {
-      position: absolute;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      z-index: 2;
-      display: none;
-      height: 26px;
-      border-top: 1px solid rgba(17, 24, 32, .12);
-      background: var(--library);
-      cursor: ew-resize;
-      touch-action: none;
-    }
-
-    .library-area.is-staging .staging-scroll-strip {
-      display: block;
-    }
-
-    .staging-scroll-strip.is-panning {
-      cursor: grabbing;
     }
 
     .delete-overlay {
@@ -949,6 +981,7 @@
       grid-template-columns: repeat(5, 24px);
       grid-template-rows: repeat(5, 24px);
       gap: 4px;
+      touch-action: none;
     }
 
     .matrix-cell {
@@ -959,6 +992,7 @@
       background: #5d2bc4;
       box-shadow: inset 0 -2px 0 rgba(17, 24, 32, .12);
       cursor: pointer;
+      user-select: none;
     }
 
     .matrix-cell.is-on {
@@ -1101,6 +1135,23 @@
         font-size: 13px;
       }
 
+      .block.has-param-bubble {
+        padding: 5px 6px 25px;
+      }
+
+      .block.icon-card.has-param-bubble {
+        padding: 4px 5px 24px;
+      }
+
+      .block.icon-card.has-param-bubble .card-icon {
+        width: 23px;
+        height: 23px;
+      }
+
+      .block.icon-card.has-param-bubble .icon-label {
+        font-size: 9px;
+      }
+
       .card-icon {
         width: 32px;
         height: 32px;
@@ -1114,10 +1165,13 @@
       }
 
       .param-bubble {
-        bottom: -18px;
-        min-width: 38px;
-        height: 28px;
-        font-size: 14px;
+        bottom: 4px;
+        left: 5px;
+        right: 5px;
+        min-height: 18px;
+        padding: 1px 4px;
+        border-radius: 5px;
+        font-size: 11px;
       }
 
       .block.start {
@@ -1133,6 +1187,10 @@
 
       .loop-tail {
         font-size: 13px;
+      }
+
+      .loop-block.has-param-bubble .loop-tail {
+        padding: 0 6px 25px;
       }
 
       .loop-inner {
