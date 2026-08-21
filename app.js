@@ -133,6 +133,7 @@
     let stagedGroups = [];
     let dragState = null;
     let grabToolState = null;
+    let grabSelectionBoxState = null;
     let grabMarkedPaths = new Set();
     let stagingHoverTimer = null;
     let stagingPanState = null;
@@ -946,7 +947,7 @@
       event.preventDefault();
       event.stopPropagation();
 
-      if (dragState || grabToolState || (event.pointerType === "touch" && event.isPrimary === false)) {
+      if (dragState || grabToolState || grabSelectionBoxState || (event.pointerType === "touch" && event.isPrimary === false)) {
         return;
       }
 
@@ -1194,7 +1195,7 @@
 
     function startBlankGrabHold(event) {
       if (!isProgramBlankTarget(event.target)) return;
-      if (event.button > 0 || dragState || grabToolState || blankGrabPending) return;
+      if (event.button > 0 || dragState || grabToolState || grabSelectionBoxState || blankGrabPending) return;
       if (event.pointerType === "touch" && event.isPrimary === false) return;
 
       blankGrabPending = {
@@ -1207,7 +1208,7 @@
         scrollLeft: programCanvas.scrollLeft,
         scrollTop: programCanvas.scrollTop,
         moved: false,
-        timer: setTimeout(() => activateBlankGrab(event.pointerId), BLANK_GRAB_HOLD_DELAY)
+        timer: setTimeout(() => activateBlankGrabSelection(event.pointerId), BLANK_GRAB_HOLD_DELAY)
       };
 
       document.addEventListener("pointermove", moveBlankGrabHold);
@@ -1250,12 +1251,11 @@
       cleanupBlankGrabHold();
     }
 
-    function activateBlankGrab(pointerId) {
+    function activateBlankGrabSelection(pointerId) {
       if (!blankGrabPending || blankGrabPending.pointerId !== pointerId) return;
-      const { pointerEvent, lastX, lastY } = blankGrabPending;
+      const { startX, startY, lastX, lastY } = blankGrabPending;
       cleanupBlankGrabHold();
-      startGrabToolDrag(pointerEvent, true, { x: lastX, y: lastY });
-      if (grabToolState) setStatus("合并抓手已启动，拖过卡片进行合并");
+      startGrabSelectionBox(pointerId, startX, startY, lastX, lastY);
     }
 
     function cleanupBlankGrabHold() {
@@ -1273,7 +1273,7 @@
       event.preventDefault();
       event.stopPropagation();
 
-      if (dragState || grabToolState || (event.pointerType === "touch" && event.isPrimary === false)) {
+      if (dragState || grabToolState || grabSelectionBoxState || (event.pointerType === "touch" && event.isPrimary === false)) {
         return;
       }
 
@@ -1310,6 +1310,62 @@
       pointerSource.addEventListener("pointerup", endGrabToolDrag);
       pointerSource.addEventListener("pointercancel", cancelGrabToolDrag);
       markCardsTouchedByGrabTool();
+    }
+
+    function startGrabSelectionBox(pointerId, startX, startY, currentX = startX, currentY = startY) {
+      if (dragState || grabToolState || grabSelectionBoxState) return;
+
+      const box = document.createElement("div");
+      box.className = "grab-selection-box";
+      box.setAttribute("aria-hidden", "true");
+      document.body.appendChild(box);
+
+      grabSelectionBoxState = {
+        pointerId,
+        startX,
+        startY,
+        currentX,
+        currentY,
+        box,
+        initialMarkedPathKeys: new Set(grabMarkedPaths)
+      };
+
+      setDragScrollLocked(true);
+      document.addEventListener("pointermove", moveGrabSelectionBox);
+      document.addEventListener("pointerup", endGrabSelectionBox);
+      document.addEventListener("pointercancel", cancelGrabSelectionBox);
+      updateGrabSelectionBox(currentX, currentY);
+      setStatus("框选卡片，松手完成标记");
+    }
+
+    function moveGrabSelectionBox(event) {
+      if (!isActiveGrabSelectionBoxPointer(event)) return;
+      event.preventDefault();
+      updateGrabSelectionBox(event.clientX, event.clientY);
+    }
+
+    function endGrabSelectionBox(event) {
+      if (!isActiveGrabSelectionBoxPointer(event)) return;
+      event.preventDefault();
+      cleanupGrabSelectionBox();
+      updateGrabMarkStatus();
+    }
+
+    function cancelGrabSelectionBox(event) {
+      if (grabSelectionBoxState && event && !isActiveGrabSelectionBoxPointer(event)) return;
+      cleanupGrabSelectionBox();
+      updateGrabMarkStatus();
+    }
+
+    function cleanupGrabSelectionBox() {
+      if (!grabSelectionBoxState) return;
+
+      document.removeEventListener("pointermove", moveGrabSelectionBox);
+      document.removeEventListener("pointerup", endGrabSelectionBox);
+      document.removeEventListener("pointercancel", cancelGrabSelectionBox);
+      grabSelectionBoxState.box.remove();
+      setDragScrollLocked(false);
+      grabSelectionBoxState = null;
     }
 
     function moveGrabToolDrag(event) {
@@ -1360,7 +1416,7 @@
     }
 
     function startStagingPan(event) {
-      if (event.button > 0 || activeCategory !== "staging" || dragState || grabToolState) return;
+      if (event.button > 0 || activeCategory !== "staging" || dragState || grabToolState || grabSelectionBoxState) return;
       event.preventDefault();
       event.stopPropagation();
 
@@ -1398,6 +1454,10 @@
       return grabToolState && (!event || event.pointerId === grabToolState.pointerId);
     }
 
+    function isActiveGrabSelectionBoxPointer(event) {
+      return grabSelectionBoxState && (!event || event.pointerId === grabSelectionBoxState.pointerId);
+    }
+
     function moveGrabTool(x, y) {
       if (!grabToolState) return;
       grabTool.style.left = `${x - grabToolState.offsetX}px`;
@@ -1428,6 +1488,43 @@
       if (changed) updateGrabMarkStatus();
     }
 
+    function updateGrabSelectionBox(currentX, currentY) {
+      if (!grabSelectionBoxState) return;
+
+      grabSelectionBoxState.currentX = currentX;
+      grabSelectionBoxState.currentY = currentY;
+
+      const rect = getRectFromPoints(
+        grabSelectionBoxState.startX,
+        grabSelectionBoxState.startY,
+        currentX,
+        currentY
+      );
+      Object.assign(grabSelectionBoxState.box.style, {
+        left: `${rect.left}px`,
+        top: `${rect.top}px`,
+        width: `${rect.width}px`,
+        height: `${rect.height}px`
+      });
+
+      const selectedPathKeys = new Set();
+      getGrabbableBlocks().forEach(block => {
+        const pathKey = block.dataset.nodePath;
+        if (!pathKey) return;
+        if (isBlockTouchedByGrabTool(block, rect)) selectedPathKeys.add(pathKey);
+      });
+
+      grabMarkedPaths = new Set([
+        ...grabSelectionBoxState.initialMarkedPathKeys,
+        ...selectedPathKeys
+      ]);
+
+      getGrabbableBlocks().forEach(block => {
+        const pathKey = block.dataset.nodePath;
+        block.classList.toggle("grab-marked", Boolean(pathKey && grabMarkedPaths.has(pathKey)));
+      });
+    }
+
     function getGrabbableBlocks() {
       return [...document.querySelectorAll(".program-block:not(.drop-projection)")];
     }
@@ -1443,6 +1540,21 @@
       }
 
       return rectsIntersect(grabRect, block.getBoundingClientRect());
+    }
+
+    function getRectFromPoints(x1, y1, x2, y2) {
+      const left = Math.min(x1, x2);
+      const top = Math.min(y1, y2);
+      const right = Math.max(x1, x2);
+      const bottom = Math.max(y1, y2);
+      return {
+        left,
+        top,
+        right,
+        bottom,
+        width: right - left,
+        height: bottom - top
+      };
     }
 
     function toggleGrabMark(block, pathKey) {
@@ -1465,7 +1577,7 @@
 
     function clearGrabSelectionOnOutsidePointerDown(event) {
       if (!grabMarkedPaths.size) return;
-      if (dragState || grabToolState) return;
+      if (dragState || grabToolState || grabSelectionBoxState) return;
       if (event.button > 0) return;
       if (event.pointerType === "touch" && event.isPrimary === false) return;
 
@@ -1585,7 +1697,7 @@
     }
 
     function preventDragTouchScroll(event) {
-      if (dragState || grabToolState) event.preventDefault();
+      if (dragState || grabToolState || grabSelectionBoxState) event.preventDefault();
     }
 
     function restoreDragScroll() {
