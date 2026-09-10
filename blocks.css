@@ -1,0 +1,125 @@
+/* Shape sizing and connection coordinates come from block-layout.js. */
+.chain { position: relative; display: block; padding: 0; border: 0; min-height: 100%; }
+.block, .loop-block { --block-secondary: #0078CC; --block-edge: #0062A6; }
+[data-card-id^="combo-"] { --block-secondary: #C80090; --block-edge: #B2248A; }
+[data-card-id="matrix-display"] { --block-secondary: #691FF0; --block-edge: #571CC1; }
+[data-card-id="play-note"] { --block-secondary: #8A40AF; --block-edge: #642E7F; }
+.block.start { --block-secondary: #C8A300; --block-edge: #B09400; }
+.loop-block, [data-card-id="wait-time"] { --block-secondary: #ECA100; --block-edge: #C98A01; }
+[data-card-id="ultrasonic-sensor"], [data-card-id="grayscale-sensor"],
+[data-card-id="button-sensor"], [data-card-id="host-button"] { --block-secondary: #00A8C9; --block-edge: #368FA9; }
+.block .matrix-preview { background: var(--block-secondary); box-shadow: inset 0 0 0 1px var(--block-edge); }
+.block .matrix-dot:not(.is-on) { background: var(--block-edge); }
+.program-block .param-bubble:active { background: color-mix(in srgb, var(--block-secondary) 12%, white); }
+.block, .block.icon-card, .block.has-param-bubble, .block.icon-card.has-param-bubble,
+.palette .block, .block.start {
+  display: block; padding: 0; border: 0; border-radius: 0; background: transparent;
+  box-shadow: none; overflow: visible; color: #263744; min-width: 0;
+}
+.block-outline { position: absolute; left: -1px; top: -1px; overflow: visible; pointer-events: none; }
+.block-outline > path { fill: var(--block-color); stroke: var(--block-edge); stroke-width: 1.2; stroke-linejoin: round; }
+.block .block-label { display: none; }
+.block .card-icon, .block.icon-card.has-param-bubble .card-icon {
+  position: absolute; left: 18px; top: 16px; width: 40px; height: 40px;
+}
+.card-icon svg { stroke: #fff; stroke-width: 3.6; filter: none; }
+.block.start { font-size: 0; }
+.block.start::after { content: ""; position: absolute; left: 29px; top: 25px; border-left: 19px solid white; border-top: 11px solid transparent; border-bottom: 11px solid transparent; }
+.param-bubble, .matrix-card .param-bubble {
+  left: 8px; right: auto; top: 64px; bottom: auto; width: 60px; height: 28px; min-height: 28px;
+  padding: 2px 3px; border: 1.2px solid var(--block-edge); border-radius: 8px;
+  background: #fff; color: #41586a; box-shadow: none; font-size: 12px; font-weight: 600;
+}
+.program-block .param-bubble::after { inset: -3px 0; }
+.param-bubble { transform: translateY(var(--param-shift, 0px)); }
+.program-block .param-bubble:active { transform: translateY(var(--param-shift, 0px)) scale(.96); }
+.loop-block, .loop-palette-card {
+  position: relative; display: block; min-width: 0; min-height: 0; padding: 0;
+  background: none; border: 0; box-shadow: none; pointer-events: none;
+}
+.loop-block > .block-outline > path { pointer-events: visiblePainted; }
+.loop-top, .loop-left, .loop-tail {
+  position: absolute; display: block; padding: 0 !important; margin: 0; min-width: 0; min-height: 0;
+  background: none; border: 0; border-radius: 0; box-shadow: none; pointer-events: auto;
+}
+.loop-tail .card-icon { position: absolute; left: 10px; top: var(--loop-icon-top); width: 40px; height: 40px; }
+.loop-tail .param-bubble { left: 10px; top: auto; bottom: -20px; width: 48px; }
+.loop-inner, .loop-inner.has-nested-loop {
+  position: absolute; display: block; padding: 0; margin: 0; min-width: 0; min-height: 0;
+  border: 0; background: transparent; pointer-events: auto; overflow: visible;
+}
+.loop-empty-note { position: absolute; min-width: 0; min-height: 0; margin: 0; padding: 0; border: 0; color: #bca568; font-size: 24px; pointer-events: none; }
+.loop-palette-card .loop-inner { min-width: 0; background: transparent; }
+.chain > .program-block, .chain > .start, .loop-inner > .program-block,
+.grab-group-ghost > .program-block, .grab-group-projection > .program-block,
+.staged-group-preview > .program-block { position: absolute; margin: 0 !important; }
+.sequence-zone > .drop-projection { position: absolute !important; }
+.ghost { position: fixed !important; margin: 0 !important; }
+.grab-group-ghost, .grab-group-projection, .staged-group-preview { position: relative; display: block; }
+.drop-projection { opacity: .32; }
+.drop-projection .loop-inner { background: none; }
+.drag-source-placeholder, .drag-source-placeholder * { visibility: hidden !important; pointer-events: none !important; }
+.program-block.grab-marked { outline: none; }
+.program-block.grab-marked > .block-outline > path { stroke: #276ced; stroke-width: 3; }
+.palette { align-items: center; gap: 28px; padding: 8px 20px; overflow-x: auto; overflow-y: hidden; }
+.workspace { grid-template-rows: minmax(180px, 1fr) 180px; }
+.rotate-note { display: none !important; }
+.tabs { overflow-x: auto; flex-shrink: 0; }
+.tab { flex-shrink: 0; }
+.param-popover {
+  padding: 12px; overflow: visible; border: 1px solid var(--editor-edge);
+  border-radius: 12px; background: var(--editor-color);
+  box-shadow: 0 6px 22px rgba(34, 49, 63, .16);
+}
+.param-popover::before, .param-popover.is-above-anchor::before {
+  width: 12px; height: 12px; top: -7px; bottom: auto;
+  border: 0; border-top: 1px solid var(--editor-edge); border-left: 1px solid var(--editor-edge);
+  background: var(--editor-color); transform: translateX(-50%) rotate(45deg);
+}
+.param-popover.is-above-anchor::before {
+  top: auto; bottom: -7px; transform: translateX(-50%) rotate(225deg);
+}
+.param-popover::after { display: none; }
+.param-editor-panel { gap: 12px; max-width: calc(100vw - 44px); max-height: calc(100dvh - 44px); overflow: auto; padding: 2px; }
+.param-editor-panel > * + * { border-top: 1px solid rgba(255, 255, 255, .35); padding-top: 12px; }
+.param-option-row { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; }
+.param-option-btn {
+  min-width: 44px; height: 44px; padding: 0 12px; border: 1px solid #dce3e9;
+  border-radius: 8px; background: #f4f7f9; color: #405366;
+  font-size: 18px; font-weight: 600; box-shadow: none;
+}
+.param-option-btn.is-selected { background: var(--editor-secondary); border-color: white; color: #fff; box-shadow: inset 0 0 0 1px white; }
+.param-stepper { gap: 10px; }
+.param-step-btn {
+  flex: 0 0 44px; width: 44px; height: 44px; border: 1px solid var(--editor-edge);
+  border-radius: 50%; background: white; color: var(--editor-edge); font-size: 27px; font-weight: 500;
+}
+.param-current {
+  min-width: 94px; height: 44px; border: 1px solid #dce3e9; border-radius: 8px;
+  background: #f4f7f9; color: #33485b; font-size: 22px; font-weight: 600;
+}
+.param-current:focus-within { border-color: var(--editor-edge); box-shadow: 0 0 0 2px color-mix(in srgb, var(--editor-color) 22%, transparent); }
+.param-value-input { width: 4ch; max-width: max(48px, calc(100vw - 220px)); font-variant-numeric: tabular-nums; }
+.param-unit { font-size: 13px; font-weight: 500; }
+.param-step-btn:disabled { opacity: .3; }
+.param-option-btn:focus-visible, .param-step-btn:focus-visible { outline: 2px solid white; outline-offset: 2px; }
+.param-step-btn:not(:disabled):active { background: var(--editor-secondary); color: white; }
+.matrix-editor-panel { border: 0; padding: 2px; gap: 6px; background: transparent; box-shadow: none; border-radius: 0; }
+.matrix-editor-grid { grid-template-columns: repeat(5, 28px); grid-template-rows: repeat(5, 28px); gap: 5px; }
+.matrix-cell { width: 28px; height: 28px; border-radius: 5px; background: var(--editor-secondary); box-shadow: none; }
+.matrix-cell.is-on { background: white; box-shadow: none; }
+@media (hover: hover) {
+  .param-option-btn:not(.is-selected):hover, .param-step-btn:not(:disabled):hover {
+    background: color-mix(in srgb, var(--editor-color) 12%, white); border-color: var(--editor-edge);
+  }
+}
+@media (max-height: 460px) {
+  .workspace { grid-template-rows: minmax(150px, 1fr) 164px; }
+  .palette { padding: 3px 18px 8px; }
+}
+@media (max-width: 680px) {
+  .program-canvas { padding: 12px; }
+  .palette { gap: 18px; }
+  .toolbar { gap: 3px; }
+  .btn { min-width: 40px; padding-inline: 5px; }
+}

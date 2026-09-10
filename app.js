@@ -174,6 +174,7 @@
         cards: [
           {
             id: "play-note",
+            color: "var(--sound)",
             label: "演奏音",
             type: "light",
             actionName: "演奏音",
@@ -284,6 +285,7 @@
       const preview = document.createElement("div");
       preview.className = "staged-group-preview";
       group.items.forEach(item => preview.appendChild(createStagedPreviewNode(item)));
+      BlockLayout.sequence(preview);
       element.appendChild(preview);
       element.addEventListener("pointerdown", startStagedGroupPointer);
       return element;
@@ -308,6 +310,7 @@
       const preview = document.createElement("div");
       preview.className = "staged-group-preview";
       items.forEach(item => preview.appendChild(createStagedPreviewNode(item)));
+      BlockLayout.sequence(preview);
       ghost.appendChild(preview);
       return ghost;
     }
@@ -372,34 +375,21 @@
 
     function renderBlockContent(block, card, mode, item = null, nodePath = []) {
       block.replaceChildren();
-      block.classList.toggle("icon-card", Boolean(card.icon));
+      block.classList.add("icon-card");
       block.classList.toggle("wait-card", card.icon === "hourglass");
       block.classList.toggle("sensor-card", card.icon === "ultrasonic");
       block.classList.toggle("matrix-card", card.id === "matrix-display");
 
-      if (card.icon) {
-        const icon = createCardIcon(card, item);
-        const label = document.createElement("span");
-        label.className = "block-label icon-label";
-        label.textContent = card.label;
-        block.appendChild(icon);
-        block.appendChild(label);
-
-        if (card.paramsSchema) {
-          block.appendChild(createParamBubble(card, mode, item, nodePath));
-        }
-
-        return;
-      }
-
+      block.title = card.label;
+      const icon = createCardIcon(card, item);
       const label = document.createElement("span");
-      label.className = "block-label";
+      label.className = "block-label icon-label";
       label.textContent = card.label;
-      block.appendChild(label);
-
+      block.append(icon, label);
       if (card.paramsSchema) {
         block.appendChild(createParamBubble(card, mode, item, nodePath));
       }
+      BlockLayout.measure(block);
     }
 
     function createParamBubble(card, mode, item, nodePath) {
@@ -416,7 +406,7 @@
 
       bubble.type = "button";
       bubble.setAttribute("aria-label", `编辑${card.actionName || card.label}参数`);
-      let lastTouchOpenTime = 0;
+      let lastTouchOpenTime = -Infinity;
       bubble.addEventListener("pointerdown", event => {
         event.stopPropagation();
       });
@@ -463,7 +453,23 @@
         return icon;
       }
 
-      icon.textContent = card.label;
+      const paths = {
+        "motor-forward": "M20 23h24v24H20z M26 23v-5h12v5 M44 31h7v8h-7 M14 19A22 22 0 0 1 49 13 M42 11l8 2-2 8",
+        "motor-reverse": "M20 23h24v24H20z M26 23v-5h12v5 M44 31h7v8h-7 M50 19A22 22 0 0 0 15 13 M22 11l-8 2 2 8",
+        "motor-stop": "M18 19h28v28H18z M25 19v-5h14v5 M46 28h7v10h-7 M28 28h8v10h-8z",
+        "combo-forward": "M22 48V18 M13 27l9-9 9 9 M44 48V18 M35 27l9-9 9 9",
+        "combo-backward": "M22 16v30 M13 37l9 9 9-9 M44 16v30 M35 37l9 9 9-9",
+        "combo-turn-left": "M46 49V31q0-12-12-12H15 M25 9L15 19l10 10",
+        "combo-turn-right": "M18 49V31q0-12 12-12h19 M39 9l10 10-10 10",
+        "combo-stop": "M17 17h30v30H17z M26 25v14 M38 25v14",
+        "grayscale-sensor": "M14 17h36v30H14z M26 17v30 M38 17v30 M38 24h12 M38 33h12 M38 41h12",
+        "button-sensor": "M17 38h30v12H17z M24 38V27h16v11 M32 10v10 M18 16l5 5 M46 16l-5 5",
+        "host-button": "M12 17h40v32H12z M21 29v9 M17 33h8 M40 29v9 M36 33h8",
+        "play-note": "M26 43V17l23-5v25 M26 22l23-5 M26 43c0 9-16 10-16 2s16-10 16-2 M49 37c0 9-16 10-16 2s16-10 16-2",
+        "loop": "M18 22h20a15 15 0 0 1 0 30 M26 12L16 22l10 10",
+        "loop-count": "M18 22h20a15 15 0 0 1 0 30 M26 12L16 22l10 10"
+      };
+      icon.innerHTML = `<svg viewBox="0 0 64 64" aria-hidden="true"><path d="${paths[card.id] || paths.loop}"/></svg>`;
       return icon;
     }
 
@@ -510,12 +516,14 @@
 
       const tail = document.createElement("div");
       tail.className = "loop-tail";
-      tail.textContent = card.label;
+      tail.appendChild(createCardIcon(card));
       if (card.paramsSchema) {
         tail.appendChild(createParamBubble(card, "palette", null, []));
       }
 
       loop.append(top, left, inner, tail);
+      loop.title = card.label;
+      BlockLayout.measure(loop);
       return loop;
     }
 
@@ -557,7 +565,7 @@
 
       const note = document.createElement("div");
       note.className = "loop-empty-note";
-      note.textContent = "拖入卡片";
+      note.textContent = "+";
       note.style.display = children.length ? "none" : "grid";
       inner.appendChild(note);
 
@@ -565,12 +573,14 @@
 
       const tail = document.createElement("div");
       tail.className = "loop-tail";
-      tail.textContent = card.label;
+      tail.appendChild(createCardIcon(card));
       if (card.paramsSchema) {
         tail.appendChild(createParamBubble(card, "program", item, nodePath));
       }
 
       loop.append(top, left, inner, tail);
+      loop.title = card.label;
+      BlockLayout.measure(loop);
       return loop;
     }
 
@@ -680,11 +690,13 @@
         return "";
       }
 
-      return Object.entries(card.paramsSchema || {})
+      const parts = Object.entries(card.paramsSchema || {})
         .filter(([, definition]) => definition.type !== "matrix")
         .map(([key, definition]) => formatParamBubblePart(card, item, key, definition))
-        .filter(Boolean)
-        .join("/");
+        .filter(Boolean);
+      const motorAction = { "motor-forward": "正转", "motor-reverse": "反转", "motor-stop": "停止" }[card.id];
+      if (motorAction) parts.splice(1, 0, motorAction);
+      return parts.join("");
     }
 
     function formatParamBubblePart(card, item, key, definition) {
@@ -693,7 +705,9 @@
         return getParamOptionDisplay(definition, value);
       }
       if (definition.type === "number") {
-        return `${formatParamNumber(value)}${definition.unit || ""}`;
+        const fullText = formatParamNumber(value);
+        const shortText = (fullText.match(/^-?(?:\d\.?){1,3}/)?.[0] || fullText).replace(/\.$/, "");
+        return `${shortText}${definition.unit || ""}`;
       }
       return "";
     }
@@ -736,6 +750,13 @@
       }
 
       paramEditor.replaceChildren();
+      const owner = findProgramBlockByPath(activeParamEditor.nodePath);
+      const colors = owner ? getComputedStyle(owner) : null;
+      paramEditor.style.setProperty("--editor-color", getCardColor(card));
+      paramEditor.style.setProperty("--editor-edge", colors?.getPropertyValue("--block-edge") || "#0062A6");
+      paramEditor.style.setProperty("--editor-secondary", colors?.getPropertyValue("--block-secondary") || "#0078CC");
+      paramEditor.setAttribute("role", "dialog");
+      paramEditor.setAttribute("aria-label", `${card.label}参数`);
       paramEditor.hidden = false;
       paramEditor.classList.toggle("is-matrix", card.id === "matrix-display");
       paramEditor.appendChild(createGenericParamEditor(card, item));
@@ -770,6 +791,7 @@
         const button = document.createElement("button");
         button.className = "param-option-btn";
         button.classList.toggle("is-selected", value === currentValue);
+        button.setAttribute("aria-pressed", String(value === currentValue));
         button.type = "button";
         button.textContent = typeof option === "object" ? (option.display || option.label || option.value) : option;
         button.setAttribute("aria-label", typeof option === "object" ? option.label : option);
@@ -914,6 +936,14 @@
       input.setAttribute("aria-label", definition.label || "参数值");
       input.autocomplete = "off";
       input.spellcheck = false;
+      const resizeInput = () => {
+        input.style.width = `${Math.max(4, input.value.length + 1)}ch`;
+        if (input.isConnected && activeParamEditor) {
+          positionParamEditor(findProgramBlockByPath(activeParamEditor.nodePath));
+        }
+      };
+      input.addEventListener("input", resizeInput);
+      resizeInput();
 
       const unit = document.createElement("span");
       unit.className = "param-unit";
@@ -937,6 +967,7 @@
         );
         const currentValue = getParamValue(card, getNodeAtPath(activeParamEditor.nodePath), key);
         input.value = formatParamNumber(nextValue);
+        resizeInput();
         minus.disabled = nextValue <= definition.min;
         plus.disabled = nextValue >= definition.max;
         if (nextValue === currentValue) return;
@@ -1024,7 +1055,7 @@
       const block = anchor.closest?.(".program-block") || anchor;
       const control = anchor.matches?.(".param-bubble")
         ? anchor
-        : block.querySelector?.(".param-bubble") || anchor;
+        : block.querySelector?.(":scope > .param-bubble, :scope > .loop-tail > .param-bubble") || anchor;
       const anchorRect = control.getBoundingClientRect();
       const editorRect = paramEditor.getBoundingClientRect();
       const viewport = window.visualViewport;
@@ -1382,10 +1413,20 @@
     function activateDrag() {
       if (!dragState || dragState.active) return;
       dragState.active = true;
+      // Preview insertion must not move the hit targets under a stationary pointer.
+      dragState.dropGeometry = new Map([chain, ...chain.querySelectorAll(".loop-inner.sequence-zone")].map(zone => [zone, {
+        rect: zone.getBoundingClientRect(),
+        boundaries: getDirectProgramBlocks(zone).map(block => {
+          const rect = block.getBoundingClientRect();
+          return rect.left + Number(block.dataset.advance) / 2;
+        })
+      }]));
       dragState.lastX = dragState.startX;
       dragState.lastY = dragState.startY;
       if (dragState.fromProgram) {
+        const preserveStartTop = startBlock.getBoundingClientRect().top;
         dragState.placeholderSources.forEach(block => block.classList.add("drag-source-placeholder"));
+        updateProgramAnchor({ allowDuringDrag: true, preserveStartTop });
         setDeleteOverlayVisible(true);
       }
       document.body.appendChild(dragState.ghost);
@@ -1416,6 +1457,7 @@
       restoreDragScroll();
       setDragScrollLocked(false);
       dragState = null;
+      updateProgramAnchor();
     }
 
     function isProgramBlankTarget(target) {
@@ -1883,7 +1925,7 @@
     function getGrabMovePathsForSource(sourcePath) {
       if (!sourcePath?.length) return [];
       const effectivePaths = getEffectiveGrabPaths();
-      if (!effectivePaths.some(path => pathsEqual(path, sourcePath))) return [];
+      if (!effectivePaths.some(path => pathsEqual(path, sourcePath))) return [sourcePath];
 
       const sourceParentPath = sourcePath.slice(0, -1);
       return effectivePaths
@@ -1937,6 +1979,7 @@
         cleanupClonedProgramBlock(clone);
         container.appendChild(clone);
       });
+      BlockLayout.sequence(container);
     }
 
     function cleanupClonedProgramBlock(clone) {
@@ -1992,8 +2035,8 @@
     }
 
     function findDropTarget(clientX, clientY) {
-      const nestedZones = [...document.querySelectorAll(".loop-inner.sequence-zone")]
-        .map(zone => ({ zone, rect: zone.getBoundingClientRect() }))
+      const nestedZones = [...chain.querySelectorAll(".loop-inner.sequence-zone")]
+        .map(zone => ({ zone, rect: dragState?.dropGeometry?.get(zone)?.rect || zone.getBoundingClientRect() }))
         .filter(({ rect }) => isPointInRect(clientX, clientY, rect))
         .sort((a, b) => (a.rect.width * a.rect.height) - (b.rect.width * b.rect.height));
 
@@ -2103,10 +2146,16 @@
     }
 
     function getDropIndex(zone, pointerX) {
+      const boundaries = dragState?.dropGeometry?.get(zone)?.boundaries;
+      if (boundaries) {
+        const index = boundaries.findIndex(x => pointerX < x);
+        return index < 0 ? boundaries.length : index;
+      }
       const blocks = getDirectProgramBlocks(zone);
       for (let i = 0; i < blocks.length; i++) {
         const rect = blocks[i].getBoundingClientRect();
-        if (pointerX < rect.left + rect.width / 2) return i;
+        const advance = Number(blocks[i].dataset.advance) || rect.width;
+        if (pointerX < rect.left + advance / 2) return i;
       }
       return blocks.length;
     }
@@ -2141,23 +2190,7 @@
       const preserveStartPosition = Number.isFinite(preserveStartTop);
       const startTopBefore = preserveStartPosition ? preserveStartTop : 0;
       const scrollTopBefore = programCanvas.scrollTop;
-      const startHeight = startBlock.offsetHeight || 72;
-      const layoutItems = [...chain.children].filter(child => (
-        (includeDropProjection || !child.classList.contains("drop-projection")) &&
-        getComputedStyle(child).display !== "none"
-      ));
-      const maxItemHeight = Math.max(
-        startHeight,
-        ...layoutItems.map(item => item.offsetHeight || item.getBoundingClientRect().height)
-      );
-      const anchorY = programHeight * 0.6;
-      const minTopSpace = 16;
-      const minBottomSpace = 48;
-      const topSpace = Math.max(minTopSpace, anchorY - maxItemHeight + startHeight / 2);
-      const bottomSpace = Math.max(minBottomSpace, programHeight - topSpace - maxItemHeight);
-
-      chain.style.setProperty("--chain-pad-top", `${Math.round(topSpace)}px`);
-      chain.style.setProperty("--chain-pad-bottom", `${Math.round(bottomSpace)}px`);
+      BlockLayout.root(chain, programHeight);
 
       if (!preserveStartPosition) return;
       const scrollTopAfterLayout = programCanvas.scrollTop;
@@ -2193,7 +2226,8 @@
     }
 
     function moveProgramNode(sourcePath, targetSequencePath, targetIndex) {
-      if (!sourcePath) return;
+      if (!sourcePath || startsWithPath(targetSequencePath, sourcePath)
+        || !getSequenceByPath(targetSequencePath)) return;
 
       const sourceParentPath = sourcePath.slice(0, -1);
       const sourceIndex = sourcePath[sourcePath.length - 1];
@@ -2210,6 +2244,8 @@
 
     function moveProgramNodes(sourcePaths, targetSequencePath, targetIndex) {
       if (!sourcePaths?.length) return false;
+      if (sourcePaths.some(path => startsWithPath(targetSequencePath, path))
+        || !getSequenceByPath(targetSequencePath)) return false;
 
       const sortedSourcePaths = [...sourcePaths].sort(comparePathsAscending);
       const sourceParentPath = sortedSourcePaths[0].slice(0, -1);

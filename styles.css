@@ -7,18 +7,18 @@
       --program: #eeeeee;
       --library: #fff59c;
       --panel: #ffffff;
-      --motor: #ffea00;
-      --combo: #ff8a3d;
-      --sensor: #12a8dc;
-      --logic: #07994f;
-      --light: #e5007e;
+      --motor: #0090F5;
+      --combo: #FF4CCD;
+      --sensor: #34CCF1;
+      --logic: #FFB515;
+      --light: #9B6AF6;
       --action: var(--motor);
       --look: var(--sensor);
-      --sound: var(--light);
+      --sound: #C061F1;
       --control: var(--logic);
-      --loop: #f4a000;
-      --matrix: #8f5af7;
-      --start: #c9c9c9;
+      --loop: var(--logic);
+      --matrix: var(--light);
+      --start: #F5C402;
       --staging: #cfe0ff;
       --danger: #c83535;
       --blue-line: #2d6dff;
@@ -575,8 +575,8 @@
     }
 
     .loop-inner.drag-over {
-      background: rgba(22, 162, 96, .13);
-      box-shadow: inset 0 0 0 2px rgba(22, 162, 96, .48);
+      background: transparent;
+      box-shadow: none;
     }
 
     .loop-empty-note {
@@ -1035,8 +1035,6 @@
 
     .drop-projection {
       position: static !important;
-      left: auto !important;
-      top: auto !important;
       z-index: auto !important;
       transform: none !important;
       opacity: .34;
