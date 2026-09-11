@@ -1,0 +1,35 @@
+body.bluetooth-open .app { visibility: hidden; }
+.bluetooth-page { position: fixed; inset: 0; z-index: 1250; background: #f7f9fc; color: #22374a; overflow: auto; }
+.bluetooth-page[hidden] { display: none; }
+.bt-top { height: 62px; display: flex; align-items: center; gap: 18px; padding: 0 24px; border-bottom: 1px solid #dfe6ed; background: white; }
+.bt-top h1 { font-size: 19px; margin: 0; }
+.bt-back { border: 0; background: transparent; color: #536c80; cursor: pointer; font-size: 15px; padding: 10px 0; }
+.bt-content { max-width: 800px; margin: 0 auto; padding: 40px 28px; }
+.bt-overview { display: flex; align-items: center; gap: 20px; padding-bottom: 28px; border-bottom: 1px solid #dfe6ed; }
+.bt-symbol { display: grid; place-items: center; flex: 0 0 76px; height: 76px; border-radius: 8px; background: #e2f2ff; color: #008deb; }
+.bt-symbol svg { width: 40px; height: 40px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.bt-overview h2 { font-size: 24px; margin: 0 0 8px; }
+.bt-overview p { font-size: 14px; margin: 0; color: #758698; line-height: 1.6; }
+.bt-section-header { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin: 28px 0 16px; }
+.bt-section-header h2 { font-size: 17px; margin: 0; }
+.bt-button { min-height: 42px; padding: 8px 18px; border: 1px solid #bacddd; border-radius: 8px; color: #355b79; background: white; font-size: 14px; cursor: pointer; white-space: nowrap; }
+.bt-button.primary { border-color: #007bd2; background: #008deb; color: white; }
+.bt-button:disabled { opacity: .5; cursor: not-allowed; }
+.bt-message { color: #62798c; line-height: 1.7; font-size: 14px; margin: 16px 0; }
+.bt-message.error { color: #b63838; }
+.bt-list { padding: 0; margin: 0; list-style: none; }
+.bt-device { display: flex; align-items: center; gap: 16px; padding: 20px 0; border-bottom: 1px solid #dfe6ed; }
+.bt-device-info { flex: 1; min-width: 0; }
+.bt-device strong { display: block; font-size: 16px; overflow-wrap: anywhere; }
+.bt-device small { display: block; margin-top: 7px; color: #7b8e9f; font-size: 13px; }
+.bt-device .connected { color: #168358; }
+.bt-empty { text-align: center; padding: 50px 20px; color: #7b8e9f; border: 1px dashed #d3dfe9; border-radius: 8px; }
+.bt-empty strong { display: block; margin-bottom: 8px; font-size: 16px; font-weight: 500; color: #536c80; }
+.bt-empty span { font-size: 13px; }
+.bt-footnote { font-size: 13px; line-height: 1.7; color: #7b8e9f; margin-top: 24px; }
+.bt-diagnostics { margin-top: 20px; font-size: 14px; }
+.bt-diagnostics summary { cursor: pointer; padding-block: 10px; }
+.bt-trace { max-height: 260px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; background: #fff; padding: 12px; font-size: 12px; line-height: 1.6; border: 1px solid #dfe6ed; }
+#bluetoothBtn.is-connected { color: #138056; border-color: #138056; background: #e8f7ef; }
+@media(max-width:600px) { .bt-top { padding-inline: 16px; } .bt-content { padding: 26px 18px; } .bt-symbol { flex-basis: 58px; height: 58px; } .bt-overview { gap: 14px; } .bt-overview h2 { font-size: 21px; } }
+@media(max-width:360px) { .toolbar { gap: 2px; } .toolbar .btn { min-width: 35px; font-size: 12px; padding-inline: 4px; } }

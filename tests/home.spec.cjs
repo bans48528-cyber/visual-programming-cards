@@ -1,0 +1,53 @@
+const {chromium}=require('playwright');
+const assert=require('node:assert/strict');
+const path=require('node:path');
+const os=require('node:os');
+(async()=>{
+  const browser=await chromium.launch({channel:'msedge',headless:true});
+  try {
+    for(const width of [1280,390]) {
+      const page=await browser.newPage({viewport:{width,height:844},hasTouch:width<600});
+      const errors=[];page.on('pageerror',e=>errors.push(e.message));
+      await page.goto('http://127.0.0.1:4173/');
+      assert.equal(await page.locator('.home-screen').isVisible(),true);
+      await page.locator('#newProject').click();
+      await page.locator('.home-dialog input').fill('我的小车');
+      await page.locator('.home-dialog [type=submit]').click();
+      assert.equal(await page.locator('.home-screen').isVisible(),false);
+      await page.locator('#palette [data-card-id=motor-forward]').click();
+      await page.locator('#saveBtn').click();
+      await page.locator('#homeBtn').click();
+      assert.equal(await page.locator('.home-card').count(),1);
+      await page.getByRole('button',{name:'打开：我的小车',exact:true}).click();
+      assert.equal(await page.locator('#chain > .program-block').count(),1);
+      await page.reload();
+      assert.equal(await page.locator('#chain > .program-block').count(),1);
+      await page.locator('#homeBtn').click();
+      await page.locator('.home-menu summary').click();
+      await page.getByRole('button',{name:'重命名',exact:true}).click();
+      await page.locator('.home-dialog input').fill('电机实验');
+      await page.locator('.home-dialog [type=submit]').click();
+      assert.equal(await page.getByRole('button',{name:'打开：电机实验',exact:true}).count(),1);
+      await page.locator('.home-menu summary').click();
+      await page.getByRole('button',{name:'复制',exact:true}).click();
+      assert.equal(await page.locator('.home-card').count(),2);
+      await page.locator('.home-menu summary').first().click();
+      await page.getByRole('button',{name:'删除',exact:true}).first().click();
+      await page.locator('.home-dialog [type=submit]').click();
+      assert.equal(await page.locator('.home-card').count(),1);
+      await page.getByRole('tab',{name:'积木示例'}).click();
+      await page.getByRole('button',{name:'使用示例：重复转向',exact:true}).click();
+      assert.equal(await page.locator('#chain .loop-block').count(),1);
+      await page.locator('#homeBtn').click();
+      await page.getByRole('tab',{name:'我的作品'}).click();
+      assert.equal(await page.locator('.home-card').count(),2);
+      await page.reload();
+      assert.equal(await page.locator('.home-card').count(),2);
+      await page.screenshot({path:path.join(os.tmpdir(),`cards-home-${width}.png`)});
+      assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
+      assert.deepEqual(errors,[]);
+      console.log(`PASS ${width}: create, save, return, reload, rename, copy, delete, example`);
+      await page.close();
+    }
+  } finally { await browser.close(); }
+})().catch(e=>{console.error(e);process.exitCode=1;});

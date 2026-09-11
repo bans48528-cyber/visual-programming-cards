@@ -6,32 +6,40 @@
   <title>图形化编程原型</title>
   <link rel="stylesheet" href="styles.css">
   <link rel="stylesheet" href="blocks.css">
+  <link rel="stylesheet" href="home.css">
+  <link rel="stylesheet" href="bluetooth.css">
+  <link rel="stylesheet" href="toolbar.css">
 </head>
 <body>
   <div class="app">
     <header class="topbar">
       <div class="brand">
-        <div class="brand-mark" aria-hidden="true">A</div>
+        <button class="btn home-return" id="homeBtn" type="button" title="返回主页" aria-label="返回主页"><img src="assets/toolbar/home.svg" alt="" draggable="false"></button>
         <div class="brand-title">图形化编程原型</div>
       </div>
+      <output id="deviceStatus" class="device-status" data-state="disconnected" role="status" aria-live="polite" aria-atomic="true">设备未连接</output>
       <div class="toolbar" aria-label="程序操作">
-        <span class="toolbar-status" id="status" aria-live="polite">工作区就绪</span>
-        <button class="btn" id="undoBtn" type="button" disabled>撤销</button>
-        <button class="btn" id="redoBtn" type="button" disabled>前进</button>
-        <button class="btn" id="saveBtn" type="button">保存</button>
-        <button class="btn" id="loadBtn" type="button">读取</button>
-        <button class="btn danger" id="clearBtn" type="button">清空</button>
+        <button class="btn" id="bluetoothBtn" type="button" title="蓝牙未连接" aria-label="蓝牙未连接"><span class="bluetooth-icon" aria-hidden="true"></span></button>
+        <button class="btn" id="undoBtn" type="button" title="撤销" aria-label="撤销" disabled><img src="assets/toolbar/undo.svg" alt="" draggable="false"></button>
+        <button class="btn" id="redoBtn" type="button" title="前进" aria-label="前进" disabled><img class="redo-icon" src="assets/toolbar/undo.svg" alt="" draggable="false"></button>
+        <button class="btn" id="saveBtn" type="button" title="保存" aria-label="保存"><img src="assets/toolbar/save.svg" alt="" draggable="false"></button>
+        <button class="btn danger" id="clearBtn" type="button" title="清空" aria-label="清空"><img src="assets/toolbar/clear.svg" alt="" draggable="false"></button>
       </div>
     </header>
 
     <main class="workspace">
       <section class="program-area" aria-label="程序区">
-        <button class="grab-tool" id="grabTool" type="button" aria-label="同时抓取多张卡片">✋</button>
+        <button class="grab-tool" id="grabTool" type="button" title="同时抓取多张卡片" aria-label="同时抓取多张卡片"><span aria-hidden="true">✋</span></button>
         <div class="program-canvas">
           <div class="chain sequence-zone" id="chain" data-sequence-path="">
             <div class="block start" id="startBlock" role="listitem" aria-label="程序开始">开始</div>
             <div class="empty-note" id="emptyNote">放入卡片</div>
           </div>
+        </div>
+        <div class="execution-controls" role="group" aria-label="程序运行控制">
+          <button class="execution-button execution-pause" id="pauseProgramBtn" type="button" aria-label="暂停程序" title="暂停程序（尚未接入硬件）"><span aria-hidden="true"></span></button>
+          <button class="execution-button execution-run" id="runProgramBtn" type="button" aria-label="发送并运行程序" title="发送并运行程序（尚未接入硬件）"><span aria-hidden="true"></span></button>
+          <output class="execution-notice" id="executionNotice" role="status" hidden></output>
         </div>
       </section>
 
@@ -54,5 +62,8 @@
 
   <script src="block-layout.js"></script>
   <script src="app.js"></script>
+  <script src="home.js"></script>
+  <script src="spark-protocol.js"></script>
+  <script src="bluetooth.js"></script>
 </body>
 </html>

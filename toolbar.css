@@ -1,0 +1,59 @@
+.app { grid-template-rows: auto minmax(0, 1fr); }
+.topbar { padding: 3px 8px; border-bottom: 1px solid #dfe3e7; }
+.topbar .toolbar { gap: 6px; }
+.topbar { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); }
+.topbar .toolbar { justify-self: end; }
+.device-status { display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-width: 120px; font-size: 13px; font-weight: 600; color: #687480; white-space: nowrap; }
+.device-status::before { content: ""; width: 8px; height: 8px; flex: 0 0 8px; border-radius: 50%; background: currentColor; }
+.device-status[data-state="run"] { color: #0874bd; }
+.device-status[data-state="stop"] { color: #138056; }
+.device-status[data-state="stale"], .device-status[data-state="waiting"] { color: #926000; }
+.device-status[data-state="connecting"] { color: #0874bd; }
+@media (max-width: 760px) {
+  .topbar { grid-template-columns: minmax(0, 1fr) auto; row-gap: 0; }
+  .device-status { grid-row: 2; grid-column: 1 / -1; min-height: 25px; }
+  .topbar .toolbar { grid-column: 2; grid-row: 1; }
+}
+.topbar .btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 6px;
+  border: 0;
+  border-radius: 6px;
+  box-shadow: none;
+  background: white;
+  color: #111820;
+}
+.topbar .btn img { width: 32px; height: 32px; object-fit: contain; pointer-events: none; }
+.topbar .redo-icon { transform: scaleX(-1); }
+.topbar #bluetoothBtn { color: #7a838d; }
+.bluetooth-icon {
+  width: 32px;
+  height: 32px;
+  background: currentColor;
+  mask: url("assets/toolbar/bluetooth.svg") center / contain no-repeat;
+  -webkit-mask: url("assets/toolbar/bluetooth.svg") center / contain no-repeat;
+  pointer-events: none;
+}
+.topbar .btn:disabled { opacity: .3; }
+.topbar .btn:hover:not(:disabled), .grab-tool:hover { background: #f0f4f8; }
+.topbar .btn:active:not(:disabled), .grab-tool:active { background: #eaf0f8; }
+.topbar .btn:focus-visible, .grab-tool:focus-visible { outline: 2px solid #0090f5; outline-offset: -2px; }
+.topbar #bluetoothBtn.is-connected { color: #138056; background: #e8f7ef; }
+.topbar #bluetoothBtn.is-connecting { color: #0090f5; background: #e8f4ff; }
+.grab-tool { border: 0; border-radius: 6px; box-shadow: none; background: white; }
+.grab-tool > span { filter: grayscale(1); pointer-events: none; }
+.grab-tool.is-dragging { box-shadow: 0 4px 12px #0002; }
+@media(max-width: 420px) {
+  .topbar { gap: 4px; padding-inline: 4px; }
+  .topbar .toolbar { gap: 2px; }
+  .topbar .btn { width: 40px; min-width: 40px; }
+  .topbar .btn img { width: 28px; height: 28px; }
+  .bluetooth-icon { width: 28px; height: 28px; }
+}

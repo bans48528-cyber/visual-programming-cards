@@ -45,14 +45,18 @@ async function checkGeometry(page) {
   assert.deepEqual(errors,[]);
 }
 async function drag(page, selector, point) {
-  const r=await page.locator(selector).boundingBox();
+  const source=page.locator(selector);
+  await source.scrollIntoViewIfNeeded();
+  const r=await source.boundingBox();
   await page.mouse.move(r.x+20,r.y+20);
   await page.mouse.down();
   await page.mouse.move(point.x,point.y,{steps:12});
   await page.mouse.up();
 }
 async function touchDrag(page, selector, point) {
-  const r=await page.locator(selector).boundingBox();
+  const source=page.locator(selector);
+  await source.scrollIntoViewIfNeeded();
+  const r=await source.boundingBox();
   const session=await page.context().newCDPSession(page);
   const x=r.x+20,y=r.y+20;
   await session.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x,y}]});
@@ -67,7 +71,7 @@ async function touchDrag(page, selector, point) {
       const context=await browser.newContext({viewport,hasTouch:viewport.width<1000});
       const page=await context.newPage();
       const errors=[];page.on('pageerror',e=>errors.push(e.message));
-      await page.goto(process.env.CARDS_URL || 'http://127.0.0.1:4173/');
+      await page.goto(process.env.CARDS_URL || 'http://127.0.0.1:4173/#editor');
       await page.locator('#palette [data-card-id="motor-forward"]').click();
       await page.locator('#palette [data-card-id="motor-reverse"]').click();
       await checkGeometry(page);
@@ -86,7 +90,8 @@ async function touchDrag(page, selector, point) {
       await page.locator('#saveBtn').click();
       const saved=await page.evaluate(()=>getProgramSnapshot());
       await page.locator('#clearBtn').click();
-      await page.locator('#loadBtn').click();
+      assert.equal(await page.locator('#loadBtn').count(),0);
+      await page.evaluate(()=>loadProgram());
       assert.equal(await page.evaluate(()=>getProgramSnapshot()),saved);
       await checkGeometry(page);
       await page.evaluate(()=>{program=[];renderProgram();addCard('loop-count');});

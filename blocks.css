@@ -123,3 +123,22 @@
   .toolbar { gap: 3px; }
   .btn { min-width: 40px; padding-inline: 5px; }
 }
+/* Motor power uses original rotor artwork and four discrete level swatches. */
+.power-bars { display: inline-flex; align-items: flex-end; justify-content: center; gap: 2px; height: 23px; }
+.power-bars i { display: block; width: 6px; background: white; border: 1px solid #0062a6; }
+.power-bars i.is-on { background: #38db70; }
+.motor-power-icon { position: relative; }
+.motor-power-icon > .power-bars { position: absolute; right: -3px; bottom: -1px; transform: scale(.7); transform-origin: bottom right; }
+.motor-power-editor > .motor-power-icon { width: 104px; height: 104px; margin: 8px auto; display: block; }
+.motor-power-editor > .motor-power-icon svg { width: 104px; height: 104px; }
+.motor-power-editor > .motor-power-icon > .power-bars { transform: scale(1.2); right: 7px; bottom: 5px; }
+.motor-power-editor .power-option { width: 48px; height: 48px; padding: 6px; flex: 0 0 48px; }
+.motor-power-editor .param-option-row { justify-content: center; }
+.param-field-caption { color: white; font-size: 13px; font-weight: 600; margin-top: 4px; }
+.continuous-icon { position: relative; }
+.continuous-icon > svg { transform: translateY(-3px) scale(.88); }
+.continuous-badge { position: absolute; right: -2px; bottom: -4px; color: white; font: bold 20px/1 Arial, sans-serif; }
+.param-option-row.note-options { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.note-options .param-option-btn { min-width: 0; width: 100%; }
+.param-option-row.direction-options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.direction-options .param-option-btn { min-width: 0; width: 100%; }

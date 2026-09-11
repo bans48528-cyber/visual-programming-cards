@@ -6,12 +6,18 @@
         color: "var(--motor)",
         cards: [
           {
+            id: "motor-power", label: "电机功率", type: "motor", actionName: "电机功率",
+            paramsSchema: {
+              power: { label: "功率", type: "select", default: "50", options: [25, 50, 75, 100].map(value => ({ value: String(value), label: `${value}%`, display: `${value}%` })) }
+            }
+          },
+          {
             id: "motor-forward",
             label: "电机正转",
             type: "motor",
             actionName: "电机正转",
             paramsSchema: {
-              port: { label: "电机端口", type: "select", default: "A", options: ["A", "B", "C", "D"] },
+              port: { label: "电机端口", type: "select", default: "E", options: ["E", "F", "G", "H"], legacyValues: { A: "E", B: "F", C: "G", D: "H" } },
               duration: { label: "运行时间", type: "number", default: 1, min: 0.1, step: 0.1, unit: "秒" }
             }
           },
@@ -21,9 +27,17 @@
             type: "motor",
             actionName: "电机反转",
             paramsSchema: {
-              port: { label: "电机端口", type: "select", default: "A", options: ["A", "B", "C", "D"] },
+              port: { label: "电机端口", type: "select", default: "E", options: ["E", "F", "G", "H"], legacyValues: { A: "E", B: "F", C: "G", D: "H" } },
               duration: { label: "运行时间", type: "number", default: 1, min: 0.1, step: 0.1, unit: "秒" }
             }
+          },
+          {
+            id: "motor-forward-continuous", label: "持续正转", type: "motor", actionName: "持续正转",
+            paramsSchema: { port: { label: "电机端口", type: "select", default: "E", options: ["E", "F", "G", "H"] } }
+          },
+          {
+            id: "motor-reverse-continuous", label: "持续反转", type: "motor", actionName: "持续反转",
+            paramsSchema: { port: { label: "电机端口", type: "select", default: "E", options: ["E", "F", "G", "H"] } }
           },
           {
             id: "motor-stop",
@@ -31,7 +45,7 @@
             type: "motor",
             actionName: "电机停止",
             paramsSchema: {
-              port: { label: "电机端口", type: "select", default: "A", options: ["A", "B", "C", "D"] }
+              port: { label: "电机端口", type: "select", default: "E", options: ["E", "F", "G", "H"], legacyValues: { A: "E", B: "F", C: "G", D: "H" } }
             }
           }
         ]
@@ -39,6 +53,21 @@
       combo: {
         color: "var(--combo)",
         cards: [
+          {
+            id: "combo-direction", label: "组合电机方向", type: "combo", actionName: "组合电机方向",
+            paramsSchema: {
+              mode: { label: "旋转方向（左E·右F）", type: "select", default: "3", options: [
+                { value: "3", label: "全部正向" }, { value: "0", label: "左电机反向" },
+                { value: "1", label: "右电机反向" }, { value: "2", label: "全部反向" }
+              ] }
+            }
+          },
+          {
+            id: "combo-power", label: "组合电机功率", type: "combo", actionName: "组合电机功率",
+            paramsSchema: {
+              power: { label: "功率", type: "select", default: "50", options: [25, 50, 75, 100].map(value => ({ value: String(value), label: `${value}%`, display: `${value}%` })) }
+            }
+          },
           {
             id: "combo-forward",
             label: "组合前进",
@@ -75,6 +104,15 @@
               duration: { label: "运行时间", type: "number", default: 1, min: 0.1, step: 0.1, unit: "秒" }
             }
           },
+          {
+            id: "combo-continuous", label: "组合持续移动", type: "combo", actionName: "组合持续移动",
+            paramsSchema: {
+              direction: { label: "方向", type: "select", default: "advance", options: [
+                {value: "advance", label: "前进"}, {value: "retreat", label: "后退"},
+                {value: "left", label: "左转"}, {value: "right", label: "右转"}
+              ] }
+            }
+          },
           { id: "combo-stop", label: "组合停止", type: "combo", actionName: "组合停止" }
         ]
       },
@@ -89,6 +127,7 @@
             icon: "ultrasonic",
             color: "var(--sensor)",
             paramsSchema: {
+              port: { label: "传感器端口", type: "select", default: "A", options: ["A", "B", "C", "D"] },
               operator: {
                 label: "比较符号",
                 type: "select",
@@ -108,6 +147,7 @@
             type: "sensor",
             actionName: "灰度传感器",
             paramsSchema: {
+              port: { label: "传感器端口", type: "select", default: "A", options: ["A", "B", "C", "D"] },
               operator: {
                 label: "比较符号",
                 type: "select",
@@ -118,7 +158,7 @@
                   { label: "等于", value: "==", display: "=" }
                 ]
               },
-              value: { label: "数值", type: "number", default: 500, min: 0, max: 1000, step: 1, unit: "cm", integer: true }
+              value: { label: "数值", type: "number", default: 500, min: 0, max: 1000, step: 1, integer: true }
             }
           },
           {
@@ -127,6 +167,7 @@
             type: "sensor",
             actionName: "按键传感器",
             paramsSchema: {
+              port: { label: "传感器端口", type: "select", default: "A", options: ["A", "B", "C", "D"] },
               state: { label: "按键状态", type: "select", default: "按下", options: ["按下", "松开"] }
             }
           },
@@ -179,7 +220,8 @@
             type: "light",
             actionName: "演奏音",
             paramsSchema: {
-              note: { label: "音符", type: "select", default: "1", options: ["1", "2", "3", "4", "5"] }
+              note: { label: "音符", type: "select", default: "1", options: ["1", "2", "3", "4", "5", "6", "7"] },
+              beats: { label: "拍数", type: "select", default: "0.25", options: ["0.25", "0.5", "1", "2"].map(value => ({value, label: `${value}拍`})) }
             }
           },
           {
@@ -429,6 +471,20 @@
     function createCardIcon(card, item = null) {
       const icon = document.createElement("span");
       icon.className = "card-icon";
+      if (card.id === "motor-power" || card.id === "combo-power") {
+        icon.classList.add("motor-power-icon");
+        icon.innerHTML = `<svg viewBox="0 0 64 64" aria-hidden="true"><circle cx="32" cy="27" r="23" fill="white" stroke="none"/><g fill="#0062a6" stroke="none"><circle cx="32" cy="12" r="6"/><circle cx="47" cy="27" r="6"/><circle cx="32" cy="42" r="6"/><circle cx="17" cy="27" r="6"/><circle cx="32" cy="27" r="4"/></g></svg>`;
+        if (card.id === "combo-power") {
+          const svg = icon.querySelector("svg");
+          svg.querySelector("g").setAttribute("fill", "#b2248a");
+          const second = document.createElementNS("http://www.w3.org/2000/svg", "g");
+          second.setAttribute("transform", "translate(-7 22) scale(.75)");
+          second.append(...Array.from(svg.children, child => child.cloneNode(true)));
+          svg.append(second);
+        }
+        icon.appendChild(createPowerBars(Number(getParamValue(card, item, "power"))));
+        return icon;
+      }
 
       if (card.icon === "hourglass") {
         icon.innerHTML = `
@@ -469,7 +525,23 @@
         "loop": "M18 22h20a15 15 0 0 1 0 30 M26 12L16 22l10 10",
         "loop-count": "M18 22h20a15 15 0 0 1 0 30 M26 12L16 22l10 10"
       };
-      icon.innerHTML = `<svg viewBox="0 0 64 64" aria-hidden="true"><path d="${paths[card.id] || paths.loop}"/></svg>`;
+      let iconId = card.id;
+      if (card.id === "combo-direction") {
+        const mode = getParamValue(card, item, "mode");
+        const arrow = "M0 13V-13 M-7-6L0-13 7-6";
+        icon.innerHTML = `<svg viewBox="0 0 64 64" aria-hidden="true"><circle cx="19" cy="32" r="16"/><circle cx="45" cy="32" r="16"/><path transform="translate(19 32) rotate(${["0","2"].includes(mode) ? 180 : 0})" d="${arrow}"/><path transform="translate(45 32) rotate(${["1","2"].includes(mode) ? 180 : 0})" d="${arrow}"/></svg>`;
+        return icon;
+      }
+      const continuous = card.id.endsWith("-continuous");
+      if (card.id === "combo-continuous") iconId = {advance:"combo-forward",retreat:"combo-backward",left:"combo-turn-left",right:"combo-turn-right"}[getParamValue(card,item,"direction")];
+      else if (continuous) iconId = card.id.replace("-continuous", "");
+      icon.innerHTML = `<svg viewBox="0 0 64 64" aria-hidden="true"><path d="${paths[iconId] || paths.loop}"/></svg>`;
+      if (continuous) {
+        icon.classList.add("continuous-icon");
+        const badge = document.createElement("span");
+        badge.className = "continuous-badge";badge.textContent = "∞";badge.setAttribute("aria-hidden", "true");
+        icon.appendChild(badge);
+      }
       return icon;
     }
 
@@ -652,6 +724,7 @@
       }
 
       if (definition.type === "select") {
+        if (Object.hasOwn(definition.legacyValues || {}, rawValue)) rawValue = definition.legacyValues[rawValue];
         const values = (definition.options || []).map(option => (
           typeof option === "object" ? option.value : option
         ));
@@ -686,6 +759,11 @@
     }
 
     function getParamBubbleText(card, item = null) {
+      if (card.id.endsWith("-continuous")) {
+        if (card.id === "combo-continuous") return `${getParamOptionDisplay(card.paramsSchema.direction,getParamValue(card,item,"direction"))}∞`;
+        return `${getParamValue(card,item,"port")}${card.id === "motor-forward-continuous" ? "正转" : "反转"}∞`;
+      }
+      if (card.id === "play-note") return `${getParamValue(card, item, "note")}·${getParamValue(card, item, "beats")}拍`;
       if (card.id === "matrix-display") {
         return "";
       }
@@ -767,8 +845,20 @@
     function createGenericParamEditor(card, item) {
       const panel = document.createElement("div");
       panel.className = "param-editor-panel";
+      if (card.id === "motor-power" || card.id === "combo-power") {
+        panel.classList.add("motor-power-editor");
+        panel.appendChild(createCardIcon(card, item));
+        panel.appendChild(createSelectParamEditor(card, item, "power", card.paramsSchema.power));
+        return panel;
+      }
 
       Object.entries(card.paramsSchema || {}).forEach(([key, definition]) => {
+        if (card.id === "play-note") {
+          const caption = document.createElement("div");
+          caption.className = "param-field-caption";
+          caption.textContent = definition.label;
+          panel.appendChild(caption);
+        }
         if (definition.type === "select") {
           panel.appendChild(createSelectParamEditor(card, item, key, definition));
         } else if (definition.type === "number") {
@@ -784,6 +874,8 @@
     function createSelectParamEditor(card, item, key, definition) {
       const optionRow = document.createElement("div");
       optionRow.className = "param-option-row";
+      if (card.id === "play-note" && key === "note") optionRow.classList.add("note-options");
+      if (card.id === "combo-direction" && key === "mode") optionRow.classList.add("direction-options");
       const currentValue = getParamValue(card, item, key);
 
       definition.options.forEach(option => {
@@ -795,11 +887,29 @@
         button.type = "button";
         button.textContent = typeof option === "object" ? (option.display || option.label || option.value) : option;
         button.setAttribute("aria-label", typeof option === "object" ? option.label : option);
+        if ((card.id === "motor-power" || card.id === "combo-power") && key === "power") {
+          button.classList.add("power-option");
+          button.title = `功率 ${value}%`;
+          button.replaceChildren(createPowerBars(Number(value)));
+        }
         button.addEventListener("click", () => setActiveParamValue(key, value));
         optionRow.appendChild(button);
       });
 
       return optionRow;
+    }
+
+    function createPowerBars(power) {
+      const bars = document.createElement("span");
+      bars.className = "power-bars";
+      bars.setAttribute("aria-hidden", "true");
+      for (let i = 1; i <= 4; i++) {
+        const bar = document.createElement("i");
+        bar.style.height = `${5 + i * 4}px`;
+        bar.classList.toggle("is-on", i * 25 <= power);
+        bars.appendChild(bar);
+      }
+      return bars;
     }
 
     function createMatrixParamEditor(card, item, key = "pattern") {
@@ -2473,11 +2583,13 @@
     }
 
     function saveProgram() {
+      if (window.CardHome?.save()) return;
       localStorage.setItem(STORAGE_KEY, JSON.stringify(serializeWorkspaceState()));
       setStatus("已保存");
     }
 
     function loadProgram() {
+      if (window.CardHome?.load()) return;
       const raw = localStorage.getItem(STORAGE_KEY) || localStorage.getItem(LEGACY_STORAGE_KEY);
       if (!raw) {
         setStatus("没有保存内容");
@@ -2528,7 +2640,7 @@
     }
 
     function setStatus(text) {
-      statusEl.textContent = text;
+      if (statusEl) statusEl.textContent = text;
     }
 
     document.querySelectorAll(".tab").forEach(tab => {
@@ -2538,7 +2650,21 @@
     });
 
     document.getElementById("saveBtn").addEventListener("click", saveProgram);
-    document.getElementById("loadBtn").addEventListener("click", loadProgram);
+    const executionControls = document.querySelector(".execution-controls");
+    const executionNotice = document.getElementById("executionNotice");
+    let executionNoticeTimer;
+    executionControls.addEventListener("pointerdown", event => event.stopPropagation());
+    window.showExecutionNotice = text => {
+      executionNotice.textContent = text;
+      executionNotice.hidden = false;
+      clearTimeout(executionNoticeTimer);
+      executionNoticeTimer = setTimeout(() => { executionNotice.hidden = true; }, 7000);
+    };
+    document.getElementById("runProgramBtn").title="发送并运行当前程序";
+    document.getElementById("pauseProgramBtn").title="停止程序（B9，不支持恢复暂停）";
+    document.getElementById("pauseProgramBtn").setAttribute("aria-label","停止程序");
+    document.getElementById("runProgramBtn").addEventListener("click",()=>window.CardBluetooth.runProgram(structuredClone(program)));
+    document.getElementById("pauseProgramBtn").addEventListener("click",()=>window.CardBluetooth.stopProgram());
     undoBtn.addEventListener("click", undoProgram);
     redoBtn.addEventListener("click", redoProgram);
     document.getElementById("clearBtn").addEventListener("click", () => {
