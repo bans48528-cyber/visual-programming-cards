@@ -13,15 +13,15 @@ function fixture(options={}) {
   for(const invalid of [[],[block('matrix-display')],[block('motor-forward',{port:'E',duration:1})],[block('wait-time',{duration:-1})],[block('loop',{},[])],[block('combo-continuous',{direction:'__proto__'})]]) assert.throws(()=>validate(invalid));
   const f=fixture();
   await f.runner.run([block('combo-continuous',{direction:'advance'}),block('motor-reverse-continuous',{port:'L/M1'}),block('motor-stop',{port:'R/M2'}),block('wait-time',{duration:.1})]);
-  assert.deepEqual(f.writes.map(w=>w.keys),[[],['A','X'],['B','X'],['B'],[]]);
+  assert.deepEqual(f.writes.map(w=>w.keys),[[],['up'],['B','X'],['B'],[]]);
   assert.ok(f.writes.at(-1).time-f.writes.at(-2).time>=85);
   const timed=fixture();await timed.runner.run([block('motor-forward-continuous',{port:'R/M2'}),block('motor-reverse',{port:'L/M1',duration:.1})]);
   assert.deepEqual(timed.writes.map(w=>w.keys),[[],['X'],['B','X'],['X'],[]]);
   const turns=fixture();await turns.runner.run([block('combo-turn-left',{duration:.1}),block('combo-turn-right',{duration:.1}),block('combo-backward',{duration:.1})]);
-  assert.deepEqual(turns.writes.map(w=>w.keys),[[],['X'],[],['A'],[],['B','Y'],[],[]]);
+  assert.deepEqual(turns.writes.map(w=>w.keys),[[],['left'],[],['right'],[],['down'],[],[]]);
   const speed=fixture({heartbeatMs:20});await speed.runner.run([block('combo-continuous',{direction:'advance'}),block('speed-up'),block('speed-down')]);
   assert.equal(speed.writes.filter(w=>w.keys.includes('L')).length,1);assert.equal(speed.writes.filter(w=>w.keys.includes('R')).length,1);
-  assert.ok(speed.writes.filter(w=>w.keys.includes('L')||w.keys.includes('R')).every(w=>w.keys.includes('A')&&w.keys.includes('X')));
+  assert.ok(speed.writes.filter(w=>w.keys.includes('L')||w.keys.includes('R')).every(w=>w.keys.includes('up')));
   const loops=fixture();await loops.runner.run([block('loop-count',{count:2},[block('loop-count',{count:2},[block('motor-forward-continuous',{port:'L/M1'})])])]);
   assert.equal(loops.writes.filter(w=>w.keys.includes('A')).length,4);
   const cancel=fixture({heartbeatMs:20});const running=cancel.runner.run([block('loop',{},[block('combo-continuous',{direction:'advance'}),block('wait-time',{duration:30})])]);

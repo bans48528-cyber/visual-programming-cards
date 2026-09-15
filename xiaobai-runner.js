@@ -40,10 +40,13 @@
   class Runner {
     constructor(connection,{isCurrent=()=>true,onStep=()=>{},heartbeatMs=1000}={}) {
       this.connection=connection;this.isCurrent=isCurrent;this.onStep=onStep;this.heartbeatMs=heartbeatMs;
-      this.motors=[0,0];this.queue=Promise.resolve();this.waiters=new Set();this.cancelled=false;this.pulsing=false;
+      this.motors=[0,0];this.direction=null;this.queue=Promise.resolve();this.waiters=new Set();this.cancelled=false;this.pulsing=false;
       this.error=null;this.done=null;this.timer=null;
     }
-    keys() {return [this.motors[0]>0?'A':this.motors[0]<0?'B':null,this.motors[1]>0?'X':this.motors[1]<0?'Y':null].filter(Boolean);}
+    keys() {
+      if(this.direction) return [{advance:'up',retreat:'down',left:'left',right:'right'}[this.direction]];
+      return [this.motors[0]>0?'A':this.motors[0]<0?'B':null,this.motors[1]>0?'X':this.motors[1]<0?'Y':null].filter(Boolean);
+    }
     check() {
       if (this.error) throw this.error;
       if (this.cancelled) throw new Cancelled();
@@ -86,6 +89,7 @@
           try {await this.write([...this.keys(),id==='speed-up'?mapping.speedUp:mapping.speedDown]);await this.delay(100);await this.write(this.keys());await this.delay(100);}
           finally {this.pulsing=false;}
         } else if(motorIds.includes(id)) {
+          this.direction=null;
           const index=p.port==='L/M1'?0:1;
           this.motors[index]=id==='motor-stop'?0:id.includes('reverse')?-1:1;
           await this.write(this.keys());
@@ -93,8 +97,9 @@
         } else {
           const dir=id==='combo-continuous'?p.direction:({'combo-forward':'advance','combo-backward':'retreat','combo-turn-left':'left','combo-turn-right':'right'})[id];
           this.motors=id==='combo-stop'?[0,0]:[...directions[dir]];
+          this.direction=id==='combo-stop'?null:dir;
           await this.write(this.keys());
-          if(id!=='combo-continuous'&&id!=='combo-stop') {await this.delay(p.duration*1000);this.motors=[0,0];await this.write([]);}
+          if(id!=='combo-continuous'&&id!=='combo-stop') {await this.delay(p.duration*1000);this.motors=[0,0];this.direction=null;await this.write([]);}
         }
       }
     }
@@ -106,7 +111,7 @@
         try {await this.write([]);this.heartbeat();await this.sequence(copy);}
         catch(error) {if(!(error instanceof Cancelled)) failure=error;}
         finally {
-          this.cancel();this.motors=[0,0];
+          this.cancel();this.motors=[0,0];this.direction=null;
           try {await this.write([],true);} catch(error) {failure=failure||error;}
         }
         if(failure) throw failure;

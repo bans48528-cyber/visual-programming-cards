@@ -23,7 +23,7 @@ if (result.error) throw result.error;
 if (result.status !== 0) process.exit(result.status || 1);
 const output = path.join(root, 'artifacts');
 fs.mkdirSync(output, {recursive: true});
-const name = 'xiaobai-1.0.0-debug.apk';
+const name = 'xiaobai-1.0.1-debug.apk';
 fs.copyFileSync(path.join(root, 'android/app/build/outputs/apk/debug/app-debug.apk'), path.join(output, name));
 const hash = createHash('sha256').update(fs.readFileSync(path.join(output, name))).digest('hex');
 fs.writeFileSync(path.join(output, `${name}.sha256`), `${hash}  ${name}\n`);
