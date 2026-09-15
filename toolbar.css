@@ -1,41 +1,38 @@
 .app { grid-template-rows: auto minmax(0, 1fr); }
-.topbar { padding: 3px 8px; border-bottom: 1px solid #dfe3e7; }
-.topbar .toolbar { gap: 6px; }
-.topbar { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); }
+.topbar { padding: 2.4px 6.4px; border-bottom: 1px solid #dfe3e7; }
+.topbar .toolbar { gap: 4.8px; }
+.topbar { display: grid; grid-template-columns: minmax(35.2px, 1fr) auto auto; gap: 9.6px; }
 .topbar .toolbar { justify-self: end; }
-.device-status { display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-width: 120px; font-size: 13px; font-weight: 600; color: #687480; white-space: nowrap; }
-.device-status::before { content: ""; width: 8px; height: 8px; flex: 0 0 8px; border-radius: 50%; background: currentColor; }
+.device-status { display: inline-flex; align-items: center; justify-content: center; gap: 5.6px; min-width: 96px; font-size: 10.4px; font-weight: 600; color: #687480; white-space: nowrap; }
+.device-status::before { content: ""; width: 6.4px; height: 6.4px; flex: 0 0 6.4px; border-radius: 50%; background: currentColor; }
 .device-status[data-state="run"] { color: #0874bd; }
 .device-status[data-state="stop"] { color: #138056; }
 .device-status[data-state="stale"], .device-status[data-state="waiting"] { color: #926000; }
 .device-status[data-state="connecting"] { color: #0874bd; }
-@media (max-width: 760px) {
-  .topbar { grid-template-columns: minmax(0, 1fr) auto; row-gap: 0; }
-  .device-status { grid-row: 2; grid-column: 1 / -1; min-height: 25px; }
-  .topbar .toolbar { grid-column: 2; grid-row: 1; }
-}
+.topbar .brand { gap: 8px; }
+.topbar .brand-title { font-size: 13.6px; }
 .topbar .btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   flex: 0 0 auto;
-  width: 44px;
-  height: 44px;
-  min-width: 44px;
-  min-height: 44px;
-  padding: 6px;
+  width: 35.2px;
+  height: 35.2px;
+  min-width: 35.2px;
+  min-height: 35.2px;
+  padding: 4.8px;
   border: 0;
-  border-radius: 6px;
+  border-radius: 4.8px;
   box-shadow: none;
   background: white;
   color: #111820;
 }
-.topbar .btn img { width: 32px; height: 32px; object-fit: contain; pointer-events: none; }
+.topbar .btn img { width: 25.6px; height: 25.6px; object-fit: contain; pointer-events: none; }
 .topbar .redo-icon { transform: scaleX(-1); }
 .topbar #bluetoothBtn { color: #7a838d; }
 .bluetooth-icon {
-  width: 32px;
-  height: 32px;
+  width: 25.6px;
+  height: 25.6px;
   background: currentColor;
   mask: url("assets/toolbar/bluetooth.svg") center / contain no-repeat;
   -webkit-mask: url("assets/toolbar/bluetooth.svg") center / contain no-repeat;
@@ -48,11 +45,12 @@
 .topbar #bluetoothBtn.is-connected { color: #138056; background: #e8f7ef; }
 .topbar #bluetoothBtn.is-connecting { color: #0090f5; background: #e8f4ff; }
 @media(max-width: 420px) {
-  .topbar { gap: 4px; padding-inline: 4px; }
-  .topbar .toolbar { gap: 2px; }
-  .topbar .btn { width: 40px; min-width: 40px; }
-  .topbar .btn img { width: 28px; height: 28px; }
-  .bluetooth-icon { width: 28px; height: 28px; }
+  .device-status { min-width: 0; }
+  .topbar { gap: 3.2px; padding-inline: 3.2px; }
+  .topbar .toolbar { gap: 1.6px; }
+  .topbar .btn { width: 32px; min-width: 32px; }
+  .topbar .btn img { width: 22.4px; height: 22.4px; }
+  .bluetooth-icon { width: 22.4px; height: 22.4px; }
 }
 .execution-button.execution-compile span {
   width: auto;

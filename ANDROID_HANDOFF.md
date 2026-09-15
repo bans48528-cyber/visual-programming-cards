@@ -1,6 +1,10 @@
 # Android 迁移交接文档
 
-更新时间：2026-09-14
+更新时间：2026-09-15
+
+> 紧凑顶栏（2026-09-15）：设备状态与主页、作品名称、操作按钮保持单排，顶部元素缩到原来的 80%。751 / 892 / 390px 预览均无换行或溢出；华为实机顶栏高约 41px（原约 75px）。新版 APK 已覆盖安装，SHA256 ed94a1a098905698dbca6feae66d74f7547cdb7ee182ad373d428933fef5bb69，截图 artifacts/huawei-compact-toolbar.png。
+
+> 华为环境恢复（2026-09-15）：nova 3 / PAR-AL00，ADB FJH5T18714012850，Android 9，保留 com.huawei.webview 12.1.2.326（Chromium 92）。缺少 structuredClone / Object.hasOwn 的调用已兼容；BlockLayout.clientRect 通过运行时探测修正旧内核 CSS zoom 坐标，并排除根元素的设备倍率。最终 APK 已覆盖安装，SHA256 c495c9cd6918848ae9afc83f9aab7f3bf01b701f719d5d06b17e6ef458a56325。实机通过触摸嵌套、参数、点阵、撤销重做、返回键、强制结束后保存恢复；APK/JNI 29 组各两次字节码一致。扫描开始/停止、约 10 秒超时、返回及后台清理通过（本次发现 0 台，未验证该手机的实物发送/遥控）。记录 artifacts/huawei-device-report.json、huawei-scan-report.json；桌面三尺寸积木回归通过。
 
 > 发送并运行更新（2026-09-14）：按用户要求对齐网页版按钮。黄色按钮发送并以 BC 请求运行，灰色按钮取消发送并按状态跳过 / 单次 / 五次 B9；发送前 run 状态先请求暂停并等待 stop。原主机固件 109 实测 DA/AA/AA/BC 四包确认，状态 run → 点击暂停发送五次 B9 → stop，手机保持连接；日志 artifacts/spark-upload-live.json。旧版仅发送记录保留在下文；最新行为见 docs/ANDROID_UPLOAD.md。
 

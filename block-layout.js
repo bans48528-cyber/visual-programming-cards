@@ -1,6 +1,23 @@
 /* Geometry is in CSS pixels: advance excludes the plug, height includes parameters. */
 const BlockLayout = (() => {
   const NS = "http://www.w3.org/2000/svg";
+  let legacyZoom;
+  function clientRect(element) {
+    if (legacyZoom === undefined) {
+      const probe = document.createElement('div');
+      probe.style.cssText = 'position:fixed;left:0;top:0;width:20px;height:20px;zoom:0.5;visibility:hidden;pointer-events:none';
+      document.body.append(probe);
+      legacyZoom = Math.abs(probe.getBoundingClientRect().width - 20) < 0.1;
+      probe.remove();
+    }
+    const rect = element.getBoundingClientRect();
+    if (!legacyZoom) return rect;
+    let zoom = 1;
+    // Old Android WebView exposes device scaling as the root's computed zoom;
+    // DOM rects already use CSS pixels, so only include application element zoom.
+    for (let node = element; node && node !== document.documentElement; node = node.parentElement) zoom *= parseFloat(getComputedStyle(node).zoom) || 1;
+    return new DOMRect(rect.x * zoom, rect.y * zoom, rect.width * zoom, rect.height * zoom);
+  }
   const plug = 8, bodyHeight = 72, radius = 5;
   const connectorY = bodyHeight/2, iconSize = 40, paramOverhang = 20;
   const textContext = document.createElement("canvas").getContext("2d");
@@ -132,11 +149,11 @@ const BlockLayout = (() => {
     // Long parameter labels never change connection spacing. Only conflicting
     // labels move to a lower row; include their overflow in the scrollable area.
     const occupied = [];
-    const bounds = container.getBoundingClientRect();
+    const bounds = clientRect(container);
     let right = m.advance+plug+72, bottom = m.height+y+48;
     container.querySelectorAll(".param-bubble").forEach(bubble => {
       if (bubble.closest(".drag-source-placeholder, .drop-projection")) return;
-      const rect = bubble.getBoundingClientRect();
+      const rect = clientRect(bubble);
       let top = rect.top;
       for (const other of occupied) {
         if (rect.left < other.right+4 && rect.right+4 > other.left
@@ -151,5 +168,5 @@ const BlockLayout = (() => {
     container.style.width = `${right}px`;
     container.style.height = `${bottom}px`;
   }
-  return {measure, sequence, root};
+  return {measure, sequence, root, clientRect};
 })();

@@ -3,6 +3,6 @@
   "appName": "卡片编程",
   "webDir": "dist",
   "server": { "hostname": "localhost", "androidScheme": "https", "errorPath": "unsupported.html" },
-  "android": { "allowMixedContent": false, "backgroundColor": "#f4f7fb", "minWebViewVersion": 105 },
+  "android": { "allowMixedContent": false, "backgroundColor": "#f4f7fb", "minWebViewVersion": 105, "minHuaweiWebViewVersion": 12 },
   "plugins": { "SystemBars": { "insetsHandling": "native", "hidden": true } }
 }

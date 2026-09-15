@@ -6,7 +6,7 @@
 
 - 构建产物：`artifacts/card-programming-0.1.0-debug.apk`。
 - 应用名：卡片编程；包名：`com.cardprogramming.app`。
-- Android 7.0 / API 24 及以上，Android System WebView / Chrome 内核 105 及以上。旧内核会显示更新提示。
+- Android 7.0 / API 24 及以上，Android System WebView / Chrome 内核 105 及以上。华为 WebView 独立最低包版本为 12（与 Chromium 内核版本不同）；nova 3 的 12.1.2.326 / Chromium 92 已通过编辑、编译和扫描验证。其他不满足要求的内核显示更新提示。
 - 将 APK 传到手机后，在文件管理器中点击安装；或通过 USB 调试执行：
 
 ```powershell
@@ -107,3 +107,9 @@ python -m http.server 4173 --bind 127.0.0.1
 5. 编译、连接、状态读取和程序发送已完成实测，等待程序运行与软件暂停也已通过状态上报验证，接下来验证实际外设动作；原生持久化、JSON 导入导出后续处理。不得把 B9 作为幂等急停。
 
 官方参考：[Capacitor 环境要求](https://capacitorjs.com/docs/getting-started/environment-setup)、[Android 配置](https://capacitorjs.com/docs/config)、[App 生命周期与返回键](https://capacitorjs.com/docs/apis/app)。
+
+## 华为 nova 3 实机环境（2026-09-15）
+
+PAR-AL00 / Android 9，ADB 序列号 FJH5T18714012850，保留华为 WebView 12.1.2.326（内核 92）。新版以覆盖安装保留作品，已通过触摸嵌套、参数加减、点阵、撤销重做、原生返回、横屏和强制结束后的保存恢复；APK/JNI 29 组各两次字节码一致。扫描开始/停止、9974 ms 超时及后台清理通过，本次发现 0 台主机，未进行该手机的实际发送/遥控测试。
+
+兼容实现：程序快照采用 JSON 数据复制，属性检查采用 hasOwnProperty.call；BlockLayout.clientRect 检测旧内核的 CSS zoom 坐标差异，换算为触摸使用的 CSS 像素，排除 WebView 根元素暴露的设备倍率。Google WebView 最低版本仍为 105，华为包版本独立要求 12。

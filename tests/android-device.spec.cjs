@@ -33,7 +33,8 @@ async function disconnect() {
 async function tap(page, cdp, selector) {
   const target = page.locator(selector);
   await target.waitFor({state:'visible'});
-  const r = await target.boundingBox();
+  // Use viewport DOM rects for CSS-zoomed blocks on older Chromium CDP versions.
+  const r = await target.evaluate(el=>BlockLayout.clientRect(el).toJSON());
   assert.ok(r);
   await cdp.send('Input.dispatchTouchEvent', {type:'touchStart',touchPoints:[{x:r.x+r.width/2,y:r.y+r.height/2}]});
   await cdp.send('Input.dispatchTouchEvent', {type:'touchEnd',touchPoints:[]});
@@ -54,6 +55,7 @@ async function tap(page, cdp, selector) {
   // Playwright waits for layout stability while Android's IME resizes the WebView.
   await page.locator('.home-dialog [type=submit]').click();
   await page.waitForURL('**/#editor');
+  await page.waitForFunction(() => document.querySelector('.library-area').getBoundingClientRect().bottom <= innerHeight+2);
   assert.ok(await page.evaluate(() => document.querySelector('.library-area').getBoundingClientRect().bottom <= innerHeight+2),
     'Palette must fit the real WebView height, including older engines without dvh support');
   await tap(page,cdp,'#tab-logic');
@@ -66,8 +68,8 @@ async function tap(page, cdp, selector) {
   await page.locator('#paramEditor').waitFor({state:'hidden'});
   assert.equal(new URL(page.url()).hash, '#editor');
   await tap(page,cdp,'#tab-motor');
-  const from=await page.locator('#palette [data-card-id=motor-forward]').boundingBox();
-  const to=await page.locator('#chain .loop-inner').boundingBox();
+  const from=await page.locator('#palette [data-card-id=motor-forward]').evaluate(el=>BlockLayout.clientRect(el).toJSON());
+  const to=await page.locator('#chain .loop-inner').evaluate(el=>BlockLayout.clientRect(el).toJSON());
   const x=from.x+from.width/2,y=from.y+from.height/2;
   await cdp.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x,y}]});
   for(let i=1;i<=15;i++) await cdp.send('Input.dispatchTouchEvent',{

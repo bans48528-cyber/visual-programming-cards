@@ -724,7 +724,7 @@
       }
 
       if (definition.type === "select") {
-        if (Object.hasOwn(definition.legacyValues || {}, rawValue)) rawValue = definition.legacyValues[rawValue];
+        if (Object.prototype.hasOwnProperty.call(definition.legacyValues || {}, rawValue)) rawValue = definition.legacyValues[rawValue];
         const values = (definition.options || []).map(option => (
           typeof option === "object" ? option.value : option
         ));
@@ -1166,7 +1166,7 @@
       panel.addEventListener("keydown", event => {
         if (event.ctrlKey || event.metaKey || event.altKey) return;
         const key = ({Enter: "confirm", Escape: "cancel", Backspace: "delete", Delete: "clear", ",": "."})[event.key] || event.key;
-        if (!Object.hasOwn(buttons, key)) return;
+        if (!Object.prototype.hasOwnProperty.call(buttons, key)) return;
         event.preventDefault();
         event.stopPropagation();
         press(key);
@@ -1244,8 +1244,8 @@
       const control = anchor.matches?.(".param-bubble")
         ? anchor
         : block.querySelector?.(":scope > .param-bubble, :scope > .loop-tail > .param-bubble") || anchor;
-      const anchorRect = control.getBoundingClientRect();
-      const editorRect = paramEditor.getBoundingClientRect();
+      const anchorRect = BlockLayout.clientRect(control);
+      const editorRect = BlockLayout.clientRect(paramEditor);
       const viewport = window.visualViewport;
       const viewportLeft = viewport?.offsetLeft || 0;
       const viewportTop = viewport?.offsetTop || 0;
@@ -1311,7 +1311,7 @@
 
     function isPointOverLibraryArea(x, y) {
       return [libraryArea, tabs].some(element => (
-        isPointInRect(x, y, element.getBoundingClientRect())
+        isPointInRect(x, y, BlockLayout.clientRect(element))
       ));
     }
 
@@ -1384,7 +1384,7 @@
 
       const source = event.currentTarget;
       source.dataset.dragged = "false";
-      const rect = source.getBoundingClientRect();
+      const rect = BlockLayout.clientRect(source);
       const cardId = source.dataset.cardId;
       const fromProgram = source.dataset.mode === "program";
       const fromStaging = source.dataset.mode === "staging";
@@ -1483,7 +1483,7 @@
 
       const target = findDropTarget(event.clientX, event.clientY);
       if (isSameDropTarget(dragState.lastTarget, target)) return;
-      const preservedStartTop = target ? startBlock.getBoundingClientRect().top : null;
+      const preservedStartTop = target ? BlockLayout.clientRect(startBlock).top : null;
       clearDropHints({ updateAnchor: !target });
       dragState.lastTarget = target;
       if (target) showDropMarker(target, preservedStartTop);
@@ -1604,16 +1604,16 @@
       dragState.active = true;
       // Preview insertion must not move the hit targets under a stationary pointer.
       dragState.dropGeometry = new Map([chain, ...chain.querySelectorAll(".loop-inner.sequence-zone")].map(zone => [zone, {
-        rect: zone.getBoundingClientRect(),
+        rect: BlockLayout.clientRect(zone),
         boundaries: getDirectProgramBlocks(zone).map(block => {
-          const rect = block.getBoundingClientRect();
+          const rect = BlockLayout.clientRect(block);
           return rect.left + Number(block.dataset.advance) / 2;
         })
       }]));
       dragState.lastX = dragState.startX;
       dragState.lastY = dragState.startY;
       if (dragState.fromProgram) {
-        const preserveStartTop = startBlock.getBoundingClientRect().top;
+        const preserveStartTop = BlockLayout.clientRect(startBlock).top;
         dragState.placeholderSources.forEach(block => block.classList.add("drag-source-placeholder"));
         updateProgramAnchor({ allowDuringDrag: true, preserveStartTop });
         setDeleteOverlayVisible(true);
@@ -1741,7 +1741,7 @@
 
       closeParamEditor();
 
-      const rect = grabTool.getBoundingClientRect();
+      const rect = BlockLayout.clientRect(grabTool);
       const pointerSource = startAtPointer ? programArea : grabTool;
       const pointerX = pointerPosition?.x ?? event.clientX;
       const pointerY = pointerPosition?.y ?? event.clientY;
@@ -1976,7 +1976,7 @@
     function markCardsTouchedByGrabTool() {
       if (!grabToolState) return;
 
-      const grabRect = grabTool.getBoundingClientRect();
+      const grabRect = BlockLayout.clientRect(grabTool);
       const touchedPathKeys = new Set();
       let changed = false;
 
@@ -2045,10 +2045,10 @@
           child.classList.contains("loop-left") ||
           child.classList.contains("loop-tail")
         ));
-        return loopFrameParts.some(part => rectsIntersect(grabRect, part.getBoundingClientRect()));
+        return loopFrameParts.some(part => rectsIntersect(grabRect, BlockLayout.clientRect(part)));
       }
 
-      return rectsIntersect(grabRect, block.getBoundingClientRect());
+      return rectsIntersect(grabRect, BlockLayout.clientRect(block));
     }
 
     function getRectFromPoints(x1, y1, x2, y2) {
@@ -2135,7 +2135,7 @@
     }
 
     function getElementsUnionRect(elements) {
-      const rects = elements.map(element => element.getBoundingClientRect());
+      const rects = elements.map(element => BlockLayout.clientRect(element));
       if (!rects.length) return { width: 1, height: 1 };
 
       const left = Math.min(...rects.map(rect => rect.left));
@@ -2225,7 +2225,7 @@
 
     function findDropTarget(clientX, clientY) {
       const nestedZones = [...chain.querySelectorAll(".loop-inner.sequence-zone")]
-        .map(zone => ({ zone, rect: dragState?.dropGeometry?.get(zone)?.rect || zone.getBoundingClientRect() }))
+        .map(zone => ({ zone, rect: dragState?.dropGeometry?.get(zone)?.rect || BlockLayout.clientRect(zone) }))
         .filter(({ rect }) => isPointInRect(clientX, clientY, rect))
         .sort((a, b) => (a.rect.width * a.rect.height) - (b.rect.width * b.rect.height));
 
@@ -2248,7 +2248,7 @@
       };
     }
 
-    function showDropMarker(target, preserveStartTop = startBlock.getBoundingClientRect().top) {
+    function showDropMarker(target, preserveStartTop = BlockLayout.clientRect(startBlock).top) {
       target.zone.classList.add("drag-over");
 
       const marker = createDropProjection();
@@ -2320,7 +2320,7 @@
     function removeMarker({ updateAnchor = true } = {}) {
       const markers = document.querySelectorAll(".drop-projection");
       const preserveStartTop = updateAnchor && markers.length
-        ? startBlock.getBoundingClientRect().top
+        ? BlockLayout.clientRect(startBlock).top
         : null;
       markers.forEach(el => el.remove());
       if (markers.length && updateAnchor) {
@@ -2342,7 +2342,7 @@
       }
       const blocks = getDirectProgramBlocks(zone);
       for (let i = 0; i < blocks.length; i++) {
-        const rect = blocks[i].getBoundingClientRect();
+        const rect = BlockLayout.clientRect(blocks[i]);
         const advance = Number(blocks[i].dataset.advance) || rect.width;
         if (pointerX < rect.left + advance / 2) return i;
       }
@@ -2383,7 +2383,7 @@
 
       if (!preserveStartPosition) return;
       const scrollTopAfterLayout = programCanvas.scrollTop;
-      const startTopAfter = startBlock.getBoundingClientRect().top;
+      const startTopAfter = BlockLayout.clientRect(startBlock).top;
       const startShift = startTopAfter - startTopBefore;
       if (Math.abs(startShift) < 0.5) return;
 
@@ -2395,14 +2395,14 @@
     }
 
     function isPointInDeleteZone(x, y) {
-      const rect = deleteOverlay.getBoundingClientRect();
+      const rect = BlockLayout.clientRect(deleteOverlay);
       return isPointInRect(x, y, rect);
     }
 
     function isPointInRootDropArea(x, y) {
       if (x < 0 || y < 0 || x > window.innerWidth || y > window.innerHeight) return false;
       return ![topbar, libraryArea, tabs].some(element => (
-        element && isPointInRect(x, y, element.getBoundingClientRect())
+        element && isPointInRect(x, y, BlockLayout.clientRect(element))
       ));
     }
 
@@ -2744,7 +2744,8 @@
     document.getElementById("runProgramBtn").title="发送并运行当前程序";
     document.getElementById("pauseProgramBtn").title="停止程序（B9，不支持恢复暂停）";
     document.getElementById("pauseProgramBtn").setAttribute("aria-label","停止程序");
-    document.getElementById("runProgramBtn").addEventListener("click",()=>window.CardBluetooth.runProgram(structuredClone(program)));
+    // Program models contain JSON values only, also supported by Huawei WebView 92.
+    document.getElementById("runProgramBtn").addEventListener("click",()=>window.CardBluetooth.runProgram(JSON.parse(JSON.stringify(program))));
     document.getElementById("pauseProgramBtn").addEventListener("click",()=>window.CardBluetooth.stopProgram());
     undoBtn.addEventListener("click", undoProgram);
     redoBtn.addEventListener("click", redoProgram);
