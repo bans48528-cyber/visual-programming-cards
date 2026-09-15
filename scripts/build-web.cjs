@@ -8,7 +8,7 @@ fs.mkdirSync(out, {recursive: true});
 const files = ['index.html', 'styles.css', 'blocks.css', 'home.css', 'bluetooth.css',
   'toolbar.css', 'block-layout.js', 'app.js', 'home.js', 'spark-protocol.js',
   'bluetooth.js', 'platform.js', 'unsupported.html', 'android-bluetooth.js', 'android-bluetooth.css',
-  'program-codegen.js', 'card-compiler.js', 'remote-control.js', 'remote-ui.js', 'remote.css'];
+  'xiaobai-runner.js', 'xiaobai-ui.js', 'remote-control.js', 'remote-ui.js', 'remote.css'];
 for (const file of files) fs.copyFileSync(path.join(root, file), path.join(out, file));
 fs.cpSync(path.join(root, 'assets'), path.join(out, 'assets'), {recursive: true});
 fs.mkdirSync(path.join(out, 'licenses'), {recursive: true});

@@ -13,7 +13,7 @@
   }
   const page=document.createElement('section');
   page.className='bluetooth-page android-bluetooth';page.hidden=true;
-  page.innerHTML=`<header class="bt-top"><button class="bt-back" type="button">← 返回编程</button><h1>手机蓝牙</h1><span class="bt-native-badge">Spark_AI</span></header>
+  page.innerHTML=`<header class="bt-top"><button class="bt-back" type="button">← 返回编程</button><h1>手机蓝牙</h1><span class="bt-native-badge">小白</span></header>
     <main class="bt-mobile-layout"><aside class="bt-phone-panel">
       <div class="bt-phone-symbol" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m7 7 10 10-5 5V2l5 5L7 17"/></svg></div>
       <h2>连接你的主机</h2><p>主机开机后放在手机附近，点击扫描并选择设备。</p>
@@ -22,11 +22,11 @@
       <div class="bt-phone-setting"><span>扫描权限</span><strong id="btPermissionState">检查中</strong></div>
       <button class="bt-button" id="btAccess" type="button">允许扫描权限</button>
       <div class="bt-location" hidden><p>此手机扫描蓝牙需要定位权限及系统定位开关；应用不读取地理位置。</p><button class="bt-button" id="btLocationSettings" type="button">打开系统定位设置</button></div>
-      <p class="bt-stage-note">支持状态读取、遥控和程序发送；黄色按钮发送并运行，灰色按钮请求暂停。</p>
+      <p class="bt-stage-note">请将小白切换到遥控模式。手机负责执行积木程序，运行期间请保持应用在前台。</p>
     </aside><section class="bt-device-panel" aria-label="蓝牙设备">
       <section class="bt-current" hidden aria-label="当前连接"><div><span class="bt-eyebrow">当前设备</span><h2></h2><p role="status"></p></div><button class="bt-button" id="btDisconnect" type="button">断开</button></section>
-      <div class="bt-section-header"><div><h2>附近的主机</h2><span class="bt-scan-description">仅显示 Spark_AI 主机</span></div><button class="bt-button primary bt-search" type="button">扫描设备</button></div>
-      <p class="bt-message" role="status" aria-live="polite">点击扫描，查找附近的 Spark_AI。</p>
+      <div class="bt-section-header"><div><h2>附近的主机</h2><span class="bt-scan-description">选择你的小白主机</span></div><button class="bt-button primary bt-search" type="button">扫描设备</button></div>
+      <p class="bt-message" role="status" aria-live="polite">点击扫描，查找附近的小白主机。</p>
       <ul class="bt-list" aria-label="扫描结果"></ul>
       <div class="bt-empty"><span class="bt-radar" aria-hidden="true"></span><strong>尚未扫描</strong><span>打开主机电源后开始扫描</span></div>
       <p class="bt-mobile-help">找不到主机？请确认它没有连接其他手机或电脑，然后重新扫描。</p>
@@ -50,7 +50,7 @@
   function status() {
     if(connecting) return {id:'connecting',text:'设备连接中'};
     if(!current || !link || link.closed) return {id:'disconnected',text:'设备未连接'};
-    if(!deviceState) return {id:'waiting',text:'已连接，等待状态上报'};
+    if(!deviceState) return {id:'stop',text:'小白已连接'};
     if(performance.now()-deviceState.time>2000) return {id:'stale',text:'已连接，状态已过期'};
     return {id:deviceState.value,text:deviceState.value==='run'?'设备运行中':'设备已停止'};
   }
@@ -70,7 +70,7 @@
     const search=$('.bt-search');
     search.disabled=!initialized || (state && !state.available) || Boolean(connecting||current) || requesting;
     search.textContent=requesting?'等待授权…':scanning?'停止扫描':hasScanned?'重新扫描':'扫描设备';
-    $('.bt-scan-description').textContent=scanning?'正在查找附近主机，约 10 秒':`仅显示 Spark_AI 主机${rows.size?' · '+rows.size+' 台':''}`;
+    $('.bt-scan-description').textContent=scanning?'正在查找附近主机，约 10 秒':`选择你的小白主机${rows.size?' · '+rows.size+' 台':''}`;
     page.classList.toggle('is-scanning',scanning);
     $('.bt-current').hidden=!current && !connecting;
     $('.bt-current h2').textContent=(current||connecting)?.name||'Spark_AI';
@@ -122,13 +122,13 @@
       if(!state.bluetoothEnabled) throw new Error('手机蓝牙未开启，请打开系统蓝牙设置。');
       if(!state.locationEnabled) throw new Error('此 Android 版本扫描蓝牙需要开启系统定位，请点击左侧按钮。');
       rows.clear();scanId=crypto.randomUUID();hasScanned=true;scanning=true;
-      tell('正在扫描附近的 Spark_AI 主机…');trace('扫描开始');render();
+      tell('正在扫描附近的小白主机 主机…');trace('扫描开始');render();
       await native.startScan({scanId});
     } catch(error) {if(valid(ticket)) {scanning=false;failure(error);}}
     finally {if(version===ticket) requesting=false;render();}
   }
   async function stopScan() {scanning=false;requesting=false;render();await native.stopScan();}
-  function clearConnection() {link?.close();transport?.close();link=null;transport=null;current=null;connecting=null;deviceState=null;render();}
+  function clearConnection() {window.dispatchEvent(new Event("xiaobai-disconnected"));link?.close();transport?.close();link=null;transport=null;current=null;connecting=null;deviceState=null;render();}
   async function disconnect() {
     version++;const connectionId=transport?.connectionId||connecting?.connectionId;
     clearConnection();
@@ -163,10 +163,10 @@
         }
       });
       link=candidate;
-      await candidate.start();
+      await candidate.start({watch:false});
       if(!valid(ticket)) {candidate.close();await native.disconnect({connectionId});return;}
       current={...device,connectionId};connecting=null;
-      tell('连接成功，已请求主机状态。');trace('连接就绪');render();
+      tell('已连接，请将小白切换到遥控模式。');trace('连接就绪');render();
     } catch(error) {
       if(version===ticket) {clearConnection();failure(error);}
       await native.disconnect({connectionId}).catch(()=>{});
@@ -209,10 +209,10 @@
   };
   function route() {
     const show=location.hash==='#bluetooth';page.hidden=!show;document.body.classList.toggle('bluetooth-open',show);
-    if(show) {closeParamEditor();document.title='手机蓝牙 · 卡片编程';ready.then(refresh).catch(failure);}
+    if(show) {closeParamEditor();document.title='手机蓝牙 · 小白编程';ready.then(refresh).catch(failure);}
     else {
       if(scanning||requesting) {version++;stopScan().catch(failure);}
-      if(location.hash==='#editor') {document.title=document.querySelector('.brand-title').textContent+' · 卡片编程';updateProgramAnchor();}
+      if(location.hash==='#editor') {document.title=document.querySelector('.brand-title').textContent+' · 小白编程';updateProgramAnchor();}
     }
   }
   trigger.onclick=()=>{location.hash='bluetooth';};$('.bt-back').onclick=()=>{location.hash='editor';};
@@ -225,101 +225,15 @@
     } else ready.then(refresh).catch(failure);
   });
   setInterval(renderStatus,250);
-  const compileButton=document.getElementById('runProgramBtn');
-  compileButton.setAttribute('aria-label','发送并运行');
-  compileButton.title='编译、发送并运行程序';
-  compileButton.classList.add('execution-compile');
-  compileButton.querySelector('span').textContent='运行';
-  const cancelCompileButton=document.getElementById('pauseProgramBtn');
-  cancelCompileButton.setAttribute('aria-label','暂停程序');
-  cancelCompileButton.title='取消发送并请求暂停程序';
   window.CardBluetooth={
     remoteConnection(){
       if(sending||stopping||!current||!link||link.closed) return null;
       const target=link,id=current.connectionId;
-      return {id,send(bytes){
+      return {id,send(bytes,guard=()=>true){
         if(((sending||stopping)&&bytes.slice(5,15).some(Boolean))||!window.CardRemoteControl||!current||current.connectionId!==id||target!==link||target.closed)
           return Promise.reject(new Error('遥控连接已断开，请重新连接。'));
-        return target.write(bytes,undefined,()=>Boolean(current&&current.connectionId===id&&target===link));
+        return target.write(bytes,undefined,()=>Boolean(current&&current.connectionId===id&&target===link&&guard()));
       }};
-    },
-    async runProgram(program){
-      if(sending||stopping||window.CardCompiler.busy) return;
-      if(!program.length) {window.showExecutionNotice('请先放入积木。');return;}
-      if(!current||!link||link.closed) {window.showExecutionNotice('请先连接 Spark_AI，再发送程序。');return;}
-      window.CardRemote?.close();
-      const job={target:link,id:current.connectionId,cancelled:false,phase:'compile'};
-      sending=job;
-      const check=()=>{
-        if(job.cancelled||document.hidden||!current||current.connectionId!==job.id||link!==job.target||link.closed)
-          throw new Error('发送已取消或连接已变化。');
-      };
-      compileButton.disabled=true;
-      window.showExecutionNotice('正在本机编译…');
-      try {
-        window.showExecutionNotice('正在确认主机状态…');
-        if(!deviceState) {
-          await job.target.write(protocol.frame(protocol.CMD.WATCH));
-          await new Promise(resolve=>setTimeout(resolve,500));
-        }
-        check();
-        const allowWaiting=!deviceState;
-        if(deviceState&&(deviceState.value!=='stop'||performance.now()-deviceState.time>2000)) {
-          deviceState=null;
-          await job.target.stop(()=>{check();return true;});
-          window.showExecutionNotice('已发送5次暂停请求，正在等待设备停止…');
-          const stoppedBy=performance.now()+5000;
-          while((!deviceState||deviceState.value!=='stop')&&performance.now()<stoppedBy) {check();await new Promise(resolve=>setTimeout(resolve,50));}
-          check();
-          if(!deviceState||deviceState.value!=='stop') throw new Error('等待设备停止超时，未发送程序。');
-        }
-        window.showExecutionNotice('正在本机编译…');
-        const result=await window.CardCompiler.compile(program);
-        check();
-        await job.target.queue;check();
-        const prepared=await native.prepareUpload({connectionId:job.id,bytes:result.bytecode.length,slot:0,run:true});
-        trace('发送准备',null,`MTU=${prepared.mtu}, bytes=${result.bytecode.length}, slot=0`);
-        check();
-        if(!(allowWaiting&&!deviceState)&&(!deviceState||deviceState.value!=='stop'||performance.now()-deviceState.time>2000)) throw new Error('主机状态已变化，请停止程序后重试。');
-        job.phase='upload';
-        await job.target.upload(result.bytecode,{slot:0,run:true,allowUnverifiedAck:true});
-        check();
-        window.showExecutionNotice(`已完成 ${result.bytecode.length} 字节发送并请求运行；实际状态以主机上报为准。`);
-      } catch(error) {window.showExecutionNotice(error.message||'编译失败，请重试。');}
-      finally {
-        await job.target.queue.catch(()=>{});
-        await native.finishUpload({connectionId:job.id}).catch(()=>{});
-        if(sending===job) sending=null;
-        compileButton.disabled=stopping;
-      }
-    },
-    async stopProgram(){
-      if(stopping) return;
-      const active=link,id=current?.connectionId,status=deviceState;
-      if(sending) {
-        sending.cancelled=true;sending.target.cancelUpload();
-        if(window.CardCompiler.busy) await window.CardCompiler.cancel().catch(()=>{});
-      }
-      if(!active||active.closed||!current) {window.showExecutionNotice('设备未连接，无法发送停止指令，请检查硬件。');return;}
-      active.cancelUpload();
-      if(status?.value==='stop'&&performance.now()-status.time<=2000) {
-        window.showExecutionNotice('已取消后续发送。设备已停止，未发送暂停指令。');return;
-      }
-      stopping=true;compileButton.disabled=true;
-      window.CardRemote?.close();
-      const shouldSend=()=>{
-        if(document.hidden||link!==active||active.closed||current?.connectionId!==id) return false;
-        deviceState=null;renderStatus();return true;
-      };
-      try {
-        let sent;
-        if(!status) {
-          sent=await active.write(protocol.frame(protocol.CMD.WATCH),undefined,shouldSend);
-          if(sent) {await new Promise(resolve=>setTimeout(resolve,200));sent=await active.write(protocol.frame(protocol.CMD.STOP),undefined,shouldSend);}
-        } else sent=await active.stop(shouldSend);
-        window.showExecutionNotice(sent?(!status?'已发送 D0，间隔0.2秒后发送一次暂停请求（B9）；实际状态以主机上报为准。':'已连续发送5次暂停请求（B9），间隔0.08秒；实际状态以主机上报为准。'):'连接已变化，剩余暂停请求未发送。');
-      } catch(error) {window.showExecutionNotice('暂停发送失败：'+error.message);}
-      finally {stopping=false;compileButton.disabled=Boolean(sending);}
     },
     get connected(){return Boolean(current&&link&&!link.closed);}
   };

@@ -118,13 +118,13 @@
         this.receiver.feed(bytes);
       };
     }
-    async start() {
+    async start({watch=true}={}) {
       const p=this.transport.properties;
       if(!(p.notify||p.indicate) || !(p.writeWithoutResponse||p.write)) throw new Error("FFF1 不支持所需的写入和通知能力。");
       await this.transport.start(this.notification);
       if(this.closed) {this.transport.close();throw new Error("连接已取消。");}
       this.trace("READY",null,`notify=${p.notify}, indicate=${p.indicate}, write=${p.write}, withoutResponse=${p.writeWithoutResponse}`);
-      await this.write(frame(CMD.WATCH));
+      if(watch) await this.write(frame(CMD.WATCH));
     }
     write(bytes, session, shouldWrite=()=>true) {
       const operation=this.queue.then(async()=>{

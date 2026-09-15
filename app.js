@@ -1,254 +1,281 @@
-    const STORAGE_KEY = "visualProgramV2";
-    const LEGACY_STORAGE_KEY = "visualProgramV1";
+    const STORAGE_KEY = "xiaobaiVisualProgramV1";
+    const LEGACY_STORAGE_KEY = "xiaobaiVisualProgramLegacy";
 
     const categories = {
-      motor: {
-        color: "var(--motor)",
-        cards: [
-          {
-            id: "motor-power", label: "电机功率", type: "motor", actionName: "电机功率",
-            paramsSchema: {
-              power: { label: "功率", type: "select", default: "50", options: [25, 50, 75, 100].map(value => ({ value: String(value), label: `${value}%`, display: `${value}%` })) }
-            }
+  "motor": {
+    "color": "var(--motor)",
+    "cards": [
+      {
+        "id": "motor-forward",
+        "label": "电机正转",
+        "type": "motor",
+        "actionName": "电机正转",
+        "paramsSchema": {
+          "port": {
+            "label": "电机",
+            "type": "select",
+            "default": "L/M1",
+            "options": [
+              "L/M1",
+              "R/M2"
+            ]
           },
-          {
-            id: "motor-forward",
-            label: "电机正转",
-            type: "motor",
-            actionName: "电机正转",
-            paramsSchema: {
-              port: { label: "电机端口", type: "select", default: "E", options: ["E", "F", "G", "H"], legacyValues: { A: "E", B: "F", C: "G", D: "H" } },
-              duration: { label: "运行时间", type: "number", default: 1, min: 0.1, step: 0.1, unit: "秒" }
-            }
-          },
-          {
-            id: "motor-reverse",
-            label: "电机反转",
-            type: "motor",
-            actionName: "电机反转",
-            paramsSchema: {
-              port: { label: "电机端口", type: "select", default: "E", options: ["E", "F", "G", "H"], legacyValues: { A: "E", B: "F", C: "G", D: "H" } },
-              duration: { label: "运行时间", type: "number", default: 1, min: 0.1, step: 0.1, unit: "秒" }
-            }
-          },
-          {
-            id: "motor-forward-continuous", label: "持续正转", type: "motor", actionName: "持续正转",
-            paramsSchema: { port: { label: "电机端口", type: "select", default: "E", options: ["E", "F", "G", "H"] } }
-          },
-          {
-            id: "motor-reverse-continuous", label: "持续反转", type: "motor", actionName: "持续反转",
-            paramsSchema: { port: { label: "电机端口", type: "select", default: "E", options: ["E", "F", "G", "H"] } }
-          },
-          {
-            id: "motor-stop",
-            label: "电机停止",
-            type: "motor",
-            actionName: "电机停止",
-            paramsSchema: {
-              port: { label: "电机端口", type: "select", default: "E", options: ["E", "F", "G", "H"], legacyValues: { A: "E", B: "F", C: "G", D: "H" } }
-            }
+          "duration": {
+            "label": "运行时间",
+            "type": "number",
+            "default": 1,
+            "min": 0.1,
+            "step": 0.1,
+            "unit": "秒"
           }
-        ]
+        }
       },
-      combo: {
-        color: "var(--combo)",
-        cards: [
-          {
-            id: "combo-direction", label: "组合电机方向", type: "combo", actionName: "组合电机方向",
-            paramsSchema: {
-              mode: { label: "旋转方向（左E·右F）", type: "select", default: "3", options: [
-                { value: "3", label: "全部正向" }, { value: "0", label: "左电机反向" },
-                { value: "1", label: "右电机反向" }, { value: "2", label: "全部反向" }
-              ] }
-            }
+      {
+        "id": "motor-reverse",
+        "label": "电机反转",
+        "type": "motor",
+        "actionName": "电机反转",
+        "paramsSchema": {
+          "port": {
+            "label": "电机",
+            "type": "select",
+            "default": "L/M1",
+            "options": [
+              "L/M1",
+              "R/M2"
+            ]
           },
-          {
-            id: "combo-power", label: "组合电机功率", type: "combo", actionName: "组合电机功率",
-            paramsSchema: {
-              power: { label: "功率", type: "select", default: "50", options: [25, 50, 75, 100].map(value => ({ value: String(value), label: `${value}%`, display: `${value}%` })) }
-            }
-          },
-          {
-            id: "combo-forward",
-            label: "组合前进",
-            type: "combo",
-            actionName: "组合前进",
-            paramsSchema: {
-              duration: { label: "运行时间", type: "number", default: 1, min: 0.1, step: 0.1, unit: "秒" }
-            }
-          },
-          {
-            id: "combo-backward",
-            label: "组合后退",
-            type: "combo",
-            actionName: "组合后退",
-            paramsSchema: {
-              duration: { label: "运行时间", type: "number", default: 1, min: 0.1, step: 0.1, unit: "秒" }
-            }
-          },
-          {
-            id: "combo-turn-left",
-            label: "组合左转",
-            type: "combo",
-            actionName: "组合左转",
-            paramsSchema: {
-              duration: { label: "运行时间", type: "number", default: 1, min: 0.1, step: 0.1, unit: "秒" }
-            }
-          },
-          {
-            id: "combo-turn-right",
-            label: "组合右转",
-            type: "combo",
-            actionName: "组合右转",
-            paramsSchema: {
-              duration: { label: "运行时间", type: "number", default: 1, min: 0.1, step: 0.1, unit: "秒" }
-            }
-          },
-          {
-            id: "combo-continuous", label: "组合持续移动", type: "combo", actionName: "组合持续移动",
-            paramsSchema: {
-              direction: { label: "方向", type: "select", default: "advance", options: [
-                {value: "advance", label: "前进"}, {value: "retreat", label: "后退"},
-                {value: "left", label: "左转"}, {value: "right", label: "右转"}
-              ] }
-            }
-          },
-          { id: "combo-stop", label: "组合停止", type: "combo", actionName: "组合停止" }
-        ]
-      },
-      sensor: {
-        color: "var(--sensor)",
-        cards: [
-          {
-            id: "ultrasonic-sensor",
-            label: "超声波传感器",
-            type: "sensor",
-            actionName: "超声波传感器",
-            icon: "ultrasonic",
-            color: "var(--sensor)",
-            paramsSchema: {
-              port: { label: "传感器端口", type: "select", default: "A", options: ["A", "B", "C", "D"] },
-              operator: {
-                label: "比较符号",
-                type: "select",
-                default: "<",
-                options: [
-                  { label: "小于", value: "<", display: "<" },
-                  { label: "大于", value: ">", display: ">" },
-                  { label: "等于", value: "==", display: "=" }
-                ]
-              },
-              distance: { label: "距离", type: "number", default: 10, min: 0, max: 100, step: 1, unit: "cm", integer: true }
-            }
-          },
-          {
-            id: "grayscale-sensor",
-            label: "灰度传感器",
-            type: "sensor",
-            actionName: "灰度传感器",
-            paramsSchema: {
-              port: { label: "传感器端口", type: "select", default: "A", options: ["A", "B", "C", "D"] },
-              operator: {
-                label: "比较符号",
-                type: "select",
-                default: "<",
-                options: [
-                  { label: "小于", value: "<", display: "<" },
-                  { label: "大于", value: ">", display: ">" },
-                  { label: "等于", value: "==", display: "=" }
-                ]
-              },
-              value: { label: "数值", type: "number", default: 500, min: 0, max: 1000, step: 1, integer: true }
-            }
-          },
-          {
-            id: "button-sensor",
-            label: "按键传感器",
-            type: "sensor",
-            actionName: "按键传感器",
-            paramsSchema: {
-              port: { label: "传感器端口", type: "select", default: "A", options: ["A", "B", "C", "D"] },
-              state: { label: "按键状态", type: "select", default: "按下", options: ["按下", "松开"] }
-            }
-          },
-          {
-            id: "host-button",
-            label: "主机按键",
-            type: "sensor",
-            actionName: "主机按键",
-            paramsSchema: {
-              button: { label: "按键", type: "select", default: "左键", options: ["左键", "右键"] }
-            }
+          "duration": {
+            "label": "运行时间",
+            "type": "number",
+            "default": 1,
+            "min": 0.1,
+            "step": 0.1,
+            "unit": "秒"
           }
-        ]
+        }
       },
-      logic: {
-        color: "var(--logic)",
-        cards: [
-          {
-            id: "wait-time",
-            label: "等待时间",
-            type: "logic",
-            actionName: "等待时间",
-            icon: "hourglass",
-            color: "var(--logic)",
-            paramsSchema: {
-              duration: { label: "等待时间", type: "number", default: 1, min: 0.1, step: 0.1, unit: "秒" }
-            }
-          },
-          {
-            id: "loop-count",
-            label: "循环次数",
-            type: "logic",
-            actionName: "循环次数",
-            kind: "loop",
-            color: "var(--loop)",
-            paramsSchema: {
-              count: { label: "次数", type: "number", default: 1, min: 1, step: 1, integer: true }
-            }
-          },
-          { id: "loop", label: "循环", type: "logic", actionName: "循环", kind: "loop", color: "var(--loop)" }
-        ]
-      },
-      light: {
-        color: "var(--light)",
-        cards: [
-          {
-            id: "play-note",
-            color: "var(--sound)",
-            label: "演奏音",
-            type: "light",
-            actionName: "演奏音",
-            paramsSchema: {
-              note: { label: "音符", type: "select", default: "1", options: ["1", "2", "3", "4", "5", "6", "7"] },
-              beats: { label: "拍数", type: "select", default: "0.25", options: ["0.25", "0.5", "1", "2"].map(value => ({value, label: `${value}拍`})) }
-            }
-          },
-          {
-            id: "matrix-display",
-            label: "点阵",
-            type: "light",
-            actionName: "点阵",
-            icon: "matrix",
-            color: "var(--matrix)",
-            paramsSchema: {
-              pattern: {
-                label: "点阵图案",
-                type: "matrix",
-                size: 5,
-                default: [
-                  0, 0, 0, 0, 0,
-                  0, 0, 0, 0, 0,
-                  0, 0, 1, 0, 0,
-                  0, 0, 0, 0, 0,
-                  0, 0, 0, 0, 0
-                ]
-              }
-            }
+      {
+        "id": "motor-forward-continuous",
+        "label": "持续正转",
+        "type": "motor",
+        "actionName": "持续正转",
+        "paramsSchema": {
+          "port": {
+            "label": "电机",
+            "type": "select",
+            "default": "L/M1",
+            "options": [
+              "L/M1",
+              "R/M2"
+            ]
           }
-        ]
+        }
+      },
+      {
+        "id": "motor-reverse-continuous",
+        "label": "持续反转",
+        "type": "motor",
+        "actionName": "持续反转",
+        "paramsSchema": {
+          "port": {
+            "label": "电机",
+            "type": "select",
+            "default": "L/M1",
+            "options": [
+              "L/M1",
+              "R/M2"
+            ]
+          }
+        }
+      },
+      {
+        "id": "motor-stop",
+        "label": "电机停止",
+        "type": "motor",
+        "actionName": "电机停止",
+        "paramsSchema": {
+          "port": {
+            "label": "电机",
+            "type": "select",
+            "default": "L/M1",
+            "options": [
+              "L/M1",
+              "R/M2"
+            ]
+          }
+        }
       }
-    };
+    ]
+  },
+  "combo": {
+    "color": "var(--combo)",
+    "cards": [
+      {
+        "id": "combo-forward",
+        "label": "组合前进",
+        "type": "combo",
+        "actionName": "组合前进",
+        "paramsSchema": {
+          "duration": {
+            "label": "运行时间",
+            "type": "number",
+            "default": 1,
+            "min": 0.1,
+            "step": 0.1,
+            "unit": "秒"
+          }
+        }
+      },
+      {
+        "id": "combo-backward",
+        "label": "组合后退",
+        "type": "combo",
+        "actionName": "组合后退",
+        "paramsSchema": {
+          "duration": {
+            "label": "运行时间",
+            "type": "number",
+            "default": 1,
+            "min": 0.1,
+            "step": 0.1,
+            "unit": "秒"
+          }
+        }
+      },
+      {
+        "id": "combo-turn-left",
+        "label": "组合左转",
+        "type": "combo",
+        "actionName": "组合左转",
+        "paramsSchema": {
+          "duration": {
+            "label": "运行时间",
+            "type": "number",
+            "default": 1,
+            "min": 0.1,
+            "step": 0.1,
+            "unit": "秒"
+          }
+        }
+      },
+      {
+        "id": "combo-turn-right",
+        "label": "组合右转",
+        "type": "combo",
+        "actionName": "组合右转",
+        "paramsSchema": {
+          "duration": {
+            "label": "运行时间",
+            "type": "number",
+            "default": 1,
+            "min": 0.1,
+            "step": 0.1,
+            "unit": "秒"
+          }
+        }
+      },
+      {
+        "id": "combo-continuous",
+        "label": "组合持续移动",
+        "type": "combo",
+        "actionName": "组合持续移动",
+        "paramsSchema": {
+          "direction": {
+            "label": "方向",
+            "type": "select",
+            "default": "advance",
+            "options": [
+              {
+                "value": "advance",
+                "label": "前进"
+              },
+              {
+                "value": "retreat",
+                "label": "后退"
+              },
+              {
+                "value": "left",
+                "label": "左转"
+              },
+              {
+                "value": "right",
+                "label": "右转"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "id": "combo-stop",
+        "label": "组合停止",
+        "type": "combo",
+        "actionName": "组合停止"
+      },
+      {
+        "id": "speed-up",
+        "label": "速度加一档",
+        "type": "combo",
+        "actionName": "速度加一档"
+      },
+      {
+        "id": "speed-down",
+        "label": "速度减一档",
+        "type": "combo",
+        "actionName": "速度减一档"
+      }
+    ]
+  },
+  "logic": {
+    "color": "var(--logic)",
+    "cards": [
+      {
+        "id": "wait-time",
+        "label": "等待时间",
+        "type": "logic",
+        "actionName": "等待时间",
+        "icon": "hourglass",
+        "color": "var(--logic)",
+        "paramsSchema": {
+          "duration": {
+            "label": "等待时间",
+            "type": "number",
+            "default": 1,
+            "min": 0.1,
+            "step": 0.1,
+            "unit": "秒"
+          }
+        }
+      },
+      {
+        "id": "loop-count",
+        "label": "循环次数",
+        "type": "logic",
+        "actionName": "循环次数",
+        "kind": "loop",
+        "color": "var(--loop)",
+        "paramsSchema": {
+          "count": {
+            "label": "次数",
+            "type": "number",
+            "default": 1,
+            "min": 1,
+            "step": 1,
+            "integer": true
+          }
+        }
+      },
+      {
+        "id": "loop",
+        "label": "循环",
+        "type": "logic",
+        "actionName": "循环",
+        "kind": "loop",
+        "color": "var(--loop)"
+      }
+    ]
+  }
+};
 
     const flatCards = Object.values(categories).flatMap(group => group.cards);
     const cardById = Object.fromEntries(flatCards.map(card => [card.id, card]));
@@ -510,6 +537,8 @@
       }
 
       const paths = {
+        "speed-up": "M12 46h8V34h-8z M28 46h8V25h-8z M44 46h8V16h-8z M12 16h16 M20 8v16",
+        "speed-down": "M12 46h8V34h-8z M28 46h8V25h-8z M44 46h8V16h-8z M12 16h16",
         "motor-forward": "M20 23h24v24H20z M26 23v-5h12v5 M44 31h7v8h-7 M14 19A22 22 0 0 1 49 13 M42 11l8 2-2 8",
         "motor-reverse": "M20 23h24v24H20z M26 23v-5h12v5 M44 31h7v8h-7 M50 19A22 22 0 0 0 15 13 M22 11l-8 2 2 8",
         "motor-stop": "M18 19h28v28H18z M25 19v-5h14v5 M46 28h7v10h-7 M28 28h8v10h-8z",
@@ -2741,12 +2770,6 @@
       clearTimeout(executionNoticeTimer);
       executionNoticeTimer = setTimeout(() => { executionNotice.hidden = true; }, 7000);
     };
-    document.getElementById("runProgramBtn").title="发送并运行当前程序";
-    document.getElementById("pauseProgramBtn").title="停止程序（B9，不支持恢复暂停）";
-    document.getElementById("pauseProgramBtn").setAttribute("aria-label","停止程序");
-    // Program models contain JSON values only, also supported by Huawei WebView 92.
-    document.getElementById("runProgramBtn").addEventListener("click",()=>window.CardBluetooth.runProgram(JSON.parse(JSON.stringify(program))));
-    document.getElementById("pauseProgramBtn").addEventListener("click",()=>window.CardBluetooth.stopProgram());
     undoBtn.addEventListener("click", undoProgram);
     redoBtn.addEventListener("click", redoProgram);
     document.getElementById("clearBtn").addEventListener("click", () => {

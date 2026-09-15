@@ -15,9 +15,6 @@ if (!env.JAVA_HOME && fs.existsSync(path.join(cache, 'jdk-ms'))) {
 if (!env.ANDROID_HOME && !env.ANDROID_SDK_ROOT && fs.existsSync(path.join(cache, 'sdk'))) {
   env.ANDROID_HOME = path.join(cache, 'sdk');
 }
-const native = spawnSync(process.execPath, [path.join(root, 'scripts/build-native-compiler.cjs')], {env, stdio: 'inherit'});
-if (native.error) throw native.error;
-if (native.status !== 0) process.exit(native.status || 1);
 const result = spawnSync(process.platform === 'win32' ? 'gradlew.bat' : './gradlew',
   ['assembleDebug', '--console=plain'], {
     cwd: path.join(root, 'android'), env, stdio: 'inherit', shell: process.platform === 'win32'
@@ -26,7 +23,7 @@ if (result.error) throw result.error;
 if (result.status !== 0) process.exit(result.status || 1);
 const output = path.join(root, 'artifacts');
 fs.mkdirSync(output, {recursive: true});
-const name = 'card-programming-0.1.0-debug.apk';
+const name = 'xiaobai-1.0.0-debug.apk';
 fs.copyFileSync(path.join(root, 'android/app/build/outputs/apk/debug/app-debug.apk'), path.join(output, name));
 const hash = createHash('sha256').update(fs.readFileSync(path.join(output, name))).digest('hex');
 fs.writeFileSync(path.join(output, `${name}.sha256`), `${hash}  ${name}\n`);

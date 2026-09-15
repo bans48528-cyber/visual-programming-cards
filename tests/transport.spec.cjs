@@ -12,6 +12,10 @@ class Transport {
   disconnect() {this.disconnected=true;}
 }
 (async()=>{
+  const remoteOnly=new Transport();
+  const remoteLink=new Link(null,{transport:remoteOnly});
+  await remoteLink.start({watch:false});assert.equal(remoteOnly.writes.length,0);
+  await remoteLink.write(frame(0xc1,Array(10).fill(0)));assert.equal(remoteOnly.writes[0][4],0xc1);remoteLink.close();
   const t=new Transport(),statuses=[];
   const link=new Link(null,{transport:t,onStatus:s=>statuses.push(s)});
   await link.start();

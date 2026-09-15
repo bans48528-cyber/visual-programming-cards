@@ -109,7 +109,7 @@ public class SparkBlePlugin extends Plugin {
                 if(scanCallback!=this || !ticket.equals(scanId)) return;
                 String name=result.getScanRecord()==null?null:result.getScanRecord().getDeviceName();
                 try {if(name==null) name=result.getDevice().getName();} catch(SecurityException ignored) {}
-                if(name==null || !name.startsWith("Spark_AI")) return;
+                if(name==null || name.isEmpty()) return;
                 String id=result.getDevice().getAddress();
                 found.put(id,result.getDevice());
                 JSObject row=new JSObject();row.put("scanId",ticket);row.put("deviceId",id);row.put("name",name);row.put("rssi",result.getRssi());
@@ -209,13 +209,10 @@ public class SparkBlePlugin extends Plugin {
         if(!subscribed) {call.reject("请先订阅设备通知。");return;}
         byte[] bytes;
         try {bytes=Base64.decode(call.getString("data",""),Base64.NO_WRAP);} catch(Exception e) {call.reject("无效的蓝牙数据。");return;}
-        // File frames additionally require a prepared transfer and negotiated MTU.
-        byte[] watch={(byte)0x5a,(byte)0x97,(byte)0x98,1,(byte)0xd0,1,(byte)0x5b,(byte)0xa5};
-        byte[] pause={(byte)0x5a,(byte)0x97,(byte)0x98,1,(byte)0xb9,1,(byte)0x44,(byte)0xa5};
+        // Xiaobai accepts only C1 remote key states; never upload or toggle B9.
         boolean remote=RemoteFrame.valid(bytes);
         if(remote && uploadGate.active()) {call.reject("程序发送期间不能使用遥控。");return;}
-        boolean file=negotiatedMtu>=138 && uploadGate.accept(bytes);
-        if(!Arrays.equals(bytes,watch) && !Arrays.equals(bytes,pause) && !remote && !file) {call.reject("无效指令或文件发送顺序错误。");return;}
+        if(!remote) {call.reject("无效指令或文件发送顺序错误。");return;}
         if(remote) remoteUsed=true;
         beginOperation(call,"write");
         int type=(characteristic.getProperties()&BluetoothGattCharacteristic.PROPERTY_WRITE_NO_RESPONSE)!=0

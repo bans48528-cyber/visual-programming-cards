@@ -10,6 +10,7 @@
     if (!document.body.classList.contains('home-open')) window.CardHome?.save();
   }
   function suspend() {
+    window.CardProgram?.stop("应用进入后台，程序停止").catch(()=>{});
     window.CardRemote?.close();
     cancelDrag();
     finishParameters();

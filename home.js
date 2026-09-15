@@ -1,6 +1,6 @@
 (() => {
-  const KEY = "cardProjectsV1";
-  const ACTIVE = "cardActiveProjectV1";
+  const KEY = "xiaobaiProjectsV1";
+  const ACTIVE = "xiaobaiActiveProjectV1";
   const clone = value => JSON.parse(JSON.stringify(value));
   let projects = [], activeId = null, view = "files";
   const makeItem = (id, params = {}, children) => {
@@ -12,11 +12,11 @@
   const examples = [
     {name: "电机往返", color: "#edf5ff", items: [makeItem("motor-forward"), makeItem("wait-time"), makeItem("motor-reverse")]},
     {name: "重复转向", color: "#fff5dc", items: [makeItem("loop-count", {count: 4}, [makeItem("combo-forward"), makeItem("combo-turn-right")])]},
-    {name: "点阵与音符", color: "#f3edff", items: [makeItem("matrix-display"), makeItem("play-note", {note: "3"}), makeItem("wait-time")]}
+    {name: "持续移动与停止", color: "#f3edff", items: [makeItem("combo-continuous"), makeItem("wait-time", {duration: 2}), makeItem("combo-stop")]}
   ];
   const home = document.createElement("section");
   home.className = "home-screen";
-  home.setAttribute("aria-label", "卡片编程主页");
+  home.setAttribute("aria-label", "小白编程主页");
   home.innerHTML = `<nav class="home-sidebar" aria-label="主页导航">
     <button class="home-nav" data-view="files" role="tab"><img src="assets/home-icon-file.png" alt=""><span>我的作品</span></button>
     <button class="home-nav" data-view="examples" role="tab"><img src="assets/home-icon-build.png" alt=""><span>积木示例</span></button>
@@ -140,7 +140,7 @@
     renderProgram();renderPalette();commitHistory();
     programCanvas.scrollLeft = 0;programCanvas.scrollTop = 0;
     document.querySelector(".brand-title").textContent = project.name;
-    document.title = `${project.name} · 卡片编程`;
+    document.title = `${project.name} · 小白编程`;
     if (navigate) location.hash = "editor";
   }
   function create(name, state = {program: [], stagedGroups: []}) {
@@ -207,16 +207,14 @@
     home.querySelector(".home-grid").replaceChildren(...entries.map((p,i)=>card(p,i,example)));
     home.querySelector(".home-empty").hidden = Boolean(entries.length);
     home.querySelector('#resumeProject').hidden = !projects.some(p => p.id === activeId);
-    const demo = preview([makeItem('motor-forward'), makeItem('matrix-display', {
-      pattern: [0,0,0,0,0, 0,1,0,1,0, 0,0,0,0,0, 1,0,0,0,1, 0,1,1,1,0]
-    })], true);
+    const demo = preview([makeItem('motor-forward'), makeItem('wait-time'), makeItem('motor-stop')], true);
     // Decorative, read-only clones use the same shapes and layout as the editor.
     demo.querySelectorAll('button, [tabindex]').forEach(el => el.tabIndex = -1);
     home.querySelector('.home-demo-blocks').replaceChildren(demo);
   }
   function showHome() {
     closeParamEditor();home.hidden=false;document.body.classList.add("home-open");
-    document.title="卡片编程";render();
+    document.title="小白编程";render();
   }
   home.querySelector("#newProject").onclick = () => ask("新建作品", `我的作品 ${projects.length+1}`, name=>create(name));
   home.querySelector('#resumeProject').onclick = () => {

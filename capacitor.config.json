@@ -1,6 +1,6 @@
 {
-  "appId": "com.cardprogramming.app",
-  "appName": "卡片编程",
+  "appId": "com.xiaobai.remote",
+  "appName": "小白编程",
   "webDir": "dist",
   "server": { "hostname": "localhost", "androidScheme": "https", "errorPath": "unsupported.html" },
   "android": { "allowMixedContent": false, "backgroundColor": "#f4f7fb", "minWebViewVersion": 105, "minHuaweiWebViewVersion": 12 },

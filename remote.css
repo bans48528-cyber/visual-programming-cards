@@ -24,7 +24,7 @@
 [data-remote-key=right],[data-remote-key=B] { grid-area: 2/3; }
 [data-remote-key=down],[data-remote-key=A] { grid-area: 3/2; }
 .remote-dpad-center { grid-area: 2/2; align-self: center; justify-self: center; width: 15px; height: 15px; background: #c2cfde; border-radius: 50%; }
-.remote-actions button { border-radius: 50%; }
+.remote-actions button { border-radius: 50%; font-size: 16px; }
 .remote-actions [data-remote-key=Y] { color: #b78105; background: #ffefbe; }
 .remote-actions [data-remote-key=X] { color: #167bbb; background: #d9efff; }
 .remote-actions [data-remote-key=B] { color: #d75465; background: #ffe1e5; }

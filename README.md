@@ -1,3 +1,19 @@
+# 小白编程 Android 1.0.0
+
+当前分支：xiaobai/remote-blocks。基于 ddb4db7 开发。
+
+- 支持 16 种积木、作品保存与手动遥控。手机执行计时和循环，使用 C1 十键协议驱动小白。
+- A/B：左电机正/反；X/Y：右电机正/反；L 加速、R 减速（用户确认）。
+- Android 原生发送只放行 C1，不上传字节码、不发 B9，也不要求 D0 状态上报。
+- 运行前将主机切到遥控模式，保持应用在前台。程序完成/停止时发送全零释放；后台和断连取消程序，重连不恢复。
+- APK：artifacts/xiaobai-1.0.0-debug.apk，包名 com.xiaobai.remote，可与原软件并存。
+- 构建：powershell -ExecutionPolicy Bypass -File scripts/android.ps1。无需 Pika 编译器。
+- 测试：npm test。安装及验证范围见 [小白安装说明](docs/XIAOBAI_APP.md)。
+
+以下保留原 Spark 项目的历史说明，其中编译、上传、传感器和点阵能力不适用于小白版。
+
+---
+
 # 图形化编程原型
 
 ## Android 界面预览版

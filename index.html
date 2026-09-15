@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>图形化编程原型</title>
+  <title>小白编程</title>
   <link rel="stylesheet" href="styles.css">
   <link rel="stylesheet" href="blocks.css">
   <link rel="stylesheet" href="home.css">
@@ -17,7 +17,7 @@
     <header class="topbar">
       <div class="brand">
         <button class="btn home-return" id="homeBtn" type="button" title="返回主页" aria-label="返回主页"><img src="assets/toolbar/home.svg" alt="" draggable="false"></button>
-        <div class="brand-title">图形化编程原型</div>
+        <div class="brand-title">小白编程</div>
       </div>
       <output id="deviceStatus" class="device-status" data-state="disconnected" role="status" aria-live="polite" aria-atomic="true">设备未连接</output>
       <div class="toolbar" aria-label="程序操作">
@@ -48,9 +48,7 @@
         <div class="tabs" role="tablist" aria-label="卡片分类">
           <button class="tab" id="tab-motor" role="tab" type="button" aria-selected="true" style="--tab-color: var(--motor)">电机</button>
           <button class="tab" id="tab-combo" role="tab" type="button" aria-selected="false" style="--tab-color: var(--combo)">组合电机</button>
-          <button class="tab" id="tab-sensor" role="tab" type="button" aria-selected="false" style="--tab-color: var(--sensor)">传感器</button>
           <button class="tab" id="tab-logic" role="tab" type="button" aria-selected="false" style="--tab-color: var(--logic)">逻辑</button>
-          <button class="tab" id="tab-light" role="tab" type="button" aria-selected="false" style="--tab-color: var(--light)">声光</button>
           <button class="tab" id="tab-staging" role="tab" type="button" aria-selected="false" style="--tab-color: var(--staging)"><svg class="staging-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11 7 3h10l3 8v10H4Z M4 12h5l2 3h2l2-3h5"/></svg><span>暂存</span><span class="staging-count" id="stagingCount">0</span></button>
         </div>
         <div class="palette" id="palette" aria-live="polite"></div>
@@ -62,8 +60,6 @@
   <div class="param-popover" id="paramEditor" hidden aria-live="polite"></div>
 
   <script src="platform.js"></script>
-  <script src="program-codegen.js"></script>
-  <script src="card-compiler.js"></script>
   <script src="block-layout.js"></script>
   <script src="app.js"></script>
   <script src="home.js"></script>
@@ -72,5 +68,7 @@
   <script src="bluetooth.js"></script>
   <script src="remote-control.js"></script>
   <script src="remote-ui.js"></script>
+  <script src="xiaobai-runner.js"></script>
+  <script src="xiaobai-ui.js"></script>
 </body>
 </html>
