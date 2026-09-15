@@ -1,0 +1,72 @@
+{
+  "upstream": "pikasTech/PikaPython",
+  "tag": "v1.13.4",
+  "license": "MIT",
+  "files": [
+    {
+      "file": "PikaDebuger_Debuger.c",
+      "upstreamSha256": "9d85b14f7b11050e0daec59db8e1c171fd354778d5ffe4512a974da445a2800c",
+      "matchesInstalledIgnoringNewlines": true
+    },
+    {
+      "file": "PikaStdData_ByteArray.c",
+      "upstreamSha256": "8056af80276ada4fa71013e1209a44e091667a13155cd2baf1cc9f288f556c26",
+      "matchesInstalledIgnoringNewlines": true
+    },
+    {
+      "file": "PikaStdData_Dict.c",
+      "upstreamSha256": "67b988d021ab9e7e246725da2e51f6c310afd4f14d9f817fe290c073a1007bf0",
+      "matchesInstalledIgnoringNewlines": true
+    },
+    {
+      "file": "PikaStdData_FILEIO.c",
+      "upstreamSha256": "fdcf99849b24c1da818532b13bb9f342c905e6be87c7485c8ac89ac7da958e3b",
+      "matchesInstalledIgnoringNewlines": true
+    },
+    {
+      "file": "PikaStdData_List.c",
+      "upstreamSha256": "9e5360889f2ed69e4bf45abaf1d88f815ac8189db43314c8d638942152d1410e",
+      "matchesInstalledIgnoringNewlines": true
+    },
+    {
+      "file": "PikaStdData_String.c",
+      "upstreamSha256": "65b60591fc37d74e584e0f70ec6866655400a3390938ffd94b098b8c9875e500",
+      "matchesInstalledIgnoringNewlines": true
+    },
+    {
+      "file": "PikaStdData_Tuple.c",
+      "upstreamSha256": "21270b5d9573609eb3e4cad9dfa430daea3b287e452e49c46536fbde864437c0",
+      "matchesInstalledIgnoringNewlines": true
+    },
+    {
+      "file": "PikaStdData_Utils.c",
+      "upstreamSha256": "5fb55b84a4e07b5f137a1395a15f3694b5ac557819fc2a6945f0c75482b7b14f",
+      "matchesInstalledIgnoringNewlines": true
+    },
+    {
+      "file": "PikaStdLib_MemChecker.c",
+      "upstreamSha256": "4d77ef45c05e6b9493062b96c6f86b4a215ac3dd4665fec779c254d78b764324",
+      "matchesInstalledIgnoringNewlines": true
+    },
+    {
+      "file": "PikaStdLib_RangeObj.c",
+      "upstreamSha256": "0746e3cd7eda9dd27ccb92891a8441895f2070ecc6275de2d5a2093d215509e0",
+      "matchesInstalledIgnoringNewlines": true
+    },
+    {
+      "file": "PikaStdLib_StringObj.c",
+      "upstreamSha256": "0746e3cd7eda9dd27ccb92891a8441895f2070ecc6275de2d5a2093d215509e0",
+      "matchesInstalledIgnoringNewlines": true
+    },
+    {
+      "file": "PikaStdLib_SysObj.c",
+      "upstreamSha256": "968493bf4e4fea8de8e9e3623e5f4a2404ce84300b53ff8ebba3cd839031b2a0",
+      "matchesInstalledIgnoringNewlines": true
+    },
+    {
+      "file": "PikaStdTask_Task.c",
+      "upstreamSha256": "026024d5fbc642dd63c4cc79d0612f9bbd45de36072e9f96825bf300eb0510ef",
+      "matchesInstalledIgnoringNewlines": true
+    }
+  ]
+}

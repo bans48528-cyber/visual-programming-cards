@@ -1,0 +1,8 @@
+[
+  {
+    "id": "motor-power",
+    "params": {
+      "power": "50"
+    }
+  }
+]

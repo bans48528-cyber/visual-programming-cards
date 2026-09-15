@@ -58,6 +58,7 @@
     }
 
     .app {
+      height: 100%;
       height: 100dvh;
       min-width: 620px;
       display: grid;
@@ -880,6 +881,7 @@
       user-select: none;
       touch-action: manipulation;
       max-width: calc(100vw - 16px);
+      max-height: calc(100vh - 16px);
       max-height: calc(100dvh - 16px);
     }
 
@@ -970,20 +972,6 @@
     .param-current:focus-within {
       border-color: var(--blue-line);
       box-shadow: 0 0 0 3px rgba(45, 109, 255, .16);
-    }
-
-    .param-value-input {
-      width: 46px;
-      min-width: 0;
-      padding: 0;
-      border: 0;
-      outline: 0;
-      background: transparent;
-      color: var(--ink);
-      font: inherit;
-      line-height: 1;
-      text-align: center;
-      user-select: text;
     }
 
     .param-editor-panel {

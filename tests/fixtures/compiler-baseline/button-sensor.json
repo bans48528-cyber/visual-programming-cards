@@ -1,0 +1,9 @@
+[
+  {
+    "id": "button-sensor",
+    "params": {
+      "port": "A",
+      "state": "按下"
+    }
+  }
+]

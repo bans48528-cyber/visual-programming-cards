@@ -1,0 +1,23 @@
+[
+  {
+    "id": "combo-power",
+    "params": {
+      "power": "75"
+    }
+  },
+  {
+    "id": "combo-direction",
+    "params": {
+      "mode": "2"
+    }
+  },
+  {
+    "id": "combo-forward",
+    "params": {
+      "duration": 3.5
+    }
+  },
+  {
+    "id": "combo-stop"
+  }
+]

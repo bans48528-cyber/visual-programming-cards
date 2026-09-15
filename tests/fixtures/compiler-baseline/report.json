@@ -1,0 +1,212 @@
+{
+  "date": "2026-09-12T09:48:50.778Z",
+  "generatorSha256": "cc5d01d8f6fb1fdf4e14f797fd51e628bd71eccb55ba9d3ae3569663d3ae01d0",
+  "desktopAddonSha256": "902f43061019656d118f27e2856ec6a04116bdf161a62d5d84d587b2cc85e2f5",
+  "cardCount": 23,
+  "cases": [
+    {
+      "name": "motor-power",
+      "bytes": 48,
+      "sha256": "deda1076b01454f5c705d3945393ad400d97c153cf38a2403adbeb6dbb2404b3",
+      "sourceSha256": "095016029fac08580eeb7704d9ddc7c253edb9bd4fb3517dc1fb21963fc4abac",
+      "repeatEqual": true
+    },
+    {
+      "name": "motor-forward",
+      "bytes": 89,
+      "sha256": "8699d45a74278351a01c8a29b28b525c7b7f8391aa545401bdfd8eef5680c787",
+      "sourceSha256": "df8c856db469c14a702ceee2ae1f070bbfbeae0fff6fdd94dfc6098e2f1fb403",
+      "repeatEqual": true
+    },
+    {
+      "name": "motor-reverse",
+      "bytes": 95,
+      "sha256": "eeba706ec18be45064b9260547d8027e9701da56a7592f48ebe305736a87f2cf",
+      "sourceSha256": "030fbe68d56a0d036ea98f6446457ce313a695f0cf4d0d84a9a481d3086a244e",
+      "repeatEqual": true
+    },
+    {
+      "name": "motor-forward-continuous",
+      "bytes": 71,
+      "sha256": "8ae0cb10c638f2fd9f56a1a1a95ace65770f61ca06ea54a2b5bf5bcd70a2d096",
+      "sourceSha256": "caad0fab734bc1ee300aaa5de9cb6dbbb52950e332c2b9ede51bb594b579b3cc",
+      "repeatEqual": true
+    },
+    {
+      "name": "motor-reverse-continuous",
+      "bytes": 77,
+      "sha256": "b6dff290831e39d4f2fb2f4612fceecc04c5c74e50b971c749580003845bc6b9",
+      "sourceSha256": "a9c024e2b1bf1488ca1190c55865e2eca6de73dc869470d1a8eaba603dabf1c3",
+      "repeatEqual": true
+    },
+    {
+      "name": "motor-stop",
+      "bytes": 39,
+      "sha256": "e5a1f3d443ac11141226b7d4c4b046cc303792bfb99471b54a06eac3823340b9",
+      "sourceSha256": "4b9182142d88e93b8c295c0969f1370971eea11ca98179045dbd7466ffef1003",
+      "repeatEqual": true
+    },
+    {
+      "name": "combo-direction",
+      "bytes": 104,
+      "sha256": "601b65bdf1f24f95dea2490a69e96462966befeaf12898205a7ba7cc54f61b7f",
+      "sourceSha256": "40c0dc2c5dcddf32ec98a846424b0f67afc67ac99c6cabe3cca171599996fb16",
+      "repeatEqual": true
+    },
+    {
+      "name": "combo-power",
+      "bytes": 48,
+      "sha256": "4e98f1c19be64bc22230a4b9be4bc81a9a77e873e1d4762a214eba20ca18a9b2",
+      "sourceSha256": "68287b9b0b482cd504ea0dc0e1d9770ead6f0ee76ed227d02b01a7aca25fc8be",
+      "repeatEqual": true
+    },
+    {
+      "name": "combo-forward",
+      "bytes": 162,
+      "sha256": "7d5bdb8266b6273893ee20b37f55973ca1afeea6ef93e61b68e1246f4a108583",
+      "sourceSha256": "b4f512903ab587887ccdf79b4fac9d6da114207fbdcd8ec8c916c77f29745b73",
+      "repeatEqual": true
+    },
+    {
+      "name": "combo-backward",
+      "bytes": 162,
+      "sha256": "6a1734e91f6b1561417055c28aa44e7da5470ef344daa863e6a658182ad2d4ed",
+      "sourceSha256": "182ea00061ea7f7a74c3fe07543d7009e3f4b9ad172043448dce894087f34432",
+      "repeatEqual": true
+    },
+    {
+      "name": "combo-turn-left",
+      "bytes": 159,
+      "sha256": "904a99e39c18d028739dc35c927b002276d175b89b4757606da4ccb6c2d78973",
+      "sourceSha256": "471cfb5ec4ef42afcb3b9f1a051046e11f98a1891841b8146e62ce3793a95615",
+      "repeatEqual": true
+    },
+    {
+      "name": "combo-turn-right",
+      "bytes": 160,
+      "sha256": "7b44c49463f6daae2e88a549f226b714c294e2d51ca6c08617415f12aba1e67f",
+      "sourceSha256": "29a4725d7666e5e9cd3fc7263a087578036b296c45ce8c9cb891a29ea3c87d2e",
+      "repeatEqual": true
+    },
+    {
+      "name": "combo-continuous",
+      "bytes": 150,
+      "sha256": "2d74951727272763b642bb79c7e49ed49be14da2a4d28a07a6574a7158703ea8",
+      "sourceSha256": "206c69b91617b0e2cb3660632542c91379025393a397dd4fff615bc1c8a1be55",
+      "repeatEqual": true
+    },
+    {
+      "name": "combo-stop",
+      "bytes": 106,
+      "sha256": "35175fece792bd0db81f3a42fc81b223f7f2704aeea45db2b397ed6cd431e439",
+      "sourceSha256": "76291895cd2d1bce98b27690a9a7c720d0b09e1efc02ff26b72be118ebfb5c72",
+      "repeatEqual": true
+    },
+    {
+      "name": "ultrasonic-sensor",
+      "bytes": 114,
+      "sha256": "16bb5899ea7f9b1abc6f9e33da8305c1bc543659eb08110047b161a8f88853c8",
+      "sourceSha256": "2239c8d1f5db3760ff00010e87954cc5904702e0f96465a0ee95515ae27693ea",
+      "repeatEqual": true
+    },
+    {
+      "name": "grayscale-sensor",
+      "bytes": 109,
+      "sha256": "d99ac46537834952384b359da7a774f5db0ea0d1ae8a39261e448a48351157bb",
+      "sourceSha256": "49b116774d5f352208a290e1e0422683f115d052d8a64c30563577fb427c1d0f",
+      "repeatEqual": true
+    },
+    {
+      "name": "button-sensor",
+      "bytes": 93,
+      "sha256": "a5f9332e6dc43706340666b7987f4cb6f72dc194b83a2ad7000ef15710789ff9",
+      "sourceSha256": "817524a709f4683c4a8f6ea263f5f472dc21563834e6eb64b4938a55934ea4e1",
+      "repeatEqual": true
+    },
+    {
+      "name": "host-button",
+      "bytes": 103,
+      "sha256": "7c3b533e88a83bc4432b18945a9d6652eb0fc1f0d7a43880bfbf2450551a42e7",
+      "sourceSha256": "288f35ddc21bbbc700fcb96b794bcd98c6e9a9dcda46c6f0bd46f083248c1ed8",
+      "repeatEqual": true
+    },
+    {
+      "name": "wait-time",
+      "bytes": 39,
+      "sha256": "92faf781496af78033ace3c327d5b4cbedaa3ae1c23bb0b02df6d7c2d5c941c8",
+      "sourceSha256": "c9d0e281403a0d2d1e2340da7bacbf1dbf56d1ef709bd7deba3fb3531e198326",
+      "repeatEqual": true
+    },
+    {
+      "name": "loop-count",
+      "bytes": 126,
+      "sha256": "d7b1908a9c59a58941cfc683054d5f45d1a0ee5201c252f01928f88b8b8b12cf",
+      "sourceSha256": "99cda5777d10fe51692cc794ab92ad10c1b9f415a8df2b0c3ee37d9e8ee4780c",
+      "repeatEqual": true
+    },
+    {
+      "name": "loop",
+      "bytes": 65,
+      "sha256": "f73f53291404ad30a0fbcc63f38c3447972265a7eb5cf7dc73fd9e102c6d5047",
+      "sourceSha256": "8c00a4d2f6399ae93e2c34cbe0ccd87bbd755920d718dd6ca94660003a1f5b24",
+      "repeatEqual": true
+    },
+    {
+      "name": "play-note",
+      "bytes": 52,
+      "sha256": "c500f473921e0ce332feeb1e21a8007e8acde2c61cc56dfea01a8974c41dfd49",
+      "sourceSha256": "298e99f4e588c931a7840e96a4a54333104c401fb7019b0f81fc2f72ee6af7bc",
+      "repeatEqual": true
+    },
+    {
+      "name": "matrix-display",
+      "bytes": 72,
+      "sha256": "01333ad29d2d8090b7f4d575ce8f5b14f524e4107df4ca7ce316c545ae29d67c",
+      "sourceSha256": "2929706c4d6beb88227f98776f3111527f2072fca5e2c25032663ee0b598223b",
+      "repeatEqual": true
+    },
+    {
+      "name": "nested-loops",
+      "bytes": 303,
+      "sha256": "687964cfcf24d5bbfef3b932724c977155bec3edb42dc316a8607734a01bcbbc",
+      "sourceSha256": "8c6492b4e0be474d27c0c6511644324d91ac3537c1b0dee47f4dc803efe73086",
+      "repeatEqual": true
+    },
+    {
+      "name": "fractional-duration",
+      "bytes": 143,
+      "sha256": "f000da58649284c508ea045f0e10282b3fc586563bb2a3c901774749d74c22c1",
+      "sourceSha256": "ca3860abb2e8156e5e3a6810b0ed8622569b72c2af84a6b8604e317cf70d9f6f",
+      "repeatEqual": true
+    },
+    {
+      "name": "sensor-boundaries",
+      "bytes": 195,
+      "sha256": "2e40b9fbcad0302f7cccf116e6acb98e0e058029a9402acfba9dd9782c5f4e2c",
+      "sourceSha256": "0fdda8231bdeea6b8311f391f8a2bcd21b29d58f39fb6c33c6cfd40f61bdb501",
+      "repeatEqual": true
+    },
+    {
+      "name": "matrix-asymmetric",
+      "bytes": 77,
+      "sha256": "96949d0da8ee25fbe830586b8f143abed93051f41bd2b73ab1e11444c35dd4d4",
+      "sourceSha256": "725ac8e3af660712ab96deb5b3ee637525f7e1c32407fc0143516e8c48c4a7ed",
+      "repeatEqual": true
+    },
+    {
+      "name": "combo-power-order",
+      "bytes": 215,
+      "sha256": "85f544442f3ac6396a5d60542e4fe05d583193cb7372dc2e1a722436d179678f",
+      "sourceSha256": "1abd807b551339967c7659b8b2a6c428493855bd68a0929603307e4b2c2a6a81",
+      "repeatEqual": true
+    },
+    {
+      "name": "large-program",
+      "bytes": 1057,
+      "sha256": "332e6e0d43e58461eef9771dc8e48bee26f1db352219d7fb3df264b3a8be09d7",
+      "sourceSha256": "219fb6af77644b8311209571a02af8116ca6307ce713d0407b85b0acbbd1a150",
+      "repeatEqual": true
+    }
+  ],
+  "scope": "Desktop reference only; no rebuilt core, Android compiler or physical peripheral verified."
+}

@@ -1,0 +1,43 @@
+const {chromium}=require('playwright');
+const assert=require('node:assert/strict');
+(async()=>{
+ const browser=await chromium.launch({channel:'msedge'});
+ try {
+  const context=await browser.newContext({viewport:{width:892,height:412},hasTouch:true});
+  await context.addInitScript(require('./mock-android.cjs'));
+  const page=await context.newPage(),errors=[];page.on('pageerror',e=>errors.push(e.message));
+  await page.goto('http://127.0.0.1:4173/dist/#bluetooth');
+  await page.waitForFunction(()=>!document.querySelector('.bt-search').disabled);
+  await page.evaluate(()=>{mockBle.devices=[{name:'Spark_AI',deviceId:'AA:BB:CC:DD:EE:01',rssi:-45}];});
+  await page.locator('.bt-search').click();await page.locator('.bt-device .bt-button').click();
+  await page.waitForFunction(()=>CardBluetooth.connected);
+  await page.locator('.bt-back').click();await page.locator('.remote-entry').click();
+  await page.waitForFunction(()=>!document.querySelector('[data-remote-key=up]').disabled);
+  const cdp=await context.newCDPSession(page);
+  const point=async(key,id)=>{const r=await page.locator(`[data-remote-key=${key}]`).boundingBox();return {id,x:r.x+r.width/2,y:r.y+r.height/2};};
+  const up=await point('up',1),a=await point('A',2);
+  await cdp.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[up]});
+  await cdp.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[up,a]});
+  await page.waitForFunction(()=>mockBle.calls.some(c=>c.method==='write'&&atob(c.data).charCodeAt(4)===193&&atob(c.data).charCodeAt(5)===1&&atob(c.data).charCodeAt(9)===1));
+  assert.equal(await page.locator('.remote-dialog .is-pressed').count(),2);
+  await page.screenshot({path:'artifacts/remote-multitouch.png'});
+  await cdp.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
+  await page.waitForFunction(()=>{const c=mockBle.calls.filter(c=>c.method==='write').at(-1);return atob(c.data).slice(5,15)==='\0'.repeat(10);});
+  await page.locator('[data-remote-key=L]').focus();await page.keyboard.down('KeyL');await page.keyboard.down('KeyX');
+  assert.equal(await page.locator('.remote-dialog .is-pressed').count(),2);
+  await page.keyboard.up('KeyL');await page.keyboard.up('KeyX');
+  await cdp.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[up]});
+  await cdp.send('Input.dispatchTouchEvent',{type:'touchCancel',touchPoints:[]});
+  assert.equal(await page.locator('.remote-dialog .is-pressed').count(),0);
+  await page.evaluate(()=>window.nativeListeners.backButton());
+  await page.waitForFunction(()=>!document.getElementById('remoteControl').open);
+  await page.waitForTimeout(100);const count=await page.evaluate(()=>mockBle.calls.length);
+  await page.waitForTimeout(1100);assert.equal(await page.evaluate(()=>mockBle.calls.length),count);
+  await page.locator('.remote-entry').click();
+  await page.evaluate(()=>mockBle.emit('disconnected',{connectionId:mockBle.connectionId,reason:'test disconnect'}));
+  await page.waitForFunction(()=>document.querySelector('[data-remote-key=up]').disabled);
+  assert.equal(await page.locator('.remote-dialog .is-pressed').count(),0);
+  assert.deepEqual(errors,[]);
+  console.log('PASS remote UI + BLE bridge: multitouch C1, release, keyboard, pointer cancel, native back, no post-close writes, disconnect');
+ } finally {await browser.close();}
+})().catch(e=>{console.error(e);process.exitCode=1;});

@@ -1,0 +1,10 @@
+[
+  {
+    "id": "grayscale-sensor",
+    "params": {
+      "port": "A",
+      "operator": "<",
+      "value": 500
+    }
+  }
+]

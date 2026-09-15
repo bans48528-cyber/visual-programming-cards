@@ -110,8 +110,9 @@ async function touchDrag(page, selector, point) {
       const param=page.locator('#chain > .loop-block > .loop-tail > .param-bubble');
       if(viewport.width<1000) await param.tap(); else await param.click();
       assert.equal(await page.locator('#paramEditor').isVisible(),true);
-      const input=page.locator('#paramEditor input');
-      await input.fill('4');await input.press('Tab');
+      await page.locator('#paramEditor .param-current').click();
+      await page.locator('.number-key[data-key="4"]').click();
+      await page.locator('.number-key[data-key="confirm"]').click();
       assert.equal(await page.evaluate(()=>program[0].params.count),4);
       await page.locator('#startBlock').click();
       await checkGeometry(page);

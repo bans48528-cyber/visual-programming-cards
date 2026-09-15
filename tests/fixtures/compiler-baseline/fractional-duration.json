@@ -1,0 +1,22 @@
+[
+  {
+    "id": "motor-forward",
+    "params": {
+      "port": "E",
+      "duration": 0.1
+    }
+  },
+  {
+    "id": "wait-time",
+    "params": {
+      "duration": 2.5
+    }
+  },
+  {
+    "id": "motor-reverse",
+    "params": {
+      "port": "E",
+      "duration": 86400
+    }
+  }
+]

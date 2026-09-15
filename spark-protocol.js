@@ -78,29 +78,51 @@
       }
     }
   }
+  class WebBluetoothTransport {
+    constructor(characteristic) {this.characteristic=characteristic;}
+    get properties() {return this.characteristic.properties;}
+    async start(receive) {
+      this.notification=event=>{
+        const value=event.target.value;
+        receive(new Uint8Array(value.buffer,value.byteOffset,value.byteLength));
+      };
+      this.characteristic.addEventListener('characteristicvaluechanged',this.notification);
+      await this.characteristic.startNotifications();
+    }
+    write(bytes) {
+      return this.properties.writeWithoutResponse
+        ? this.characteristic.writeValueWithoutResponse(bytes)
+        : this.characteristic.writeValueWithResponse(bytes);
+    }
+    close() {this.characteristic.removeEventListener('characteristicvaluechanged',this.notification);}
+    disconnect() {this.characteristic.service?.device?.gatt?.disconnect();}
+  }
   class Link {
-    constructor(characteristic, {onStatus=()=>{}, onProgress=()=>{}, onError=()=>{}, onTrace=()=>{}, timeout=5000}={}) {
+    constructor(characteristic, {transport, acceptAck=()=>true, onStatus=()=>{}, onProgress=()=>{}, onError=()=>{}, onTrace=()=>{}, timeout=5000}={}) {
       this.characteristic=characteristic;this.timeout=timeout;this.onProgress=onProgress;
+      this.transport=transport || new WebBluetoothTransport(characteristic);
       this.trace=onTrace;this.receivedBytes=0;
       this.closed=false;this.queue=Promise.resolve();this.pending=null;this.session=null;
       this.receiver=new Receiver(packet=>{
         this.trace("FRAME",packet);
-        // APK compatibility only: checksum-valid response, NOT proven firmware success.
-        if(this.pending) this.pending.resolve(packet);
+        // Desktop retains APK compatibility; Android filters the observed upload reply.
+        if(this.pending) {
+          if(acceptAck(packet)) this.pending.resolve(packet);
+          else this.trace("ACK_IGNORED",packet,"非文件发送确认，继续等待。");
+        }
       },onStatus,error=>{this.trace("ERROR",null,error.message);this.pending?.reject(error);onError(error);},detail=>this.trace("RECOVER",null,detail));
-      this.notification=event=>{
-        const value=event.target.value;
-        const bytes=new Uint8Array(value.buffer,value.byteOffset,value.byteLength);
+      this.notification=bytes=>{
+        if(this.closed) return;
         this.receivedBytes+=bytes.length;
         this.trace("RX",bytes);
         this.receiver.feed(bytes);
       };
     }
     async start() {
-      const p=this.characteristic.properties;
+      const p=this.transport.properties;
       if(!(p.notify||p.indicate) || !(p.writeWithoutResponse||p.write)) throw new Error("FFF1 不支持所需的写入和通知能力。");
-      this.characteristic.addEventListener("characteristicvaluechanged",this.notification);
-      await this.characteristic.startNotifications();
+      await this.transport.start(this.notification);
+      if(this.closed) {this.transport.close();throw new Error("连接已取消。");}
       this.trace("READY",null,`notify=${p.notify}, indicate=${p.indicate}, write=${p.write}, withoutResponse=${p.writeWithoutResponse}`);
       await this.write(frame(CMD.WATCH));
     }
@@ -109,15 +131,15 @@
         if(this.closed) throw new Error("蓝牙连接已断开。");
         if(session?.cancelled) throw new Error("上传已取消。");
         if(!shouldWrite()) return false;
-        const c=this.characteristic;
+        const c=this.transport;
         const withResponse=!c.properties.writeWithoutResponse;
         let timer;
         try {
           this.trace("TX",bytes,withResponse ? "withResponse" : "withoutResponse");
           await Promise.race([
-            withResponse ? c.writeValueWithResponse(bytes) : c.writeValueWithoutResponse(bytes),
+            c.write(bytes),
             new Promise((_,reject)=>{timer=setTimeout(()=>{
-              this.close();c.service?.device?.gatt?.disconnect();
+              this.close();c.disconnect();
               reject(new Error("蓝牙写入超时，连接已关闭，请检查设备。"));
             },this.timeout);})
           ]);
@@ -176,11 +198,11 @@
       this.closed=true;
       if(this.session) this.session.cancelled=true;
       this.pending?.reject(new Error("蓝牙连接已断开，上传中止。"));
-      this.characteristic.removeEventListener("characteristicvaluechanged",this.notification);
+      this.transport.close();
       this.receiver.reset();
     }
   }
-  const api={SERVICE,CHARACTERISTIC,CMD,frame,uploadFrames,Receiver,Link};
+  const api={SERVICE,CHARACTERISTIC,CMD,frame,uploadFrames,Receiver,Link,WebBluetoothTransport};
   if(typeof module!=="undefined" && module.exports) module.exports=api;
   else root.SparkProtocol=api;
 })(globalThis);

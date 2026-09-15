@@ -1,0 +1,366 @@
+{
+  "inspectedAt": "2026-09-12T09:49:55.279744+00:00",
+  "package": "pika-bytecode-gen-napi 0.1.0 from Spark AI 1.1.9",
+  "declaredCoreVersion": "1.13.4",
+  "declaredEditTime": "2024/08/09 03:29:21",
+  "coreCFiles": 17,
+  "desktopBuildSources": [
+    {
+      "file": "src/addon.cpp",
+      "exists": true,
+      "bytes": 1044,
+      "sha256": "32f4086d9e6f964079c672146713b532a94ad3e98f1b5ababe5da5626397fbf1",
+      "mitNoticeInFileHeader": false
+    },
+    {
+      "file": "pikascript/pikascript-core/BaseObj.c",
+      "exists": true,
+      "bytes": 1761,
+      "sha256": "88650f5bb41336eb408cd50eb4b4fd41cb392fd741f07a5139278b34b81cb5a5",
+      "mitNoticeInFileHeader": true
+    },
+    {
+      "file": "pikascript/pikascript-core/PikaCompiler.c",
+      "exists": true,
+      "bytes": 54223,
+      "sha256": "e1ae1385ecd84afa6e55b77396ab2500c21f483f17d4cdd9f50aaec3bca503f0",
+      "mitNoticeInFileHeader": true
+    },
+    {
+      "file": "pikascript/pikascript-core/PikaObj.c",
+      "exists": true,
+      "bytes": 158264,
+      "sha256": "857dfc4961f0c6e73a6f6a9b2e49f815215cfbb2fc0eac482253da26ff6760d8",
+      "mitNoticeInFileHeader": true
+    },
+    {
+      "file": "pikascript/pikascript-core/PikaParser.c",
+      "exists": true,
+      "bytes": 129690,
+      "sha256": "42b5a1e16852ab9e265b2766a5ca3b1362bd724e82dac5143377ccd22d71e6d1",
+      "mitNoticeInFileHeader": true
+    },
+    {
+      "file": "pikascript/pikascript-core/PikaPlatform.c",
+      "exists": true,
+      "bytes": 35396,
+      "sha256": "88e583b675b88fc122ba0e55ab63929ca85b6cd9713b815c8a9a50f8b65764bc",
+      "mitNoticeInFileHeader": true
+    },
+    {
+      "file": "pikascript/pikascript-core/PikaVM.c",
+      "exists": true,
+      "bytes": 169180,
+      "sha256": "4599d59481b14a310fc0b95923af2b67e593a6eaeb3b5d51fabdc29dca4e0126",
+      "mitNoticeInFileHeader": true
+    },
+    {
+      "file": "pikascript/pikascript-core/TinyObj.c",
+      "exists": true,
+      "bytes": 1708,
+      "sha256": "567a89b8b8e4bf1704da9b9c16777b1445dd48201f1ea70467acb2482eaa1df0",
+      "mitNoticeInFileHeader": true
+    },
+    {
+      "file": "pikascript/pikascript-core/dataArg.c",
+      "exists": true,
+      "bytes": 23133,
+      "sha256": "e221f712b3efae3357928438ae9592d92690da2feec597e127eec2a999eece7c",
+      "mitNoticeInFileHeader": true
+    },
+    {
+      "file": "pikascript/pikascript-core/dataArgs.c",
+      "exists": true,
+      "bytes": 18370,
+      "sha256": "ec4018ae243f535b1d868d9497f65c7696469da780ab67b8a78cef09a30fd368",
+      "mitNoticeInFileHeader": true
+    },
+    {
+      "file": "pikascript/pikascript-core/dataLink.c",
+      "exists": true,
+      "bytes": 3788,
+      "sha256": "57b970c091667570e7b29dbe56f7045105deb7de50a1c7f8427e514a45990803",
+      "mitNoticeInFileHeader": true
+    },
+    {
+      "file": "pikascript/pikascript-core/dataLinkNode.c",
+      "exists": true,
+      "bytes": 1416,
+      "sha256": "9d79aa2f446e961652ea2adc1e116c8e98c2f974ac0d051de6a390bbbc61a083",
+      "mitNoticeInFileHeader": true
+    },
+    {
+      "file": "pikascript/pikascript-core/dataMemory.c",
+      "exists": true,
+      "bytes": 10296,
+      "sha256": "ad8d60b947777c4dda6734be2c5d68c434db187f0ed3fae5cc2e194a439b785e",
+      "mitNoticeInFileHeader": true
+    },
+    {
+      "file": "pikascript/pikascript-core/dataQueue.c",
+      "exists": true,
+      "bytes": 6770,
+      "sha256": "3f0ecac8f0218a6321d4ad6d916a3ea89725bf8386c25c881c4ea70988f90138",
+      "mitNoticeInFileHeader": true
+    },
+    {
+      "file": "pikascript/pikascript-core/dataQueueObj.c",
+      "exists": true,
+      "bytes": 4171,
+      "sha256": "1dfc2e8e2023df2a5e8ded9ca363e95edc6c687560c19165874858e42ea99132",
+      "mitNoticeInFileHeader": true
+    },
+    {
+      "file": "pikascript/pikascript-core/dataStack.c",
+      "exists": true,
+      "bytes": 7860,
+      "sha256": "6ab819712726ee2205b7a810570b113b92ce1975bd43e0bb781fb438c9d0f228",
+      "mitNoticeInFileHeader": true
+    },
+    {
+      "file": "pikascript/pikascript-core/dataString.c",
+      "exists": true,
+      "bytes": 12490,
+      "sha256": "3258004cea4d50a650aa14b95b9f91c40d785b27f83a7d529c6caf661d294c58",
+      "mitNoticeInFileHeader": true
+    },
+    {
+      "file": "pikascript/pikascript-core/dataStrs.c",
+      "exists": true,
+      "bytes": 11878,
+      "sha256": "e2aac7c025948ab42665d25ecff17f76998f45e9bc10f753df28604698c7a540",
+      "mitNoticeInFileHeader": true
+    },
+    {
+      "file": "pikascript/pikascript-api/__asset_pikaModules_py_a.c",
+      "exists": true,
+      "bytes": 1275,
+      "sha256": "90e2c4ce9f53f629025756c7dd50a264411dcc9f6cc3c6f9e341f037b6a6ea9c",
+      "mitNoticeInFileHeader": false
+    },
+    {
+      "file": "pikascript/pikascript-api/__pikaBinding.c",
+      "exists": true,
+      "bytes": 111278,
+      "sha256": "f3dba3b390d99c86e9520992165897d09377ddc5e4f2d2b24bfb0cb70f472856",
+      "mitNoticeInFileHeader": false
+    },
+    {
+      "file": "pikascript/pikascript-api/pikaScript.c",
+      "exists": true,
+      "bytes": 1137,
+      "sha256": "e9e75f91d1d0f9a79ef887fcb02a074781bc47247eff1c5629c091b09439b49b",
+      "mitNoticeInFileHeader": false
+    },
+    {
+      "file": "pikascript/pikascript-lib/PikaStdLib/PikaDebuger_Debuger.c",
+      "exists": true,
+      "bytes": 591,
+      "sha256": "ee3ac7de14e5ae62ffe6c7a65b65ecf4405b8de6799ee52d13ca02560cb559e1",
+      "mitNoticeInFileHeader": false
+    },
+    {
+      "file": "pikascript/pikascript-lib/PikaStdLib/PikaStdData_ByteArray.c",
+      "exists": true,
+      "bytes": 36,
+      "sha256": "f2b40e74218acd31d6f7fe17ff70ea336f8e710e3bd5c0e125d8d28adf0ef686",
+      "mitNoticeInFileHeader": false
+    },
+    {
+      "file": "pikascript/pikascript-lib/PikaStdLib/PikaStdData_Dict.c",
+      "exists": true,
+      "bytes": 10268,
+      "sha256": "48059b4a3bdfcce2c00c48e397bd085f55d96466d4059a73308830edc4a77770",
+      "mitNoticeInFileHeader": false
+    },
+    {
+      "file": "pikascript/pikascript-lib/PikaStdLib/PikaStdData_FILEIO.c",
+      "exists": true,
+      "bytes": 7040,
+      "sha256": "2466adcff770cb3eb6d082483ac50a8c07ccf2f0c3f6b740ff004b58aec48b81",
+      "mitNoticeInFileHeader": false
+    },
+    {
+      "file": "pikascript/pikascript-lib/PikaStdLib/PikaStdData_List.c",
+      "exists": true,
+      "bytes": 3491,
+      "sha256": "7b9374acbfd9ff1ad565617244e408c2d60aee62415376c83208300c17f1c3df",
+      "mitNoticeInFileHeader": false
+    },
+    {
+      "file": "pikascript/pikascript-lib/PikaStdLib/PikaStdData_String.c",
+      "exists": true,
+      "bytes": 24746,
+      "sha256": "9d28c5de7ed8d03d2bcaceb283652c49ab2705e216966f018da28c240499b7e6",
+      "mitNoticeInFileHeader": false
+    },
+    {
+      "file": "pikascript/pikascript-lib/PikaStdLib/PikaStdData_Tuple.c",
+      "exists": true,
+      "bytes": 4036,
+      "sha256": "9099a0c8147f15c863990a388be06913206e33d4f21df3d391bda0aa30b6b260",
+      "mitNoticeInFileHeader": false
+    },
+    {
+      "file": "pikascript/pikascript-lib/PikaStdLib/PikaStdData_Utils.c",
+      "exists": true,
+      "bytes": 444,
+      "sha256": "c8e500121043a73bf1d8f616e0484c6dfd0f9b3a62ff596bbfaf10f77e16bdef",
+      "mitNoticeInFileHeader": false
+    },
+    {
+      "file": "pikascript/pikascript-lib/PikaStdLib/PikaStdLib_MemChecker.c",
+      "exists": true,
+      "bytes": 594,
+      "sha256": "6997d4308d432115e6f60a1213a72d50a5e321e0ebf6dcb82e28fe8e012af7dd",
+      "mitNoticeInFileHeader": false
+    },
+    {
+      "file": "pikascript/pikascript-lib/PikaStdLib/PikaStdLib_RangeObj.c",
+      "exists": true,
+      "bytes": 22,
+      "sha256": "a28d83a7a76cc36e207038c713835e043e0e8fe26d3c16ecd15f551178bb5388",
+      "mitNoticeInFileHeader": false
+    },
+    {
+      "file": "pikascript/pikascript-lib/PikaStdLib/PikaStdLib_StringObj.c",
+      "exists": true,
+      "bytes": 22,
+      "sha256": "a28d83a7a76cc36e207038c713835e043e0e8fe26d3c16ecd15f551178bb5388",
+      "mitNoticeInFileHeader": false
+    },
+    {
+      "file": "pikascript/pikascript-lib/PikaStdLib/PikaStdLib_SysObj.c",
+      "exists": true,
+      "bytes": 236,
+      "sha256": "3e12be242021f3a3fc9b4e338a5dc7a95148ae9e34fd96c38dfa914a65f2282d",
+      "mitNoticeInFileHeader": false
+    },
+    {
+      "file": "pikascript/pikascript-lib/PikaStdLib/PikaStdTask_Task.c",
+      "exists": true,
+      "bytes": 10016,
+      "sha256": "1779660f5293978ee419130af1f8eb50b3ff889014222df33edcded675179845",
+      "mitNoticeInFileHeader": false
+    },
+    {
+      "file": "external/win_delay_load_hook.cc",
+      "exists": false,
+      "bytes": 0,
+      "sha256": null,
+      "mitNoticeInFileHeader": false
+    }
+  ],
+  "coreHeaders": [
+    {
+      "file": "pikascript/pikascript-core/__default_filter_msg_table.h",
+      "sha256": "7387848e56b9ed7e72f266b7a73312120bbcbaf55c65d57755a3b6428cc9770a"
+    },
+    {
+      "file": "pikascript/pikascript-core/__default_filter_msg_template.h",
+      "sha256": "43a3b909ad591701d32603791b1c9e578a5af7c5197320220f3161b6e37f7678"
+    },
+    {
+      "file": "pikascript/pikascript-core/__instruction_table.h",
+      "sha256": "4f9c433103fb5b0d19d4db142fd3abf7d8d0940ed171733b8ba12003111e8d63"
+    },
+    {
+      "file": "pikascript/pikascript-core/__instruction_template.h",
+      "sha256": "6c1652736914b25fb005581e68af157472db1bab70b480fef97615f0ac6af402"
+    },
+    {
+      "file": "pikascript/pikascript-core/__pika_ooc.h",
+      "sha256": "13843bd1b8aa9cae92ec110dd837b48fc834a49760321abe4c81623336787001"
+    },
+    {
+      "file": "pikascript/pikascript-core/BaseObj.h",
+      "sha256": "0c288451af19a561a1141002cb48037440b055a02913a17833bf4c3df6513a04"
+    },
+    {
+      "file": "pikascript/pikascript-core/dataArg.h",
+      "sha256": "77856875ec2f6ba341264f752f76d36d3a1ca72dbbfb651d40a0c9e43782860d"
+    },
+    {
+      "file": "pikascript/pikascript-core/dataArgs.h",
+      "sha256": "f61ef1f113fdbffc7e83b9a9824092615d6bda25558a47311cbedcb1500ad544"
+    },
+    {
+      "file": "pikascript/pikascript-core/dataLink.h",
+      "sha256": "6e0365e6fd4621e4caf8695d7c0372ab8c51ea45ce03cfd6a916ccbbc8f17ba7"
+    },
+    {
+      "file": "pikascript/pikascript-core/dataLinkNode.h",
+      "sha256": "4a2a014ad0aa29711dba2456daaf34f17efc1287bae68461f2941a4d59252081"
+    },
+    {
+      "file": "pikascript/pikascript-core/dataMemory.h",
+      "sha256": "4de83c41f5f083f7e5a40ee6008bf08ea6ad81c01296ead2fd78e7d3952846d1"
+    },
+    {
+      "file": "pikascript/pikascript-core/dataQueue.h",
+      "sha256": "970aec4195d4f07ae2dddde4d6c474024557ca4c0f827a3c4793b7e81905fa94"
+    },
+    {
+      "file": "pikascript/pikascript-core/dataQueueObj.h",
+      "sha256": "3048a69e368c2c340da30f0e743745ad36a9e24c766152b8b8986885fe407edf"
+    },
+    {
+      "file": "pikascript/pikascript-core/dataStack.h",
+      "sha256": "d15a72a181da56e07e15df56f23c7f4ce4337bb7f1bca2ec36f6585628e0ecf6"
+    },
+    {
+      "file": "pikascript/pikascript-core/dataString.h",
+      "sha256": "54a377b1ffa86f35bc56a1db03fbf9885d334fd2c235b7541de7d716161226b5"
+    },
+    {
+      "file": "pikascript/pikascript-core/dataStrs.h",
+      "sha256": "d1fd5ece1d86a73123743540af25aeb5727940fe894ff200ed4901120626a78e"
+    },
+    {
+      "file": "pikascript/pikascript-core/pika_adapter_mpy.h",
+      "sha256": "a6ca71c085798b60a7a41c8547ef65987e7b9798e64d301d11acd4eceed442a7"
+    },
+    {
+      "file": "pikascript/pikascript-core/pika_adapter_old_api.h",
+      "sha256": "9eafaee5a7a964e76cde0c3ea1eea759d620dc7bef23e8c51a5b66b5a7544781"
+    },
+    {
+      "file": "pikascript/pikascript-core/pika_adapter_rtt.h",
+      "sha256": "734cb5203baec8ba2da056a4041a04f997fe3e93f41a94c21281390edb10f950"
+    },
+    {
+      "file": "pikascript/pikascript-core/pika_config_valid.h",
+      "sha256": "68f1ab8e67763071744c2bfc0908c775f03e3315f48decccc5f32f0f4618100e"
+    },
+    {
+      "file": "pikascript/pikascript-core/PikaCompiler.h",
+      "sha256": "04e21dfeb9185fcb6e48b97ee29dd2ca4e8dcf499385bd9260b4ded23002b963"
+    },
+    {
+      "file": "pikascript/pikascript-core/PikaObj.h",
+      "sha256": "cf12466f245a0badedd19c0dd5c439cec41f327b4edf3ebb20779355a7009384"
+    },
+    {
+      "file": "pikascript/pikascript-core/PikaParser.h",
+      "sha256": "d2d224f9ac9391c037a274d7962fa81af8ed8f905e9a8d2f4ff99baa1eaaaee3"
+    },
+    {
+      "file": "pikascript/pikascript-core/PikaPlatform.h",
+      "sha256": "561405033134a88eda68417723817f310a7b30f5f57e6507c707bfba7b1e9044"
+    },
+    {
+      "file": "pikascript/pikascript-core/PikaVersion.h",
+      "sha256": "2120ae43d3aea808780e229e6d3a2034ddbaae14bce5acb7159c88a7df54050f"
+    },
+    {
+      "file": "pikascript/pikascript-core/PikaVM.h",
+      "sha256": "79ae17e3a97de062c21c4030ae70db494ba2daf044ccd555387d4488bc82c932"
+    },
+    {
+      "file": "pikascript/pikascript-core/TinyObj.h",
+      "sha256": "c45c5a10fed54305bca7498e1a11a9fe7124d207ed29a6af9f2a21de3425ed0c"
+    }
+  ],
+  "config": "#define PIKA_LINE_BUFF_SIZE 1280\n#define PIKA_SPRINTF_BUFF_SIZE 2560\n#define PIKA_STACK_BUFF_SIZE 2560\n#define PIKA_NAME_BUFF_SIZE 320\n#define PIKA_PATH_BUFF_SIZE 640\n#define PIKA_BYTES_DEFAULT_SIZE 640\n#define PIKA_READ_FILE_BUFF_SIZE 1024 * 1024\n#define PIKA_ASSERT_ENABLE 1",
+  "scope": "Inventory only. Source-to-installed-binary equivalence and Android rebuild not yet verified. Missing external win_delay_load_hook.cc is a Windows Node loader dependency, not compiler core."
+}

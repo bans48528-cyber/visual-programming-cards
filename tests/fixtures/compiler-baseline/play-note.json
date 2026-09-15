@@ -1,0 +1,9 @@
+[
+  {
+    "id": "play-note",
+    "params": {
+      "note": "1",
+      "beats": "0.25"
+    }
+  }
+]

@@ -1,4 +1,5 @@
 (() => {
+  if (window.CardPlatform?.isAndroid) return;
   const protocol=window.SparkProtocol;
   const page = document.createElement("section");
   page.className = "bluetooth-page";

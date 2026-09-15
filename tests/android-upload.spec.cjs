@@ -1,0 +1,48 @@
+const {chromium}=require('playwright');
+const assert=require('node:assert/strict');
+(async()=>{
+ const b=await chromium.launch({channel:'msedge'});
+ try {
+  const context=await b.newContext({viewport:{width:892,height:412}});
+  await context.addInitScript(require('./mock-android.cjs'));
+  const page=await context.newPage(),errors=[];page.on('pageerror',e=>errors.push(e.message));
+  await page.goto('http://127.0.0.1:4173/dist/#bluetooth');
+  await page.waitForFunction(()=>!document.querySelector('.bt-search').disabled);
+  await page.evaluate(()=>{mockBle.devices=[{name:'Spark_AI',deviceId:'test-device',rssi:-40}];});
+  await page.locator('.bt-search').click();await page.locator('.bt-device .bt-button').click();
+  await page.waitForFunction(()=>CardBluetooth.connected);
+  const send=()=>page.evaluate(()=>CardBluetooth.runProgram([{id:'wait-time',params:{duration:1}}]));
+  await send();
+  assert.match(await page.locator('#executionNotice').textContent(),/已完成 16 字节发送/);
+  assert.deepEqual(await page.evaluate(()=>mockBle.calls.filter(c=>c.method==='write').map(c=>atob(c.data).charCodeAt(4))),[0xd0,0xda,0xbc,0xd0]);
+  await page.evaluate(()=>{mockBle.calls=[];});
+  await page.evaluate(()=>CardBluetooth.stopProgram());
+  assert.equal(await page.evaluate(()=>mockBle.calls.filter(c=>c.method==='write'&&atob(c.data).charCodeAt(4)===0xb9).length),5);
+  await page.evaluate(()=>{mockBle.calls=[];});await page.evaluate(()=>CardBluetooth.stopProgram());
+  assert(!await page.evaluate(()=>mockBle.calls.some(c=>c.method==='write')));
+  await page.evaluate(()=>{mockBle.calls=[];mockBle.runState='run';mockBle.feed('{"WillAiState":"run"}');});await send();
+  assert.equal(await page.evaluate(()=>mockBle.calls.filter(c=>c.method==='write'&&atob(c.data).charCodeAt(4)===0xb9).length),5);
+  assert.match(await page.locator('#executionNotice').textContent(),/发送并请求运行/);
+  await page.evaluate(()=>mockBle.feed('{"WillAiState":"stop"}'));
+  await page.evaluate(()=>{mockBle.calls=[];mockBle.runState='stop';mockBle.prepareError='MTU too small';});await send();
+  assert.match(await page.locator('#executionNotice').textContent(),/MTU too small/);
+  assert(!await page.evaluate(()=>mockBle.calls.some(c=>c.method==='write'&&atob(c.data).charCodeAt(4)===0xda)));
+  await page.evaluate(()=>{mockBle.prepareError=null;mockBle.calls=[];mockBle.suppressAck=true;window.testUpload=CardBluetooth.runProgram([{id:'wait-time',params:{duration:1}}]);});
+  await page.waitForFunction(()=>mockBle.calls.some(c=>c.method==='write'&&atob(c.data).charCodeAt(4)===0xda));
+  await page.evaluate(()=>mockBle.feed(String.fromCharCode(...SparkProtocol.frame(0xff,[0xff]))));
+  await page.waitForTimeout(100);
+  assert(!await page.evaluate(()=>mockBle.calls.some(c=>c.method==='write'&&atob(c.data).charCodeAt(4)===0xbc)), 'status reply must not acknowledge filename');
+  await page.evaluate(async()=>{await CardBluetooth.stopProgram();await window.testUpload;});
+  assert(!await page.evaluate(()=>mockBle.calls.some(c=>c.method==='write'&&atob(c.data).charCodeAt(4)===0xbc)));
+  assert.equal(await page.locator('#runProgramBtn').isDisabled(),false);
+  await page.evaluate(()=>{mockBle.calls=[];mockBle.feed('{}');});
+  await page.evaluate(()=>CardBluetooth.stopProgram());
+  assert.deepEqual(await page.evaluate(()=>mockBle.calls.filter(c=>c.method==='write').map(c=>atob(c.data).charCodeAt(4))),[0xd0,0xb9]);
+  await page.evaluate(()=>{mockBle.calls=[];mockBle.pauseStops=false;mockBle.suppressAck=false;mockBle.feed('{"WillAiState":"run"}');});
+  await send();
+  assert.match(await page.locator('#executionNotice').textContent(),/等待设备停止超时/);
+  assert(!await page.evaluate(()=>mockBle.calls.some(c=>c.method==='prepareUpload')));
+  assert.deepEqual(errors,[]);
+  console.log('PASS Android send/run BC, five B9 pause, stopped pause skip, stop-before-resend, MTU failure, ACK filtering, cancellation');
+ } finally {await b.close();}
+})().catch(e=>{console.error(e);process.exitCode=1;});

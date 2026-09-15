@@ -284,6 +284,7 @@
     let blankGrabPending = null;
     let programAnchorFrame = null;
     let activeParamEditor = null;
+    let activeNumberKeypad = null;
     let historySnapshots = [];
     let historyIndex = -1;
     const HISTORY_LIMIT = 80;
@@ -294,6 +295,8 @@
     const STAGED_GROUP_PULL_THRESHOLD = 18;
 
     function renderPalette() {
+      document.getElementById('stagingCount').textContent = stagedGroups.length;
+      stagingTab.setAttribute('aria-label', `暂存，${stagedGroups.length} 组`);
       palette.innerHTML = "";
       palette.classList.toggle("is-staging", activeCategory === "staging");
       libraryArea.classList.toggle("is-staging", activeCategory === "staging");
@@ -304,6 +307,7 @@
 
       categories[activeCategory].cards.forEach(card => {
         const block = createBlock(card, "palette");
+        block.dataset.paletteLabel = ({'wait-time':'等待','loop-count':'重复次数','loop':'一直重复'})[card.id] || card.label;
         palette.appendChild(block);
       });
     }
@@ -448,21 +452,17 @@
 
       bubble.type = "button";
       bubble.setAttribute("aria-label", `编辑${card.actionName || card.label}参数`);
-      let lastTouchOpenTime = -Infinity;
       bubble.addEventListener("pointerdown", event => {
         event.stopPropagation();
       });
       bubble.addEventListener("pointerup", event => {
         event.stopPropagation();
-        if (event.pointerType === "mouse") return;
-        event.preventDefault();
-        lastTouchOpenTime = performance.now();
-        openParamEditor(nodePath, bubble);
       });
+      // Open after the complete tap. Opening on pointerup can retarget the
+      // following compatibility click to a newly displayed parameter control.
       bubble.addEventListener("click", event => {
         event.preventDefault();
         event.stopPropagation();
-        if (performance.now() - lastTouchOpenTime < 700) return;
         openParamEditor(nodePath, bubble);
       });
       return bubble;
@@ -812,6 +812,7 @@
       const card = cardById[item?.id];
       if (!item || !card?.paramsSchema) return;
 
+      activeNumberKeypad = null;
       activeParamEditor = {
         nodePath: [...nodePath]
       };
@@ -837,7 +838,10 @@
       paramEditor.setAttribute("aria-label", `${card.label}参数`);
       paramEditor.hidden = false;
       paramEditor.classList.toggle("is-matrix", card.id === "matrix-display");
-      paramEditor.appendChild(createGenericParamEditor(card, item));
+      paramEditor.classList.toggle("is-number-keypad", Boolean(activeNumberKeypad));
+      paramEditor.appendChild(activeNumberKeypad
+        ? createNumberKeypad(card)
+        : createGenericParamEditor(card, item));
 
       positionParamEditor(anchor || findProgramBlockByPath(activeParamEditor.nodePath));
     }
@@ -1036,29 +1040,26 @@
       minus.disabled = value <= definition.min;
       minus.addEventListener("click", () => adjustActiveNumberParam(key, -1));
 
-      const current = document.createElement("label");
+      // A button cannot summon the phone IME, including on older WebViews.
+      const current = document.createElement("button");
       current.className = "param-current";
-      const input = document.createElement("input");
-      input.className = "param-value-input";
-      input.type = "text";
-      input.inputMode = definition.integer ? "numeric" : "decimal";
-      input.value = formatParamNumber(value);
-      input.setAttribute("aria-label", definition.label || "参数值");
-      input.autocomplete = "off";
-      input.spellcheck = false;
-      const resizeInput = () => {
-        input.style.width = `${Math.max(4, input.value.length + 1)}ch`;
-        if (input.isConnected && activeParamEditor) {
-          positionParamEditor(findProgramBlockByPath(activeParamEditor.nodePath));
-        }
-      };
-      input.addEventListener("input", resizeInput);
-      resizeInput();
+      current.type = "button";
+      current.dataset.numberParam = key;
+      current.setAttribute("aria-label", `${definition.label || "参数值"}：${formatParamNumber(value)}${definition.unit || ""}，打开小键盘`);
+      current.setAttribute("aria-haspopup", "dialog");
+      current.addEventListener("click", () => {
+        activeNumberKeypad = {key, draft: formatParamNumber(value), replaceNext: true};
+        renderParamEditor();
+        paramEditor.querySelector(".number-keypad").focus({preventScroll: true});
+      });
+      const display = document.createElement("span");
+      display.className = "param-value-display";
+      display.textContent = formatParamNumber(value);
 
       const unit = document.createElement("span");
       unit.className = "param-unit";
       unit.textContent = definition.unit || "";
-      current.append(input, unit);
+      current.append(display, unit);
 
       const plus = document.createElement("button");
       plus.className = "param-step-btn";
@@ -1068,35 +1069,111 @@
       plus.disabled = value >= definition.max;
       plus.addEventListener("click", () => adjustActiveNumberParam(key, 1));
 
-      const commitInput = () => {
-        if (!activeParamEditor) return;
-        const rawValue = input.value.trim();
-        const nextValue = normalizeParamValue(
-          definition,
-          rawValue === "" ? definition.default : rawValue.replace(",", ".")
-        );
-        const currentValue = getParamValue(card, getNodeAtPath(activeParamEditor.nodePath), key);
-        input.value = formatParamNumber(nextValue);
-        resizeInput();
-        minus.disabled = nextValue <= definition.min;
-        plus.disabled = nextValue >= definition.max;
-        if (nextValue === currentValue) return;
-        setActiveParamValue(key, nextValue, false);
-      };
-
-      input.addEventListener("blur", commitInput);
-      input.addEventListener("keydown", event => {
-        if (event.key === "Enter") {
-          event.preventDefault();
-          input.blur();
-        } else if (event.key === "Escape") {
-          input.value = formatParamNumber(getParamValue(card, getNodeAtPath(activeParamEditor.nodePath), key));
-          input.blur();
-        }
-      });
-
       stepper.append(minus, current, plus);
       return stepper;
+    }
+
+    function closeNumberKeypad() {
+      if (!activeNumberKeypad) return false;
+      const key = activeNumberKeypad.key;
+      activeNumberKeypad = null;
+      renderParamEditor();
+      paramEditor.querySelector(`[data-number-param="${key}"]`)?.focus({preventScroll: true});
+      return true;
+    }
+
+    function createNumberKeypad(card) {
+      const state = activeNumberKeypad;
+      const definition = card.paramsSchema[state.key];
+      const precision = definition.integer ? 0 : getNumberPrecision(definition);
+      const panel = document.createElement("div");
+      panel.className = "number-keypad";
+      panel.tabIndex = -1;
+      const title = document.createElement("div");
+      title.className = "number-keypad-title";
+      title.textContent = `${definition.label || "数值"}${definition.unit ? `（${definition.unit}）` : ""}`;
+      paramEditor.setAttribute("aria-label", `${title.textContent}小键盘`);
+      const output = document.createElement("output");
+      output.className = "number-keypad-value";
+      output.setAttribute("aria-label", "输入值");
+      const hint = document.createElement("div");
+      hint.className = "number-keypad-hint";
+      hint.id = "numberKeypadHint";
+      output.setAttribute("aria-describedby", hint.id);
+      const grid = document.createElement("div");
+      grid.className = "number-keypad-grid";
+      const buttons = {};
+      const range = Number.isFinite(definition.max)
+        ? `范围 ${definition.min ?? 0}–${definition.max}`
+        : Number.isFinite(definition.min) ? `最小 ${definition.min}` : "";
+      const guidance = [range, precision ? `最多 ${precision} 位小数` : "仅限整数"].filter(Boolean).join(" · ");
+      function update() {
+        const value = Number(state.draft);
+        const valid = state.draft !== "" && Number.isFinite(value)
+          && (!Number.isFinite(definition.min) || value >= definition.min)
+          && (!Number.isFinite(definition.max) || value <= definition.max);
+        output.textContent = state.draft || "—";
+        output.classList.toggle("is-selected", state.replaceNext);
+        output.setAttribute("aria-invalid", String(!valid));
+        hint.textContent = state.draft === "" ? "请输入数值" : guidance;
+        hint.classList.toggle("is-error", !valid);
+        buttons.confirm.disabled = !valid;
+        buttons["."].disabled = !precision || (!state.replaceNext && state.draft.includes("."));
+        buttons.delete.disabled = state.draft === "";
+      }
+      function press(key) {
+        // Detached controls must never apply a draft to a different block.
+        if (activeNumberKeypad !== state || !activeParamEditor) return;
+        if (key === "cancel") { closeNumberKeypad(); return; }
+        if (key === "confirm") {
+          if (buttons.confirm.disabled) return;
+          const value = normalizeParamValue(definition, Number(state.draft));
+          const previous = getParamValue(card, getNodeAtPath(activeParamEditor.nodePath), state.key);
+          activeNumberKeypad = null;
+          if (value !== previous) setActiveParamValue(state.key, value);
+          else renderParamEditor();
+          paramEditor.querySelector(`[data-number-param="${state.key}"]`)?.focus({preventScroll: true});
+          return;
+        }
+        if (key === "clear") state.draft = "";
+        else if (key === "delete") state.draft = state.draft.slice(0, -1);
+        else if (key === ".") {
+          if (!precision || (!state.replaceNext && state.draft.includes("."))) return;
+          state.draft = state.replaceNext || state.draft === "" ? "0." : state.draft + ".";
+        } else if (/^\d$/.test(key)) {
+          let next = state.replaceNext ? key : state.draft + key;
+          next = next.replace(/^0+(?=\d)/, "");
+          if (next.replace(".", "").length > 15 || (next.split(".")[1]?.length || 0) > precision) return;
+          state.draft = next;
+        } else return;
+        state.replaceNext = false;
+        update();
+      }
+      const labels = {delete: "删除", clear: "清空", cancel: "取消", confirm: "确定"};
+      for (const key of ["7", "8", "9", "delete", "4", "5", "6", "clear", "1", "2", "3", "cancel", ".", "0", "confirm"]) {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = `number-key${labels[key] ? " number-key-action" : ""}`;
+        button.dataset.key = key;
+        button.textContent = labels[key] || key;
+        if (key === ".") button.setAttribute("aria-label", "小数点");
+        if (key === "delete") button.setAttribute("aria-label", "删除一位");
+        button.addEventListener("click", () => press(key));
+        buttons[key] = button;
+        grid.appendChild(button);
+      }
+      // Physical keyboards still work on desktop without using an editable field.
+      panel.addEventListener("keydown", event => {
+        if (event.ctrlKey || event.metaKey || event.altKey) return;
+        const key = ({Enter: "confirm", Escape: "cancel", Backspace: "delete", Delete: "clear", ",": "."})[event.key] || event.key;
+        if (!Object.hasOwn(buttons, key)) return;
+        event.preventDefault();
+        event.stopPropagation();
+        press(key);
+      });
+      panel.append(title, output, hint, grid);
+      update();
+      return panel;
     }
 
     function adjustActiveNumberParam(key, direction) {
@@ -1107,7 +1184,8 @@
       if (!item || !definition) return;
 
       const current = getParamValue(card, item, key);
-      setActiveParamValue(key, current + direction * (definition.step || 1));
+      // Button increments are independent of the keypad's decimal precision.
+      setActiveParamValue(key, current + direction);
     }
 
     function setActiveParamValue(key, value, rerenderEditor = true) {
@@ -1205,8 +1283,9 @@
 
     function closeParamEditor() {
       activeParamEditor = null;
+      activeNumberKeypad = null;
       paramEditor.hidden = true;
-      paramEditor.classList.remove("is-matrix", "is-above-anchor");
+      paramEditor.classList.remove("is-matrix", "is-above-anchor", "is-number-keypad");
       paramEditor.style.removeProperty("--param-arrow-left");
       paramEditor.replaceChildren();
     }
@@ -1328,7 +1407,7 @@
       const ghostRect = isGroupDrag ? getElementsUnionRect(placeholderSources) : rect;
 
       ghost.classList.add("ghost");
-      if (!fromStaging) {
+      if (fromProgram) {
         ghost.style.width = `${ghostRect.width}px`;
         ghost.style.height = `${ghostRect.height}px`;
       }
@@ -2538,6 +2617,7 @@
         applyWorkspaceState(JSON.parse(snapshot));
         renderProgram();
         renderPalette();
+        document.dispatchEvent(new Event("card-workspace-changed"));
       } catch {
         setStatus("历史记录恢复失败");
       }
@@ -2559,6 +2639,7 @@
 
       historyIndex = historySnapshots.length - 1;
       updateHistoryButtons();
+      document.dispatchEvent(new Event("card-workspace-changed"));
     }
 
     function undoProgram() {
@@ -2677,7 +2758,7 @@
       setStatus("已清空");
     });
 
-    grabTool.addEventListener("pointerdown", startGrabToolDrag);
+    grabTool?.addEventListener("pointerdown", startGrabToolDrag);
     programArea.addEventListener("pointerdown", startBlankGrabHold);
     programArea.addEventListener("contextmenu", event => {
       event.preventDefault();

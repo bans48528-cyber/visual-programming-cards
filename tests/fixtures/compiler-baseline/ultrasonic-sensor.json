@@ -1,0 +1,10 @@
+[
+  {
+    "id": "ultrasonic-sensor",
+    "params": {
+      "port": "A",
+      "operator": "<",
+      "distance": 10
+    }
+  }
+]

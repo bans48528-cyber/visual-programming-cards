@@ -1,0 +1,24 @@
+const assert=require('node:assert/strict');
+const {frame,keys,Session}=require('../remote-control.js');
+const hex=b=>Buffer.from(b).toString('hex');
+const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
+(async()=>{
+  assert.equal(hex(frame()),'5a97980ac10000000000000000000054a5');
+  assert.equal(hex(frame(['up'])),'5a97980ac10100000000000000000055a5');
+  keys.forEach((key,i)=>{const b=frame([key]);assert.equal(b[5+i],1);assert.equal(b.slice(5,15).reduce((a,v)=>a+v),1);});
+  assert.throws(()=>frame(['up','down']));assert.throws(()=>frame(['invalid']));
+  const writes=[];let finish;
+  const session=new Session(bytes=>{writes.push([...bytes]);return new Promise(r=>{finish=r;});});
+  session.update(['up']);session.update(['A']);session.update([]);
+  assert.equal(writes.length,1);finish();await sleep(0);
+  assert.deepEqual(writes[1].slice(5,15),Array(10).fill(0));
+  finish();await sleep(0);
+  const stop=session.stop();finish();await stop;
+  session.update(['B']);assert.equal(writes.length,3);
+  let count=0;
+  const heartbeat=new Session(async()=>{count++;});heartbeat.start();await sleep(1100);
+  assert(count>=2);await heartbeat.stop();const end=count;await sleep(1050);assert.equal(count,end);
+  let error='';const failure=new Session(async()=>{throw Error('disconnected');},e=>{error=e.message;});
+  failure.start();await sleep(0);assert.equal(error,'disconnected');assert(failure.closed);
+  console.log('PASS C1 APK vectors, all 10 positions, latest-state queue, release, heartbeat, close, disconnect');
+})().catch(e=>{console.error(e);process.exitCode=1;});

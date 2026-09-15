@@ -1,0 +1,24 @@
+[
+  {
+    "id": "ultrasonic-sensor",
+    "params": {
+      "port": "A",
+      "operator": ">",
+      "distance": 100
+    }
+  },
+  {
+    "id": "grayscale-sensor",
+    "params": {
+      "port": "A",
+      "operator": "==",
+      "value": 0
+    }
+  },
+  {
+    "id": "motor-stop",
+    "params": {
+      "port": "E"
+    }
+  }
+]

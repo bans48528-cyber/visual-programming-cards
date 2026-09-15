@@ -42,14 +42,11 @@
   pointer-events: none;
 }
 .topbar .btn:disabled { opacity: .3; }
-.topbar .btn:hover:not(:disabled), .grab-tool:hover { background: #f0f4f8; }
-.topbar .btn:active:not(:disabled), .grab-tool:active { background: #eaf0f8; }
-.topbar .btn:focus-visible, .grab-tool:focus-visible { outline: 2px solid #0090f5; outline-offset: -2px; }
+.topbar .btn:hover:not(:disabled) { background: #f0f4f8; }
+.topbar .btn:active:not(:disabled) { background: #eaf0f8; }
+.topbar .btn:focus-visible { outline: 2px solid #0090f5; outline-offset: -2px; }
 .topbar #bluetoothBtn.is-connected { color: #138056; background: #e8f7ef; }
 .topbar #bluetoothBtn.is-connecting { color: #0090f5; background: #e8f4ff; }
-.grab-tool { border: 0; border-radius: 6px; box-shadow: none; background: white; }
-.grab-tool > span { filter: grayscale(1); pointer-events: none; }
-.grab-tool.is-dragging { box-shadow: 0 4px 12px #0002; }
 @media(max-width: 420px) {
   .topbar { gap: 4px; padding-inline: 4px; }
   .topbar .toolbar { gap: 2px; }
@@ -57,3 +54,14 @@
   .topbar .btn img { width: 28px; height: 28px; }
   .bluetooth-icon { width: 28px; height: 28px; }
 }
+.execution-button.execution-compile span {
+  width: auto;
+  height: auto;
+  border: 0;
+  background: none;
+  margin-left: 0;
+  font-size: 13px;
+  font-weight: 700;
+  color: currentColor;
+}
+.execution-button.execution-compile:disabled { opacity: .55; }
