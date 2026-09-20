@@ -6,7 +6,9 @@
   'use strict';
   const motorIds = ['motor-forward','motor-reverse','motor-forward-continuous','motor-reverse-continuous','motor-stop'];
   const comboIds = ['combo-forward','combo-backward','combo-turn-left','combo-turn-right','combo-continuous','combo-stop'];
-  const directions = {advance:[1,1],retreat:[-1,-1],left:[0,1],right:[1,0]};
+  // Combined motion defaults to an inverted left motor; single-motor commands
+  // below retain their explicit forward/reverse meaning.
+  const directions = {advance:[-1,1],retreat:[1,-1],left:[0,1],right:[-1,0]};
   const mapping = Object.freeze({leftForward:'A',leftReverse:'B',rightForward:'X',rightReverse:'Y',speedUp:'L',speedDown:'R'});
   function validate(program) {
     const copy = JSON.parse(JSON.stringify(program));
@@ -44,7 +46,6 @@
       this.error=null;this.done=null;this.timer=null;
     }
     keys() {
-      if(this.direction) return [{advance:'up',retreat:'down',left:'left',right:'right'}[this.direction]];
       return [this.motors[0]>0?'A':this.motors[0]<0?'B':null,this.motors[1]>0?'X':this.motors[1]<0?'Y':null].filter(Boolean);
     }
     check() {
