@@ -4,12 +4,12 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>小白编程</title>
-  <link rel="stylesheet" href="styles.css">
-  <link rel="stylesheet" href="blocks.css">
+  <link rel="stylesheet" href="styles.css?v=palette-slider-9">
+  <link rel="stylesheet" href="blocks.css?v=palette-follow-20">
   <link rel="stylesheet" href="home.css">
   <link rel="stylesheet" href="bluetooth.css">
-  <link rel="stylesheet" href="android-bluetooth.css">
-  <link rel="stylesheet" href="toolbar.css">
+  <link rel="stylesheet" href="android-bluetooth.css?v=bluetooth-redesign-16">
+  <link rel="stylesheet" href="toolbar.css?v=editor-controls-13">
   <link rel="stylesheet" href="remote.css">
 </head>
 <body>
@@ -33,7 +33,7 @@
       <section class="program-area" aria-label="程序区">
         <div class="program-canvas">
           <div class="chain sequence-zone" id="chain" data-sequence-path="">
-            <div class="block start" id="startBlock" role="listitem" aria-label="程序开始">开始</div>
+            <div class="block start" id="startBlock" role="listitem" aria-label="程序开始"><img class="start-art-icon" src="assets/blocks/start.svg" alt="" draggable="false"></div>
             <div class="empty-note" id="emptyNote">放入卡片</div>
           </div>
         </div>
@@ -46,9 +46,11 @@
 
       <section class="library-area" aria-label="卡片库">
         <div class="tabs" role="tablist" aria-label="卡片分类">
+          <span class="tab-slider" aria-hidden="true"></span>
           <button class="tab" id="tab-motor" role="tab" type="button" aria-selected="true" style="--tab-color: var(--motor)">电机</button>
           <button class="tab" id="tab-combo" role="tab" type="button" aria-selected="false" style="--tab-color: var(--combo)">组合电机</button>
           <button class="tab" id="tab-logic" role="tab" type="button" aria-selected="false" style="--tab-color: var(--logic)">逻辑</button>
+          <button class="tab" id="tab-dynamic" role="tab" type="button" aria-selected="false" style="--tab-color: var(--dynamic)">动态</button>
           <button class="tab" id="tab-staging" role="tab" type="button" aria-selected="false" style="--tab-color: var(--staging)"><svg class="staging-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11 7 3h10l3 8v10H4Z M4 12h5l2 3h2l2-3h5"/></svg><span>暂存</span><span class="staging-count" id="stagingCount">0</span></button>
         </div>
         <div class="palette" id="palette" aria-live="polite"></div>
@@ -59,12 +61,14 @@
   <div class="rotate-note">请将手机横屏使用</div>
   <div class="param-popover" id="paramEditor" hidden aria-live="polite"></div>
 
-  <script src="platform.js"></script>
-  <script src="block-layout.js"></script>
-  <script src="app.js"></script>
-  <script src="home.js"></script>
+  <script src="platform.js?v=deferred-name-14"></script>
+  <script src="block-layout.js?v=program-scale-11"></script>
+  <script src="app.js?v=palette-follow-20"></script>
+  <script src="home.js?v=skip-blank-save-15"></script>
   <script src="spark-protocol.js"></script>
-  <script src="android-bluetooth.js"></script>
+  <script src="xiaobai-protocol.js"></script>
+  <script src="xiaobai-device-preferences.js"></script>
+  <script src="android-bluetooth.js?v=bluetooth-redesign-16"></script>
   <script src="bluetooth.js"></script>
   <script src="remote-control.js"></script>
   <script src="remote-ui.js"></script>

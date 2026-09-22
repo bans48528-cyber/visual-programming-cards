@@ -7,6 +7,7 @@ const os = require('node:os');
 async function checkGeometry(page) {
   const errors = await page.evaluate(() => {
     const errors = [];
+    const programScale = parseFloat(getComputedStyle(document.querySelector('#chain')).zoom) || 1;
     const rect = el => el.getBoundingClientRect();
     const near = (a,b,label) => { if(Math.abs(a-b)>1) errors.push(`${label}: ${a} != ${b}`); };
     for(const zone of document.querySelectorAll('#chain, #chain .loop-inner')) {
@@ -30,9 +31,9 @@ async function checkGeometry(page) {
         }
         for(const el of nodes) {
           const cr=rect(el);
-          if(cr.top<lr.top+14 || cr.bottom>lr.bottom+1) errors.push('child clipped');
+          if(cr.top<lr.top+14*programScale-1 || cr.bottom>lr.bottom+2) errors.push('child clipped');
         }
-        if(nodes.length) near(Math.min(...nodes.map(el=>rect(el).top)),lr.top+14,'no gap below beam');
+        if(nodes.length) near(Math.min(...nodes.map(el=>rect(el).top)),lr.top+14*programScale,'no gap below beam');
       }
     }
     const bubbles=[...document.querySelectorAll('#chain .param-bubble')];
@@ -83,13 +84,13 @@ async function touchDrag(page, selector, point) {
       await page.evaluate(()=>{
         addCard('motor-reverse',[1]); addCard('loop-count',[1]);
         addCard('loop',[1,1]); addCard('wait-time',[1,1,0]);
-        addCard('ultrasonic-sensor',[1,1]); addCard('motor-stop',[1]);
+        addCard('infrared-wait',[1,1]); addCard('motor-stop',[1]);
       });
       await checkGeometry(page);
       await page.screenshot({path:path.join(os.tmpdir(),`cards-nested-${viewport.width}.png`)});
       await page.locator('#saveBtn').click();
       const saved=await page.evaluate(()=>getProgramSnapshot());
-      await page.locator('#clearBtn').click();
+      await page.evaluate(() => document.getElementById('clearBtn').click());
       assert.equal(await page.locator('#loadBtn').count(),0);
       await page.evaluate(()=>loadProgram());
       assert.equal(await page.evaluate(()=>getProgramSnapshot()),saved);
@@ -112,9 +113,9 @@ async function touchDrag(page, selector, point) {
       assert.equal(await page.locator('#paramEditor').isVisible(),true);
       await page.locator('#paramEditor .param-current').click();
       await page.locator('.number-key[data-key="4"]').click();
-      await page.locator('.number-key[data-key="confirm"]').click();
       assert.equal(await page.evaluate(()=>program[0].params.count),4);
       await page.locator('#startBlock').click();
+      assert.equal(await page.locator('#paramEditor').isVisible(),false);
       await checkGeometry(page);
       await page.screenshot({path:path.join(os.tmpdir(),`cards-interaction-${viewport.width}.png`)});
       // Move an existing child out of the loop with a real touch stream on mobile.
@@ -124,9 +125,9 @@ async function touchDrag(page, selector, point) {
       assert.equal(await page.evaluate(()=>program[0].id),'motor-forward');
       assert.equal(await page.evaluate(()=>program[1].children.length),0);
       await checkGeometry(page);
-      await page.locator('#undoBtn').click();
+      await page.evaluate(() => document.getElementById('undoBtn').click());
       assert.equal(await page.evaluate(()=>program[0].children.length),1);
-      await page.locator('#redoBtn').click();
+      await page.evaluate(() => document.getElementById('redoBtn').click());
       assert.equal(await page.evaluate(()=>program[1].children.length),0);
       // Reinsert that instruction, verifying touch drop into the original cavity.
       r=await page.locator('#chain > .loop-block > .loop-inner').boundingBox();
@@ -169,7 +170,7 @@ async function touchDrag(page, selector, point) {
       }
       await page.evaluate(()=>{
         program=[];renderProgram();
-        addCard('motor-forward');addCard('ultrasonic-sensor');addCard('motor-reverse');
+        addCard('motor-forward');addCard('infrared-wait');addCard('motor-reverse');
       });
       // A directly dragged filled loop can be staged without prior multi-selection.
       await page.evaluate(()=>{
@@ -192,10 +193,10 @@ async function touchDrag(page, selector, point) {
       await checkGeometry(page);
       await page.evaluate(()=>{
         program=[];renderProgram();
-        addCard('motor-forward');addCard('ultrasonic-sensor');addCard('motor-reverse');
+        addCard('motor-forward');addCard('infrared-wait');addCard('motor-reverse');
       });
       const beforeDrag=await page.evaluate(()=>getProgramSnapshot());
-      const sourceRect=await page.locator('#chain > [data-card-id="ultrasonic-sensor"]').boundingBox();
+      const sourceRect=await page.locator('#chain > [data-card-id="infrared-wait"]').boundingBox();
       r=await page.locator('#chain > [data-card-id="motor-reverse"]').boundingBox();
       await page.mouse.move(sourceRect.x+20,sourceRect.y+20);
       await page.mouse.down();

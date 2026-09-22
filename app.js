@@ -1,283 +1,82 @@
     const STORAGE_KEY = "xiaobaiVisualProgramV1";
     const LEGACY_STORAGE_KEY = "xiaobaiVisualProgramLegacy";
 
-    const categories = {
-  "motor": {
-    "color": "var(--motor)",
-    "cards": [
-      {
-        "id": "motor-forward",
-        "label": "电机正转",
-        "type": "motor",
-        "actionName": "电机正转",
-        "paramsSchema": {
-          "port": {
-            "label": "电机",
-            "type": "select",
-            "default": "L/M1",
-            "options": [
-              "L/M1",
-              "R/M2"
-            ]
-          },
-          "duration": {
-            "label": "运行时间",
-            "type": "number",
-            "default": 1,
-            "min": 0.1,
-            "step": 0.1,
-            "unit": "秒"
-          }
-        }
-      },
-      {
-        "id": "motor-reverse",
-        "label": "电机反转",
-        "type": "motor",
-        "actionName": "电机反转",
-        "paramsSchema": {
-          "port": {
-            "label": "电机",
-            "type": "select",
-            "default": "L/M1",
-            "options": [
-              "L/M1",
-              "R/M2"
-            ]
-          },
-          "duration": {
-            "label": "运行时间",
-            "type": "number",
-            "default": 1,
-            "min": 0.1,
-            "step": 0.1,
-            "unit": "秒"
-          }
-        }
-      },
-      {
-        "id": "motor-forward-continuous",
-        "label": "持续正转",
-        "type": "motor",
-        "actionName": "持续正转",
-        "paramsSchema": {
-          "port": {
-            "label": "电机",
-            "type": "select",
-            "default": "L/M1",
-            "options": [
-              "L/M1",
-              "R/M2"
-            ]
-          }
-        }
-      },
-      {
-        "id": "motor-reverse-continuous",
-        "label": "持续反转",
-        "type": "motor",
-        "actionName": "持续反转",
-        "paramsSchema": {
-          "port": {
-            "label": "电机",
-            "type": "select",
-            "default": "L/M1",
-            "options": [
-              "L/M1",
-              "R/M2"
-            ]
-          }
-        }
-      },
-      {
-        "id": "motor-stop",
-        "label": "电机停止",
-        "type": "motor",
-        "actionName": "电机停止",
-        "paramsSchema": {
-          "port": {
-            "label": "电机",
-            "type": "select",
-            "default": "L/M1",
-            "options": [
-              "L/M1",
-              "R/M2"
-            ]
-          }
-        }
-      }
-    ]
-  },
-  "combo": {
-    "color": "var(--combo)",
-    "cards": [
-      {
-        "id": "combo-forward",
-        "label": "组合前进",
-        "type": "combo",
-        "actionName": "组合前进",
-        "paramsSchema": {
-          "duration": {
-            "label": "运行时间",
-            "type": "number",
-            "default": 1,
-            "min": 0.1,
-            "step": 0.1,
-            "unit": "秒"
-          }
-        }
-      },
-      {
-        "id": "combo-backward",
-        "label": "组合后退",
-        "type": "combo",
-        "actionName": "组合后退",
-        "paramsSchema": {
-          "duration": {
-            "label": "运行时间",
-            "type": "number",
-            "default": 1,
-            "min": 0.1,
-            "step": 0.1,
-            "unit": "秒"
-          }
-        }
-      },
-      {
-        "id": "combo-turn-left",
-        "label": "组合左转",
-        "type": "combo",
-        "actionName": "组合左转",
-        "paramsSchema": {
-          "duration": {
-            "label": "运行时间",
-            "type": "number",
-            "default": 1,
-            "min": 0.1,
-            "step": 0.1,
-            "unit": "秒"
-          }
-        }
-      },
-      {
-        "id": "combo-turn-right",
-        "label": "组合右转",
-        "type": "combo",
-        "actionName": "组合右转",
-        "paramsSchema": {
-          "duration": {
-            "label": "运行时间",
-            "type": "number",
-            "default": 1,
-            "min": 0.1,
-            "step": 0.1,
-            "unit": "秒"
-          }
-        }
-      },
-      {
-        "id": "combo-continuous",
-        "label": "组合持续移动",
-        "type": "combo",
-        "actionName": "组合持续移动",
-        "paramsSchema": {
-          "direction": {
-            "label": "方向",
-            "type": "select",
-            "default": "advance",
-            "options": [
-              {
-                "value": "advance",
-                "label": "前进"
-              },
-              {
-                "value": "retreat",
-                "label": "后退"
-              },
-              {
-                "value": "left",
-                "label": "左转"
-              },
-              {
-                "value": "right",
-                "label": "右转"
-              }
-            ]
-          }
-        }
-      },
-      {
-        "id": "combo-stop",
-        "label": "组合停止",
-        "type": "combo",
-        "actionName": "组合停止"
-      },
-      {
-        "id": "speed-up",
-        "label": "速度加一档",
-        "type": "combo",
-        "actionName": "速度加一档"
-      },
-      {
-        "id": "speed-down",
-        "label": "速度减一档",
-        "type": "combo",
-        "actionName": "速度减一档"
-      }
-    ]
-  },
-  "logic": {
-    "color": "var(--logic)",
-    "cards": [
-      {
-        "id": "wait-time",
-        "label": "等待时间",
-        "type": "logic",
-        "actionName": "等待时间",
-        "icon": "hourglass",
-        "color": "var(--logic)",
-        "paramsSchema": {
-          "duration": {
-            "label": "等待时间",
-            "type": "number",
-            "default": 1,
-            "min": 0.1,
-            "step": 0.1,
-            "unit": "秒"
-          }
-        }
-      },
-      {
-        "id": "loop-count",
-        "label": "循环次数",
-        "type": "logic",
-        "actionName": "循环次数",
-        "kind": "loop",
-        "color": "var(--loop)",
-        "paramsSchema": {
-          "count": {
-            "label": "次数",
-            "type": "number",
-            "default": 1,
-            "min": 1,
-            "step": 1,
-            "integer": true
-          }
-        }
-      },
-      {
-        "id": "loop",
-        "label": "循环",
-        "type": "logic",
-        "actionName": "循环",
-        "kind": "loop",
-        "color": "var(--loop)"
-      }
-    ]
-  }
-};
+    const portParam = () => ({ label: "电机", type: "select", default: "L/M1", options: ["L/M1", "R/M2"] });
+    const durationParam = label => ({ label, type: "number", default: 1, min: 0.1, max: 86400, step: 0.1, unit: "秒" });
+    const powerParam = () => ({
+      label: "功率", type: "select", default: 3,
+      options: [1, 2, 3].map(value => ({ value, label: `${value}档` }))
+    });
+    const expressions = ["待机", "开心", "生气", "伤心", "惊讶", "眨眼", "喜欢", "晕眩", "困倦", "好奇"];
+    const speechLines = [
+      "小白开始行动啦", "跟我一起出发吧", "前方道路畅通", "我发现前面有东西", "让我想一想",
+      "小心一点哦", "太棒了，继续加油", "我找到目标啦", "挑战成功", "我的表演结束啦"
+    ];
+    const recognizedLines = ["开始", "下一步", "再来一次", "你好", "再见", "谢谢", "打开", "关闭", "前进", "后退"];
 
-    const flatCards = Object.values(categories).flatMap(group => group.cards);
+    const categories = {
+      motor: {
+        color: "var(--motor)",
+        cards: [
+          { id: "motor-forward", label: "电机正转", type: "motor", paramsSchema: { port: portParam(), duration: durationParam("运行时间") } },
+          { id: "motor-reverse", label: "电机反转", type: "motor", paramsSchema: { port: portParam(), duration: durationParam("运行时间") } },
+          { id: "motor-forward-continuous", label: "持续正转", type: "motor", paramsSchema: { port: portParam() } },
+          { id: "motor-reverse-continuous", label: "持续反转", type: "motor", paramsSchema: { port: portParam() } },
+          { id: "motor-stop", label: "电机停止", type: "motor", paramsSchema: { port: portParam() } },
+          { id: "motor-power", label: "电机功率", type: "motor", paramsSchema: { power: powerParam() } }
+        ]
+      },
+      combo: {
+        color: "var(--combo)",
+        cards: [
+          { id: "combo-forward", label: "前进", type: "combo", paramsSchema: { duration: durationParam("运行时间") } },
+          { id: "combo-backward", label: "后退", type: "combo", paramsSchema: { duration: durationParam("运行时间") } },
+          { id: "combo-turn-left", label: "左转", type: "combo", paramsSchema: { duration: durationParam("运行时间") } },
+          { id: "combo-turn-right", label: "右转", type: "combo", paramsSchema: { duration: durationParam("运行时间") } },
+          {
+            id: "combo-continuous", label: "持续移动", type: "combo",
+            paramsSchema: { direction: { label: "方向", type: "select", default: "advance", options: [
+              { value: "advance", label: "前进" }, { value: "retreat", label: "后退" },
+              { value: "left", label: "左转" }, { value: "right", label: "右转" }
+            ] } }
+          },
+          { id: "combo-stop", label: "组合停止", type: "combo" },
+          { id: "combo-power", label: "组合功率", type: "combo", paramsSchema: { power: powerParam() } }
+        ]
+      },
+      logic: {
+        color: "var(--logic)",
+        cards: [
+          { id: "wait-time", label: "等待时间", type: "logic", kind: "action", paramsSchema: { duration: durationParam("等待时间") } },
+          { id: "loop-count", label: "循环次数", type: "logic", kind: "loop", paramsSchema: { count: { label: "次数", type: "number", default: 1, min: 1, max: 1000000, step: 1, integer: true } } },
+          { id: "loop", label: "一直循环", type: "logic", kind: "loop" },
+          {
+            id: "infrared-wait", label: "等待红外", type: "logic",
+            paramsSchema: {
+              comparison: { label: "条件", type: "select", default: "greater", options: [{ value: "greater", label: "大于" }, { value: "less", label: "小于" }] },
+              threshold: { label: "数值", type: "number", default: 50, min: 0, max: 100, step: 1, integer: true }
+            }
+          }
+        ]
+      },
+      dynamic: {
+        color: "#9867E8",
+        cards: [
+          { id: "eye-expression", label: "显示表情", type: "dynamic", paramsSchema: { expression: { label: "表情", type: "select", default: "EYE_01", options: expressions.map((label, index) => ({ value: `EYE_${String(index + 1).padStart(2, "0")}`, label })) } } },
+          { id: "display-number", label: "显示数字", type: "dynamic", paramsSchema: { value: { label: "数字", type: "number", default: 0, min: 0, max: 100, step: 1, integer: true } } },
+          { id: "display-off", label: "关闭显示", type: "dynamic" },
+          { id: "speech-play", label: "语音播报", type: "dynamic", paramsSchema: { phrase: { label: "播报词条", type: "select", default: "P01", options: speechLines.map((label, index) => ({ value: `P${String(index + 1).padStart(2, "0")}`, label, bubble: `P${String(index + 1).padStart(2, "0")}` })) } } },
+          { id: "speech-wait", label: "等待词条", type: "dynamic", paramsSchema: { phrase: { label: "识别词条", type: "select", default: "ASR_01", options: recognizedLines.map((label, index) => ({ value: `ASR_${String(index + 1).padStart(2, "0")}`, label })) } } }
+        ]
+      }
+    };
+
+    // Keep old saved programs readable while removing these superseded cards from the palette.
+    const legacyCards = [
+      { id: "speed-up", label: "速度加一档", type: "combo" },
+      { id: "speed-down", label: "速度减一档", type: "combo" }
+    ];
+    const flatCards = [...Object.values(categories).flatMap(group => group.cards), ...legacyCards];
     const cardById = Object.fromEntries(flatCards.map(card => [card.id, card]));
     const chain = document.getElementById("chain");
     const palette = document.getElementById("palette");
@@ -297,6 +96,19 @@
     const paramEditor = document.getElementById("paramEditor");
     const grabTool = document.getElementById("grabTool");
     const stagingTab = document.getElementById("tab-staging");
+    const tabSlider = document.querySelector(".tab-slider");
+    const blockSounds = {
+      place: new Audio("assets/sounds/block-place.wav"),
+      delete: new Audio("assets/sounds/block-delete.mp3")
+    };
+    Object.values(blockSounds).forEach(audio => {
+      audio.preload = "auto";
+      audio.volume = 0.7;
+    });
+    const categoryOrder = ["motor", "combo", "logic", "dynamic", "staging"];
+    const categorySliderColors = {
+      motor: "#e9f4ff", combo: "#fce9f6", logic: "#fff0de", dynamic: "#eee7ff", staging: "#eef2f7"
+    };
 
     let activeCategory = "motor";
     let program = [];
@@ -312,6 +124,8 @@
     let programAnchorFrame = null;
     let activeParamEditor = null;
     let activeNumberKeypad = null;
+    let paletteTransitionCleanup = null;
+    let tabSliderAnimation = null;
     let historySnapshots = [];
     let historyIndex = -1;
     const HISTORY_LIMIT = 80;
@@ -319,9 +133,23 @@
     const BLANK_GRAB_HOLD_DELAY = 500;
     const BLANK_GRAB_MOVE_LIMIT = 10;
     const STAGED_GROUP_PAN_THRESHOLD = 6;
-    const STAGED_GROUP_PULL_THRESHOLD = 18;
+    const STAGED_GROUP_PULL_THRESHOLD = 9;
+    const PALETTE_SWIPE_LOCK_DISTANCE = 10;
+    let paletteSwipeState = null;
+    let paletteGestureCleanup = null;
+
+    function playBlockSound(type) {
+      const audio = blockSounds[type];
+      if (!audio) return;
+      try {
+        audio.pause();
+        audio.currentTime = 0;
+        audio.play()?.catch(() => {});
+      } catch (_) {}
+    }
 
     function renderPalette() {
+      finishPaletteTransition();
       document.getElementById('stagingCount').textContent = stagedGroups.length;
       stagingTab.setAttribute('aria-label', `暂存，${stagedGroups.length} 组`);
       palette.innerHTML = "";
@@ -334,17 +162,242 @@
 
       categories[activeCategory].cards.forEach(card => {
         const block = createBlock(card, "palette");
-        block.dataset.paletteLabel = ({'wait-time':'等待','loop-count':'重复次数','loop':'一直重复'})[card.id] || card.label;
         palette.appendChild(block);
       });
     }
 
-    function selectCategory(category) {
+    function selectCategory(category, animate = true) {
+      if (category !== "staging" && !categories[category]) return;
+      paletteGestureCleanup?.();
+      finishPaletteTransition();
+      const previousCategory = activeCategory;
+      const previousVisual = animate ? [...palette.children].map(createPaletteVisualClone) : [];
       activeCategory = category;
       document.querySelectorAll(".tab").forEach(tab => {
         tab.setAttribute("aria-selected", String(tab.id === `tab-${category}`));
       });
       renderPalette();
+      updateCategorySlider(animate);
+      const direction = Math.sign(categoryOrder.indexOf(category) - categoryOrder.indexOf(previousCategory));
+      if (animate && direction) animatePaletteCategory(direction, previousVisual);
+    }
+
+    function startPaletteSwipe(event) {
+      if (event.pointerType !== "touch" || event.isPrimary === false || event.button > 0) return;
+      if (event.target.closest(".staged-group")) return;
+      paletteGestureCleanup?.();
+      paletteSwipeState = {
+        pointerId: event.pointerId,
+        startX: event.clientX,
+        startY: event.clientY,
+        source: event.target.closest(".block, .loop-block"),
+        locked: false,
+        width: palette.clientWidth,
+        offset: 0,
+        layer: null,
+        track: null
+      };
+    }
+
+    function createPaletteGesturePanel(category) {
+      const panel = document.createElement("div");
+      panel.className = "palette-transition-panel";
+      if (!category) return panel;
+      if (category === activeCategory) {
+        [...palette.children].forEach(child => panel.appendChild(createPaletteVisualClone(child)));
+        return panel;
+      }
+      if (category === "staging") {
+        stagedGroups.forEach(group => panel.appendChild(createStagedGroupElement(group)));
+      } else {
+        categories[category].cards.forEach(card => panel.appendChild(createBlock(card, "palette")));
+      }
+      return panel;
+    }
+
+    function beginPaletteGesture(state) {
+      finishPaletteTransition();
+      const index = categoryOrder.indexOf(activeCategory);
+      const layer = document.createElement("div");
+      layer.className = "palette-transition-layer palette-gesture-layer";
+      const track = document.createElement("div");
+      track.className = "palette-gesture-track";
+      track.style.width = `${state.width * 3}px`;
+      [categoryOrder[index - 1], activeCategory, categoryOrder[index + 1]]
+        .forEach(category => track.appendChild(createPaletteGesturePanel(category)));
+      layer.appendChild(track);
+      palette.appendChild(layer);
+      track.children[1].scrollLeft = palette.scrollLeft;
+      [...palette.children].forEach(child => {
+        if (child !== layer) child.style.opacity = "0";
+      });
+      state.layer = layer;
+      state.track = track;
+      state.locked = true;
+      palette.classList.add("is-scrubbing");
+      paletteGestureCleanup = () => {
+        track.getAnimations().forEach(animation => animation.cancel());
+        layer.remove();
+        [...palette.children].forEach(child => { child.style.opacity = ""; });
+        palette.classList.remove("is-scrubbing");
+        paletteGestureCleanup = null;
+      };
+    }
+
+    function movePaletteSwipe(event) {
+      if (!paletteSwipeState || event.pointerId !== paletteSwipeState.pointerId) return;
+      const state = paletteSwipeState;
+      const deltaX = event.clientX - state.startX;
+      const deltaY = event.clientY - state.startY;
+      if (dragState?.active || stagedGroupPointerState) { cancelPaletteSwipe(event); return; }
+      if (!state.locked) {
+        if (Math.abs(deltaX) < PALETTE_SWIPE_LOCK_DISTANCE || Math.abs(deltaX) <= Math.abs(deltaY) * 1.2) return;
+        beginPaletteGesture(state);
+        if (state.source) state.source.dataset.dragged = "true";
+      }
+      event.preventDefault();
+      const index = categoryOrder.indexOf(activeCategory);
+      const hasNeighbor = deltaX < 0 ? index < categoryOrder.length - 1 : index > 0;
+      state.offset = Math.max(-state.width, Math.min(state.width, hasNeighbor ? deltaX : deltaX * .22));
+      state.track.style.transform = `translate3d(${state.offset - state.width}px,0,0)`;
+    }
+
+    function finishPaletteSwipe(event) {
+      if (!paletteSwipeState || event.pointerId !== paletteSwipeState.pointerId) return;
+      const state = paletteSwipeState;
+      paletteSwipeState = null;
+      if (!state.locked) return;
+      const index = categoryOrder.indexOf(activeCategory);
+      const direction = state.offset < 0 ? 1 : -1;
+      const nextIndex = index + direction;
+      const change = nextIndex >= 0 && nextIndex < categoryOrder.length
+        && Math.abs(state.offset) >= Math.min(80, state.width * .22);
+      const finalOffset = change ? direction * -state.width : 0;
+      const from = state.offset - state.width;
+      const to = finalOffset - state.width;
+      const finish = () => {
+        if (!state.layer.isConnected) return;
+        paletteGestureCleanup?.();
+        if (change) {
+          selectCategory(categoryOrder[nextIndex], false);
+          document.getElementById(`tab-${activeCategory}`)?.scrollIntoView({
+            behavior: "auto", block: "nearest", inline: "center"
+          });
+        }
+      };
+      if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches || Math.abs(to - from) < 1) {
+        finish();
+        return;
+      }
+      const animation = state.track.animate(
+        [{ transform: `translate3d(${from}px,0,0)` }, { transform: `translate3d(${to}px,0,0)` }],
+        { duration: 180, easing: "cubic-bezier(.2,.7,.2,1)" }
+      );
+      animation.addEventListener("finish", finish, { once: true });
+    }
+
+    function cancelPaletteSwipe(event) {
+      if (!paletteSwipeState || (event && event.pointerId !== paletteSwipeState.pointerId)) return;
+      paletteSwipeState = null;
+      paletteGestureCleanup?.();
+    }
+
+    function updateCategorySlider(animate = true) {
+      const selected = document.getElementById(`tab-${activeCategory}`);
+      if (!tabSlider || !selected) return;
+      const targetX = selected.offsetLeft;
+      const targetWidth = selected.offsetWidth;
+      const targetColor = categorySliderColors[activeCategory];
+      const targetOpacity = activeCategory === "staging" ? 0 : 1;
+      const tabs = tabSlider.parentElement;
+      const tabsRect = tabs.getBoundingClientRect();
+      const sliderRect = tabSlider.getBoundingClientRect();
+      const currentX = sliderRect.left - tabsRect.left + tabs.scrollLeft;
+      const currentWidth = sliderRect.width || targetWidth;
+      const currentStyle = getComputedStyle(tabSlider);
+      const currentColor = currentStyle.backgroundColor;
+      const currentOpacity = Number(currentStyle.opacity);
+      tabSliderAnimation?.cancel();
+      tabSliderAnimation = null;
+      Object.assign(tabSlider.style, {
+        width: `${targetWidth}px`,
+        transform: `translateX(${targetX}px)`,
+        background: targetColor,
+        opacity: String(targetOpacity)
+      });
+      if (!animate || Math.abs(currentX - targetX) < .5) return;
+      tabSliderAnimation = tabSlider.animate([
+        { transform: `translateX(${currentX}px)`, width: `${currentWidth}px`, backgroundColor: currentColor, opacity: currentOpacity },
+        { transform: `translateX(${targetX}px)`, width: `${targetWidth}px`, backgroundColor: targetColor, opacity: targetOpacity }
+      ], { duration: 220, easing: "cubic-bezier(.4,0,.2,1)" });
+      tabSliderAnimation.addEventListener("finish", () => { tabSliderAnimation = null; }, { once: true });
+    }
+
+    function finishPaletteTransition() {
+      if (!paletteTransitionCleanup) return;
+      const cleanup = paletteTransitionCleanup;
+      paletteTransitionCleanup = null;
+      cleanup();
+    }
+
+    function createPaletteVisualClone(source) {
+      const clone = source.cloneNode(true);
+      clone.removeAttribute("data-card-id");
+      clone.removeAttribute("data-staged-group-id");
+      clone.style.opacity = "";
+      clone.setAttribute("aria-hidden", "true");
+      const sourceNodes = [source, ...source.querySelectorAll("*")];
+      const cloneNodes = [clone, ...clone.querySelectorAll("*")];
+      sourceNodes.forEach((node, index) => {
+        const copy = cloneNodes[index];
+        const computed = getComputedStyle(node);
+        if (computed.transform !== "none") copy.style.transform = computed.transform;
+        for (const property of ["--block-color", "--block-secondary", "--block-edge", "--loop-icon-top"]) {
+          const value = computed.getPropertyValue(property);
+          if (value) copy.style.setProperty(property, value);
+        }
+      });
+      return clone;
+    }
+
+    function animatePaletteCategory(direction, previousVisual) {
+      if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return;
+      palette.dataset.slideDirection = direction > 0 ? "forward" : "backward";
+      const liveBlocks = [...palette.children];
+      liveBlocks.forEach(block => { block.style.opacity = "0"; });
+
+      const layer = document.createElement("div");
+      layer.className = "palette-transition-layer";
+      const track = document.createElement("div");
+      track.className = "palette-transition-track";
+      const oldPanel = document.createElement("div");
+      const newPanel = document.createElement("div");
+      oldPanel.className = newPanel.className = "palette-transition-panel";
+      previousVisual.forEach(node => oldPanel.appendChild(node));
+      liveBlocks.forEach(node => newPanel.appendChild(createPaletteVisualClone(node)));
+      if (direction > 0) track.append(oldPanel, newPanel);
+      else track.append(newPanel, oldPanel);
+      layer.appendChild(track);
+      palette.appendChild(layer);
+
+      let animation;
+      const cleanup = () => {
+        animation?.cancel();
+        layer.remove();
+        liveBlocks.forEach(block => { block.style.opacity = ""; });
+      };
+      paletteTransitionCleanup = cleanup;
+      animation = track.animate(
+        direction > 0
+          ? [{ transform: "translateX(0)" }, { transform: "translateX(-50%)" }]
+          : [{ transform: "translateX(-50%)" }, { transform: "translateX(0)" }],
+        { duration: 280, easing: "cubic-bezier(.4,0,.2,1)" }
+      );
+      animation.addEventListener("finish", () => {
+        if (paletteTransitionCleanup !== cleanup) return;
+        paletteTransitionCleanup = null;
+        cleanup();
+      }, { once: true });
     }
 
     function createStagedGroupElement(group) {
@@ -498,6 +551,63 @@
     function createCardIcon(card, item = null) {
       const icon = document.createElement("span");
       icon.className = "card-icon";
+      if (card.id === "eye-expression") {
+        icon.classList.add("eye-thumbnail-icon");
+        const image = document.createElement("img");
+        const expression = getParamValue(card, item, "expression") || "EYE_01";
+        image.src = `assets/eyes/eye-${expression.slice(-2)}.svg`;
+        image.alt = "";
+        image.setAttribute("aria-hidden", "true");
+        icon.appendChild(image);
+        return icon;
+      }
+      if (card.id === "display-number") {
+        icon.classList.add("number-matrix-card-icon");
+        icon.appendChild(createNumberDotMatrix(getParamValue(card, item, "value")));
+        return icon;
+      }
+      if (card.id === "display-off") {
+        icon.classList.add("display-off-art-icon");
+        const image = document.createElement("img");
+        image.src = "assets/blocks/display-off.svg";
+        image.alt = "";
+        image.setAttribute("aria-hidden", "true");
+        icon.appendChild(image);
+        return icon;
+      }
+      const artIcons = {
+        "motor-forward": "motor-forward",
+        "motor-reverse": "motor-reverse",
+        "motor-forward-continuous": "motor-forward-continuous",
+        "motor-reverse-continuous": "motor-reverse-continuous",
+        "motor-stop": "motor-stop",
+        "motor-power": "motor-power",
+        "combo-forward": "combo-forward",
+        "combo-backward": "combo-backward",
+        "combo-turn-left": "combo-turn-left",
+        "combo-turn-right": "combo-turn-right",
+        "combo-stop": "combo-stop",
+        "combo-power": "combo-power",
+        "wait-time": "wait-time",
+        "loop-count": "loop",
+        "loop": "loop",
+        "infrared-wait": "infrared-wait",
+        "speech-play": "speech-play",
+        "speech-wait": "speech-wait"
+      };
+      if (card.id === "combo-continuous") {
+        artIcons[card.id] = `combo-continuous-${getParamValue(card, item, "direction")}`;
+      }
+      if (artIcons[card.id]) {
+        icon.classList.add("ai-art-icon");
+        if (card.id === "motor-power" || card.id === "combo-power") icon.classList.add("motor-power-icon");
+        const image = document.createElement("img");
+        image.src = `assets/blocks/${artIcons[card.id]}.svg`;
+        image.alt = "";
+        image.setAttribute("aria-hidden", "true");
+        icon.appendChild(image);
+        return icon;
+      }
       if (card.id === "motor-power" || card.id === "combo-power") {
         icon.classList.add("motor-power-icon");
         icon.innerHTML = `<svg viewBox="0 0 64 64" aria-hidden="true"><circle cx="32" cy="27" r="23" fill="white" stroke="none"/><g fill="#0062a6" stroke="none"><circle cx="32" cy="12" r="6"/><circle cx="47" cy="27" r="6"/><circle cx="32" cy="42" r="6"/><circle cx="17" cy="27" r="6"/><circle cx="32" cy="27" r="4"/></g></svg>`;
@@ -572,6 +682,38 @@
         icon.appendChild(badge);
       }
       return icon;
+    }
+
+    function createNumberDotMatrix(rawValue) {
+      const glyphs = {
+        "0": ["111", "101", "101", "101", "111"],
+        "1": ["010", "110", "010", "010", "111"],
+        "2": ["111", "001", "111", "100", "111"],
+        "3": ["111", "001", "111", "001", "111"],
+        "4": ["101", "101", "111", "001", "001"],
+        "5": ["111", "100", "111", "001", "111"],
+        "6": ["111", "100", "111", "101", "111"],
+        "7": ["111", "001", "001", "001", "001"],
+        "8": ["111", "101", "111", "101", "111"],
+        "9": ["111", "101", "111", "001", "111"]
+      };
+      const value = String(Math.max(0, Math.min(100, Math.round(Number(rawValue) || 0))));
+      const columns = value.length * 3 + Math.max(0, value.length - 1);
+      const matrix = document.createElement("span");
+      matrix.className = "number-dot-matrix";
+      matrix.dataset.value = value;
+      matrix.style.setProperty("--dot-columns", columns);
+      for (let row = 0; row < 5; row += 1) {
+        value.split("").forEach((digit, digitIndex) => {
+          glyphs[digit][row].split("").forEach(bit => {
+            const dot = document.createElement("i");
+            dot.classList.toggle("is-on", bit === "1");
+            matrix.appendChild(dot);
+          });
+          if (digitIndex < value.length - 1) matrix.appendChild(document.createElement("i"));
+        });
+      }
+      return matrix;
     }
 
     function createMatrixPreview(pattern) {
@@ -696,6 +838,7 @@
       renderProgram();
       commitHistory();
       setStatus(`已添加：${card.label}`);
+      playBlockSound("place");
     }
 
     function createProgramItem(cardId) {
@@ -790,7 +933,7 @@
     function getParamBubbleText(card, item = null) {
       if (card.id.endsWith("-continuous")) {
         if (card.id === "combo-continuous") return `${getParamOptionDisplay(card.paramsSchema.direction,getParamValue(card,item,"direction"))}∞`;
-        return `${getParamValue(card,item,"port")}${card.id === "motor-forward-continuous" ? "正转" : "反转"}∞`;
+        return `${getParamOptionDisplay(card.paramsSchema.port,getParamValue(card,item,"port"))}${card.id === "motor-forward-continuous" ? "正转" : "反转"}∞`;
       }
       if (card.id === "play-note") return `${getParamValue(card, item, "note")}·${getParamValue(card, item, "beats")}拍`;
       if (card.id === "matrix-display") {
@@ -809,7 +952,12 @@
     function formatParamBubblePart(card, item, key, definition) {
       const value = getParamValue(card, item, key);
       if (definition.type === "select") {
-        return getParamOptionDisplay(definition, value);
+        const option = (definition.options || []).find(candidate => (
+          (typeof candidate === "object" ? candidate.value : candidate) === value
+        ));
+        return typeof option === "object" && option.bubble
+          ? option.bubble
+          : getParamOptionDisplay(definition, value);
       }
       if (definition.type === "number") {
         const fullText = formatParamNumber(value);
@@ -828,7 +976,8 @@
         (typeof candidate === "object" ? candidate.value : candidate) === value
       ));
       if (!option) return value;
-      return typeof option === "object" ? (option.display || option.label || option.value) : option;
+      const display = typeof option === "object" ? (option.display || option.label || option.value) : option;
+      return display === "L/M1" ? "L" : display === "R/M2" ? "R" : display;
     }
 
     function getCardDisplayLabel(card, item = null) {
@@ -884,6 +1033,11 @@
         panel.appendChild(createSelectParamEditor(card, item, "power", card.paramsSchema.power));
         return panel;
       }
+      if (card.id === "eye-expression") {
+        panel.classList.add("eye-expression-editor");
+        panel.appendChild(createEyeExpressionEditor(card, item));
+        return panel;
+      }
 
       Object.entries(card.paramsSchema || {}).forEach(([key, definition]) => {
         if (card.id === "play-note") {
@@ -893,7 +1047,9 @@
           panel.appendChild(caption);
         }
         if (definition.type === "select") {
-          panel.appendChild(createSelectParamEditor(card, item, key, definition));
+          panel.appendChild(["speech-play", "speech-wait"].includes(card.id)
+            ? createPhraseListEditor(card, item, key, definition)
+            : createSelectParamEditor(card, item, key, definition));
         } else if (definition.type === "number") {
           panel.appendChild(createNumberStepper(card, item, key, `减少${definition.label || "数值"}`, `增加${definition.label || "数值"}`));
         } else if (definition.type === "matrix") {
@@ -901,6 +1057,65 @@
         }
       });
 
+      return panel;
+    }
+
+    function createEyeExpressionEditor(card, item) {
+      const definition = card.paramsSchema.expression;
+      const currentValue = getParamValue(card, item, "expression");
+      const grid = document.createElement("div");
+      grid.className = "eye-option-grid";
+      definition.options.forEach(option => {
+        const button = document.createElement("button");
+        button.className = "eye-option-btn";
+        button.classList.toggle("is-selected", option.value === currentValue);
+        button.type = "button";
+        button.setAttribute("aria-pressed", String(option.value === currentValue));
+        button.setAttribute("aria-label", option.label);
+        const image = document.createElement("img");
+        image.src = `assets/eyes/eye-${option.value.slice(-2)}.svg`;
+        image.alt = "";
+        const label = document.createElement("span");
+        label.textContent = option.label;
+        button.append(image, label);
+        button.addEventListener("click", () => setActiveParamValue("expression", option.value));
+        grid.appendChild(button);
+      });
+      return grid;
+    }
+
+    function createPhraseListEditor(card, item, key, definition) {
+      const panel = document.createElement("div");
+      panel.className = "phrase-list-editor";
+      const title = document.createElement("div");
+      title.className = "phrase-list-title";
+      title.textContent = definition.label;
+      const list = document.createElement("div");
+      list.className = "phrase-option-grid";
+      const currentValue = getParamValue(card, item, key);
+      definition.options.forEach(option => {
+        const value = typeof option === "object" ? option.value : option;
+        const label = typeof option === "object" ? option.label : option;
+        const button = document.createElement("button");
+        button.className = "phrase-option-btn";
+        button.classList.toggle("is-selected", value === currentValue);
+        button.type = "button";
+        button.setAttribute("aria-pressed", String(value === currentValue));
+        button.setAttribute("aria-label", label);
+        const code = document.createElement("span");
+        code.className = "phrase-option-code";
+        code.textContent = value.replace("ASR_", "A");
+        const text = document.createElement("span");
+        text.className = "phrase-option-text";
+        text.textContent = label;
+        button.append(code, text);
+        button.addEventListener("click", () => {
+          setActiveParamValue(key, value);
+          closeParamEditor();
+        });
+        list.appendChild(button);
+      });
+      panel.append(title, list);
       return panel;
     }
 
@@ -918,8 +1133,8 @@
         button.classList.toggle("is-selected", value === currentValue);
         button.setAttribute("aria-pressed", String(value === currentValue));
         button.type = "button";
-        button.textContent = typeof option === "object" ? (option.display || option.label || option.value) : option;
-        button.setAttribute("aria-label", typeof option === "object" ? option.label : option);
+        button.textContent = getParamOptionDisplay(definition, value);
+        button.setAttribute("aria-label", typeof option === "object" ? option.label : value === "L/M1" ? "左电机 L" : value === "R/M2" ? "右电机 R" : option);
         if ((card.id === "motor-power" || card.id === "combo-power") && key === "power") {
           button.classList.add("power-option");
           button.title = `功率 ${value}%`;
@@ -936,10 +1151,11 @@
       const bars = document.createElement("span");
       bars.className = "power-bars";
       bars.setAttribute("aria-hidden", "true");
-      for (let i = 1; i <= 4; i++) {
+      const level = power <= 3 ? power : Math.round(power / 25);
+      for (let i = 1; i <= 3; i++) {
         const bar = document.createElement("i");
         bar.style.height = `${5 + i * 4}px`;
-        bar.classList.toggle("is-on", i * 25 <= power);
+        bar.classList.toggle("is-on", i <= level);
         bars.appendChild(bar);
       }
       return bars;
@@ -1104,10 +1320,7 @@
 
     function closeNumberKeypad() {
       if (!activeNumberKeypad) return false;
-      const key = activeNumberKeypad.key;
-      activeNumberKeypad = null;
-      renderParamEditor();
-      paramEditor.querySelector(`[data-number-param="${key}"]`)?.focus({preventScroll: true});
+      closeParamEditor();
       return true;
     }
 
@@ -1118,25 +1331,14 @@
       const panel = document.createElement("div");
       panel.className = "number-keypad";
       panel.tabIndex = -1;
-      const title = document.createElement("div");
-      title.className = "number-keypad-title";
-      title.textContent = `${definition.label || "数值"}${definition.unit ? `（${definition.unit}）` : ""}`;
-      paramEditor.setAttribute("aria-label", `${title.textContent}小键盘`);
+      paramEditor.setAttribute("aria-label", `${definition.label || "数值"}小键盘`);
       const output = document.createElement("output");
       output.className = "number-keypad-value";
       output.setAttribute("aria-label", "输入值");
-      const hint = document.createElement("div");
-      hint.className = "number-keypad-hint";
-      hint.id = "numberKeypadHint";
-      output.setAttribute("aria-describedby", hint.id);
       const grid = document.createElement("div");
       grid.className = "number-keypad-grid";
       const buttons = {};
-      const range = Number.isFinite(definition.max)
-        ? `范围 ${definition.min ?? 0}–${definition.max}`
-        : Number.isFinite(definition.min) ? `最小 ${definition.min}` : "";
-      const guidance = [range, precision ? `最多 ${precision} 位小数` : "仅限整数"].filter(Boolean).join(" · ");
-      function update() {
+      function update(applyValue = true) {
         const value = Number(state.draft);
         const valid = state.draft !== "" && Number.isFinite(value)
           && (!Number.isFinite(definition.min) || value >= definition.min)
@@ -1144,28 +1346,18 @@
         output.textContent = state.draft || "—";
         output.classList.toggle("is-selected", state.replaceNext);
         output.setAttribute("aria-invalid", String(!valid));
-        hint.textContent = state.draft === "" ? "请输入数值" : guidance;
-        hint.classList.toggle("is-error", !valid);
-        buttons.confirm.disabled = !valid;
         buttons["."].disabled = !precision || (!state.replaceNext && state.draft.includes("."));
         buttons.delete.disabled = state.draft === "";
+        if (applyValue && valid && activeNumberKeypad === state && activeParamEditor) {
+          const item = getNodeAtPath(activeParamEditor.nodePath);
+          const previous = getParamValue(card, item, state.key);
+          const next = normalizeParamValue(definition, value);
+          if (next !== previous) setActiveParamValue(state.key, next, false);
+        }
       }
       function press(key) {
-        // Detached controls must never apply a draft to a different block.
         if (activeNumberKeypad !== state || !activeParamEditor) return;
-        if (key === "cancel") { closeNumberKeypad(); return; }
-        if (key === "confirm") {
-          if (buttons.confirm.disabled) return;
-          const value = normalizeParamValue(definition, Number(state.draft));
-          const previous = getParamValue(card, getNodeAtPath(activeParamEditor.nodePath), state.key);
-          activeNumberKeypad = null;
-          if (value !== previous) setActiveParamValue(state.key, value);
-          else renderParamEditor();
-          paramEditor.querySelector(`[data-number-param="${state.key}"]`)?.focus({preventScroll: true});
-          return;
-        }
-        if (key === "clear") state.draft = "";
-        else if (key === "delete") state.draft = state.draft.slice(0, -1);
+        if (key === "delete") state.draft = state.draft.slice(0, -1);
         else if (key === ".") {
           if (!precision || (!state.replaceNext && state.draft.includes("."))) return;
           state.draft = state.replaceNext || state.draft === "" ? "0." : state.draft + ".";
@@ -1178,13 +1370,13 @@
         state.replaceNext = false;
         update();
       }
-      const labels = {delete: "删除", clear: "清空", cancel: "取消", confirm: "确定"};
-      for (const key of ["7", "8", "9", "delete", "4", "5", "6", "clear", "1", "2", "3", "cancel", ".", "0", "confirm"]) {
+      for (const key of ["1", "2", "3", "4", "5", "6", "7", "8", "9", ".", "0", "delete"]) {
         const button = document.createElement("button");
         button.type = "button";
-        button.className = `number-key${labels[key] ? " number-key-action" : ""}`;
+        button.className = `number-key${key === "delete" ? " number-key-action" : ""}`;
         button.dataset.key = key;
-        button.textContent = labels[key] || key;
+        if (key === "delete") button.innerHTML = '<svg viewBox="0 0 48 32" aria-hidden="true"><path d="M17 4h25v24H17L5 16 17 4Z M25 11l10 10 M35 11 25 21"/></svg>';
+        else button.textContent = key;
         if (key === ".") button.setAttribute("aria-label", "小数点");
         if (key === "delete") button.setAttribute("aria-label", "删除一位");
         button.addEventListener("click", () => press(key));
@@ -1194,14 +1386,20 @@
       // Physical keyboards still work on desktop without using an editable field.
       panel.addEventListener("keydown", event => {
         if (event.ctrlKey || event.metaKey || event.altKey) return;
-        const key = ({Enter: "confirm", Escape: "cancel", Backspace: "delete", Delete: "clear", ",": "."})[event.key] || event.key;
+        if (event.key === "Enter" || event.key === "Escape") {
+          event.preventDefault();
+          event.stopPropagation();
+          closeParamEditor();
+          return;
+        }
+        const key = ({Backspace: "delete", Delete: "delete", ",": "."})[event.key] || event.key;
         if (!Object.prototype.hasOwnProperty.call(buttons, key)) return;
         event.preventDefault();
         event.stopPropagation();
         press(key);
       });
-      panel.append(title, output, hint, grid);
-      update();
+      panel.append(output, grid);
+      update(false);
       return panel;
     }
 
@@ -1245,8 +1443,10 @@
     }
 
     function refreshProgramAfterLoopParamChange(nodePath) {
+      const numberKeypad = activeNumberKeypad;
       renderProgram();
       activeParamEditor = { nodePath };
+      activeNumberKeypad = numberKeypad;
       return findProgramBlockByPath(nodePath);
     }
 
@@ -1284,6 +1484,35 @@
       const viewportBottom = viewportTop + viewportHeight;
       const gap = 14;
       const margin = 8;
+      if (activeNumberKeypad) {
+        const rightLeft = anchorRect.right + gap;
+        const leftLeft = anchorRect.left - editorRect.width - gap;
+        const fitsRight = rightLeft + editorRect.width <= viewportRight - margin;
+        const fitsLeft = leftLeft >= viewportLeft + margin;
+        if (fitsRight || fitsLeft) {
+          const onRight = fitsRight;
+          const left = onRight ? rightLeft : leftLeft;
+          const maxTop = Math.max(viewportTop + margin, viewportBottom - editorRect.height - margin);
+          const top = Math.max(viewportTop + margin, Math.min(
+            anchorRect.top + anchorRect.height / 2 - editorRect.height / 2,
+            maxTop
+          ));
+          const arrowTop = Math.max(18, Math.min(
+            anchorRect.top + anchorRect.height / 2 - top,
+            editorRect.height - 18
+          ));
+          paramEditor.classList.remove("is-above-anchor");
+          paramEditor.classList.add("is-side-anchor");
+          paramEditor.classList.toggle("is-right-of-anchor", onRight);
+          paramEditor.classList.toggle("is-left-of-anchor", !onRight);
+          paramEditor.style.setProperty("--param-arrow-top", `${Math.round(arrowTop)}px`);
+          paramEditor.style.left = `${Math.round(left)}px`;
+          paramEditor.style.top = `${Math.round(top)}px`;
+          return;
+        }
+      }
+      paramEditor.classList.remove("is-side-anchor", "is-right-of-anchor", "is-left-of-anchor");
+      paramEditor.style.removeProperty("--param-arrow-top");
       let left = anchorRect.left + anchorRect.width / 2 - editorRect.width / 2;
       const belowTop = anchorRect.bottom + gap;
       const aboveTop = anchorRect.top - editorRect.height - gap;
@@ -1314,8 +1543,9 @@
       activeParamEditor = null;
       activeNumberKeypad = null;
       paramEditor.hidden = true;
-      paramEditor.classList.remove("is-matrix", "is-above-anchor", "is-number-keypad");
+      paramEditor.classList.remove("is-matrix", "is-above-anchor", "is-number-keypad", "is-side-anchor", "is-right-of-anchor", "is-left-of-anchor");
       paramEditor.style.removeProperty("--param-arrow-left");
+      paramEditor.style.removeProperty("--param-arrow-top");
       paramEditor.replaceChildren();
     }
 
@@ -1484,9 +1714,13 @@
       event.preventDefault();
 
       const distance = Math.hypot(event.clientX - dragState.startX, event.clientY - dragState.startY);
-      const threshold = dragState.pointerType === "touch" ? 14 : 8;
+      const threshold = dragState.pointerType === "touch" ? 5 : 4;
       if (!dragState.active) {
         if (distance <= threshold) return;
+        const deltaX = event.clientX - dragState.startX;
+        const deltaY = event.clientY - dragState.startY;
+        if (dragState.pointerType === "touch" && !dragState.fromProgram && !dragState.fromStaging
+          && Math.abs(deltaX) > Math.abs(deltaY) * 1.2) return;
         activateDrag();
       }
       restoreDragScroll();
@@ -1580,6 +1814,7 @@
         if (removedItems.length) {
           renderProgram();
           commitHistory();
+          playBlockSound("delete");
           setStatus(removedItems.length > 1
             ? `已删除 ${removedItems.length} 张卡片`
             : `已删除：${getNodeLabel(removedItems[0])}`);
@@ -1594,6 +1829,7 @@
           renderProgram();
           renderPalette();
           commitHistory();
+          playBlockSound("place");
           setStatus(`已放回 ${countProgramItems(stagedItems)} 张卡片`);
         }
         setTimeout(() => { source.dataset.dragged = "false"; }, 0);
@@ -1608,14 +1844,17 @@
       if (fromProgram) {
         if (grabMovePaths?.length > 1) {
           const moved = moveProgramNodes(grabMovePaths, target.sequencePath, target.index);
+          if (moved) playBlockSound("place");
           setStatus(moved ? `已同时移动 ${grabMovePaths.length} 张卡片` : "未能同时移动");
         } else {
-          moveProgramNode(sourcePath, target.sequencePath, target.index);
-          setStatus("已调整位置");
+          const moved = moveProgramNode(sourcePath, target.sequencePath, target.index);
+          if (moved) playBlockSound("place");
+          setStatus(moved ? "已调整位置" : "未能调整位置");
         }
       } else {
-        insertNodeAtPath(target.sequencePath, target.index, createProgramItem(cardId));
-        setStatus(`已添加：${cardById[cardId].label}`);
+        const added = insertNodeAtPath(target.sequencePath, target.index, createProgramItem(cardId));
+        if (added) playBlockSound("place");
+        setStatus(added ? `已添加：${cardById[cardId].label}` : "未能添加积木");
       }
 
       renderProgram();
@@ -2445,19 +2684,19 @@
 
     function moveProgramNode(sourcePath, targetSequencePath, targetIndex) {
       if (!sourcePath || startsWithPath(targetSequencePath, sourcePath)
-        || !getSequenceByPath(targetSequencePath)) return;
+        || !getSequenceByPath(targetSequencePath)) return false;
 
       const sourceParentPath = sourcePath.slice(0, -1);
       const sourceIndex = sourcePath[sourcePath.length - 1];
       const sameSequence = pathsEqual(sourceParentPath, targetSequencePath);
       const item = removeNodeAtPath(sourcePath);
-      if (!item) return;
+      if (!item) return false;
 
       const nextTargetPath = sameSequence
         ? targetSequencePath
         : adjustSequencePathAfterRemoval(targetSequencePath, sourcePath);
       const nextIndex = sameSequence && targetIndex > sourceIndex ? targetIndex - 1 : targetIndex;
-      insertNodeAtPath(nextTargetPath, nextIndex, item);
+      return insertNodeAtPath(nextTargetPath, nextIndex, item);
     }
 
     function moveProgramNodes(sourcePaths, targetSequencePath, targetIndex) {
@@ -2758,6 +2997,10 @@
         selectCategory(tab.id.replace("tab-", ""));
       });
     });
+    palette.addEventListener("pointerdown", startPaletteSwipe, true);
+    document.addEventListener("pointermove", movePaletteSwipe, true);
+    document.addEventListener("pointerup", finishPaletteSwipe, true);
+    document.addEventListener("pointercancel", cancelPaletteSwipe, true);
 
     document.getElementById("saveBtn").addEventListener("click", saveProgram);
     const executionControls = document.querySelector(".execution-controls");
@@ -2774,11 +3017,13 @@
     redoBtn.addEventListener("click", redoProgram);
     document.getElementById("clearBtn").addEventListener("click", () => {
       closeParamEditor();
+      const hadContent = program.length > 0 || stagedGroups.length > 0;
       program = [];
       stagedGroups = [];
       renderProgram();
       renderPalette();
       commitHistory();
+      if (hadContent) playBlockSound("delete");
       setStatus("已清空");
     });
 
@@ -2811,6 +3056,7 @@
 
     window.addEventListener("resize", () => {
       scheduleProgramAnchorUpdate();
+      updateCategorySlider(false);
       if (activeParamEditor) {
         positionParamEditor(findProgramBlockByPath(activeParamEditor.nodePath));
       }
@@ -2820,5 +3066,6 @@
     }
 
     renderPalette();
+    updateCategorySlider(false);
     renderProgram();
     commitHistory();

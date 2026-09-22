@@ -1,12 +1,13 @@
-# 小白编程 Android 1.0.1
+# 小白编程 Android 1.2.3
 
 当前分支：xiaobai/remote-blocks。基于 ddb4db7 开发。
 
-- 支持 16 种积木、作品保存与手动遥控。手机执行计时和循环，使用 C1 十键协议驱动小白。
-- A/B：左电机正/反；X/Y：右电机正/反；L 加速、R 减速（用户确认）。
-- Android 原生发送只放行 C1，不上传字节码、不发 B9，也不要求 D0 状态上报。
-- 运行前将主机切到遥控模式，保持应用在前台。程序完成/停止时发送全零释放；后台和断连取消程序，重连不恢复。
-- APK：artifacts/xiaobai-1.0.1-debug.apk，包名 com.xiaobai.remote，可与原软件并存。
+- 支持小白积木、作品保存与手动遥控。手机负责程序顺序、循环和等待时间；设备按 C2 指令执行电机、红外、显示和语音动作。
+- 手动遥控仍使用 C1：Y/A 控制左电机正/反，X/B 控制右电机正/反，L 加速、R 减速。
+- 编程界面进入编程模式并保持心跳；遥控界面进入遥控模式。定时动作与条件等待按序号等待 DONE。程序停止发送 STOP_PROGRAM。
+- Android 原生允许校验通过的 C1/C2 定长帧，优先写 FFF2，订阅 FFF1，必要时退回 FFF1 写入。
+- 蓝牙自动连接默认设备；首次使用选择信号最强的兼容设备。支持设备本地改名，默认设备和名称会保留。
+- APK：artifacts/xiaobai-1.2.3-debug.apk，包名 com.xiaobai.remote，可与原软件并存。
 - 构建：powershell -ExecutionPolicy Bypass -File scripts/android.ps1。无需 Pika 编译器。
 - 测试：npm test。安装及验证范围见 [小白安装说明](docs/XIAOBAI_APP.md)。
 

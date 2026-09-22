@@ -21,8 +21,8 @@ const BlockLayout = (() => {
   const plug = 8, bodyHeight = 72, radius = 5;
   const connectorY = bodyHeight/2, iconSize = 40, paramOverhang = 20;
   const textContext = document.createElement("canvas").getContext("2d");
-  textContext.font = '600 12px "Microsoft YaHei", sans-serif';
-  const parameterWidth = bubble => bubble ? Math.ceil(textContext.measureText(bubble.textContent).width)+12 : 0;
+  textContext.font = '600 10px "Microsoft YaHei", sans-serif';
+  const parameterWidth = bubble => bubble ? Math.ceil(textContext.measureText(bubble.textContent).width)+10 : 0;
   const direct = (el, selector) => [...el.children].filter(child => child.matches(selector));
   function box(el, x, y, width, height) {
     Object.assign(el.style, { left: `${x}px`, top: `${y}px`, width: `${width}px`, height: `${height}px` });
@@ -66,7 +66,7 @@ const BlockLayout = (() => {
     const bubble = direct(el, ".param-bubble")[0];
     const width = start ? 68 : 76;
     if (bubble) {
-      const bubbleWidth = Math.max(width-16, parameterWidth(bubble));
+      const bubbleWidth = Math.min(width-8, Math.max(width-16, parameterWidth(bubble)));
       bubble.style.width = `${bubbleWidth}px`;
       bubble.style.left = `${(width-bubbleWidth)/2}px`;
       bubble.style.top = `${bodyHeight-8}px`;
@@ -124,7 +124,7 @@ const BlockLayout = (() => {
     box(direct(el,".loop-left")[0], 0, beam, left, h-beam);
     box(tail, right, beam, tailWidth, h-beam);
     if (bubble) {
-      const bubbleWidth = Math.max(tailWidth-16, parameterWidth(bubble));
+      const bubbleWidth = Math.min(tailWidth-8, Math.max(tailWidth-16, parameterWidth(bubble)));
       bubble.style.width = `${bubbleWidth}px`;
       bubble.style.left = `${(tailWidth-bubbleWidth)/2}px`;
       bubble.style.setProperty("--param-shift", "0px");
@@ -167,6 +167,16 @@ const BlockLayout = (() => {
     });
     container.style.width = `${right}px`;
     container.style.height = `${bottom}px`;
+    // Program content can be visually zoomed while palette blocks keep their own scale.
+    // Store visual connector measurements so dragging and hit testing use screen pixels.
+    const visualScale = parseFloat(getComputedStyle(container).zoom) || 1;
+    if (visualScale !== 1) {
+      container.querySelectorAll(".program-block, .start").forEach(block => {
+        for (const key of ["advance", "connectorY", "visualHeight", "bodyHeight", "internalConnectorY"]) {
+          if (block.dataset[key] !== undefined) block.dataset[key] = Number(block.dataset[key]) * visualScale;
+        }
+      });
+    }
   }
   return {measure, sequence, root, clientRect};
 })();

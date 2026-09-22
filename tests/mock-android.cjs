@@ -10,7 +10,7 @@ module.exports = function mockAndroid() {
   window.nativeListeners={};window.minimized=false;window.androidBridge={};
   window.Capacitor={
     PluginHeaders:['App','SparkBle','CardCompiler'].map(name=>({name,methods:[
-      {name:'addListener',rtype:'callback'},...['prepareUpload','finishUpload','compile','cancel','removeListener','minimizeApp','getState','requestAccess','startScan','stopScan','connect','subscribe','write','disconnect','openSettings'].map(name=>({name,rtype:'promise'}))
+      {name:'addListener',rtype:'callback'},...['prepareUpload','finishUpload','compile','cancel','removeListener','minimizeApp','getState','requestAccess','startScan','stopScan','connect','subscribe','write','useFallbackWrite','disconnect','openSettings'].map(name=>({name,rtype:'promise'}))
     ]})),
     nativeCallback(plugin,method,options,callback) {
       const id=String(++callbackId);callbacks.set(id,{plugin,eventName:options.eventName,callback});
@@ -39,11 +39,13 @@ module.exports = function mockAndroid() {
       if(method==='stopScan') {control.emit('scanStopped',{scanId:control.scanId,reason:'cancelled'});return;}
       if(method==='connect') {
         await new Promise(resolve=>setTimeout(resolve,control.connectionDelay));
-        if(control.connectError) throw new Error(control.connectError);
+        const connectError=control.connectErrors?.[options.deviceId]||control.connectError;
+        if(connectError) throw new Error(connectError);
         control.connectionId=options.connectionId;control.subscribed=false;
-        return {connectionId:options.connectionId,properties:{notify:true,writeWithoutResponse:true}};
+        return {connectionId:options.connectionId,properties:{notify:true,write:true,fallbackWrite:false,writeCharacteristic:'0000fff2-0000-1000-8000-00805f9b34fb'}};
       }
       if(method==='subscribe') {control.subscribed=true;return;}
+      if(method==='useFallbackWrite') return;
       if(method==='write') {
         if(!control.subscribed) throw new Error('Write before CCCD subscription');
         const bytes=Uint8Array.from(atob(options.data),c=>c.charCodeAt(0));
@@ -61,6 +63,22 @@ module.exports = function mockAndroid() {
         if(bytes.length===17&&bytes[4]===0xc1) {
           if(bytes.slice(5,15).some(x=>x>1)||bytes[15]!==bytes.slice(0,15).reduce((a,b)=>(a+b)&255,0)) throw new Error('Invalid remote frame');
           if(control.writeError) throw new Error(control.writeError);
+          return;
+        }
+        if(bytes.length===17&&bytes[4]===0xc2) {
+          if(bytes[15]!==bytes.slice(0,15).reduce((a,b)=>(a+b)&255,0)) throw new Error('Invalid program frame');
+          const seq=bytes[5],op=bytes[6];
+          if(op===1) control.mode=4;
+          if(op===2) control.mode=3;
+          if(control.writeError) throw new Error(control.writeError);
+          if(op===4||[0x10,0x20,0x30,0x51].includes(op)) {
+            if(!control.suppressAck) setTimeout(()=>{
+              const data=[seq,op,0,...(op===4?[control.mode||0,10,20,30,0x3c,0x0f,0]:[0,0,0,0,0,0,0])];
+              const packet=[0x5a,0x98,0x97,0x0a,0xd2,...data];
+              packet.push(packet.reduce((sum,value)=>sum+value,0)&255,0xa5);
+              control.feed(String.fromCharCode(...packet));
+            },control.ackDelay||5);
+          }
           return;
         }
         if(atob(options.data)!=='\x5a\x97\x98\x01\xd0\x01\x5b\xa5') throw new Error('Unexpected command');

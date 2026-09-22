@@ -29,7 +29,7 @@ let browser, port;
   async function tap(selector) {
     const el=page.locator(selector);
     await el.waitFor({state:'visible'});
-    const r=await el.boundingBox();
+    const r=await el.evaluate(node=>BlockLayout.clientRect(node).toJSON());
     await cdp.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x:r.x+r.width/2,y:r.y+r.height/2}]});
     await cdp.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
   }
@@ -48,7 +48,9 @@ let browser, port;
   await page.waitForURL('**/#editor');
   await page.waitForFunction(()=>!document.activeElement?.matches('input'));
   // Wait for layout stability while the name dialog's IME finishes closing.
-  await page.locator('#palette [data-card-id=motor-forward]').click();
+  await page.waitForFunction(()=>document.querySelector('.library-area').getBoundingClientRect().bottom<=innerHeight+2);
+  // Seed the numeric test card; palette touch/drag is covered by android-device.
+  await page.evaluate(()=>addCard('motor-forward'));
   assertNoIme();
   const height=await page.evaluate(()=>innerHeight);
   async function press(value) {

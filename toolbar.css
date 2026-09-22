@@ -44,6 +44,9 @@
 .topbar .btn:focus-visible { outline: 2px solid #0090f5; outline-offset: -2px; }
 .topbar #bluetoothBtn.is-connected { color: #138056; background: #e8f7ef; }
 .topbar #bluetoothBtn.is-connecting { color: #0090f5; background: #e8f4ff; }
+.topbar #bluetoothBtn.is-connecting .bluetooth-icon { animation: bluetooth-search-pulse .9s ease-in-out infinite alternate; }
+@keyframes bluetooth-search-pulse { from { opacity: .35; transform: scale(.82); } to { opacity: 1; transform: scale(1.08); } }
+@media (prefers-reduced-motion: reduce) { .topbar #bluetoothBtn.is-connecting .bluetooth-icon { animation: none; } }
 @media(max-width: 420px) {
   .device-status { min-width: 0; }
   .topbar { gap: 3.2px; padding-inline: 3.2px; }
@@ -51,6 +54,38 @@
   .topbar .btn { width: 32px; min-width: 32px; }
   .topbar .btn img { width: 22.4px; height: 22.4px; }
   .bluetooth-icon { width: 22.4px; height: 22.4px; }
+}
+
+/* Editor controls float over the canvas; the former header no longer takes space. */
+.app { grid-template-rows: minmax(0, 1fr); }
+.topbar {
+  position: absolute; left: 14px; top: 14px; z-index: 12;
+  width: auto; height: auto; padding: 0; border: 0; gap: 7px;
+  display: flex; align-items: center; justify-content: flex-start;
+  background: transparent; pointer-events: none;
+}
+.topbar .brand { display: contents; }
+.topbar .brand-title,
+.topbar .device-status,
+.topbar .remote-entry,
+.topbar #undoBtn,
+.topbar #redoBtn,
+.topbar #clearBtn { display: none !important; }
+.topbar .toolbar { display: flex; gap: 7px; pointer-events: none; }
+.topbar .btn { pointer-events: auto; background: rgba(255,255,255,.94); border-radius: 8px; box-shadow: 0 2px 6px rgba(17,24,32,.12); }
+.topbar #saveBtn { order: 1; }
+.topbar #bluetoothBtn { order: 2; }
+
+.execution-controls { top: 14px; right: 14px; bottom: auto; gap: 8px; }
+.execution-button { width: 59.2px; height: 59.2px; }
+.execution-button > span { transform: scale(.8); }
+.execution-notice { top: calc(100% + 10px); right: 0; bottom: auto; }
+
+@media (max-width: 600px), (max-height: 500px) {
+  .app { grid-template-rows: minmax(0, 1fr); }
+  .topbar { left: 10px; top: 10px; padding: 0; }
+  .execution-controls { top: 10px; right: 10px; bottom: auto; gap: 7px; }
+  .execution-button { width: 46.4px; height: 46.4px; }
 }
 .execution-button.execution-compile span {
   width: auto;

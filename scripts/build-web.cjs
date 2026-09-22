@@ -6,7 +6,7 @@ const out = path.join(root, 'dist');
 fs.rmSync(out, {recursive: true, force: true});
 fs.mkdirSync(out, {recursive: true});
 const files = ['index.html', 'styles.css', 'blocks.css', 'home.css', 'bluetooth.css',
-  'toolbar.css', 'block-layout.js', 'app.js', 'home.js', 'spark-protocol.js',
+  'toolbar.css', 'block-layout.js', 'app.js', 'home.js', 'spark-protocol.js', 'xiaobai-protocol.js', 'xiaobai-device-preferences.js',
   'bluetooth.js', 'platform.js', 'unsupported.html', 'android-bluetooth.js', 'android-bluetooth.css',
   'xiaobai-runner.js', 'xiaobai-ui.js', 'remote-control.js', 'remote-ui.js', 'remote.css'];
 for (const file of files) fs.copyFileSync(path.join(root, file), path.join(out, file));
@@ -17,6 +17,6 @@ fs.copyFileSync(path.join(root, 'native/card-compiler/vendor/LICENSE-PikaPython'
 // Load the official runtime only in the APK build, before platform.js uses plugins.
 fs.copyFileSync(path.join(root, 'node_modules/@capacitor/core/dist/capacitor.js'), path.join(out, 'capacitor-core.js'));
 const html = fs.readFileSync(path.join(out, 'index.html'), 'utf8');
-fs.writeFileSync(path.join(out, 'index.html'), html.replace('<script src="platform.js"></script>',
-  '<script src="capacitor-core.js"></script>\n  <script src="platform.js"></script>'));
+fs.writeFileSync(path.join(out, 'index.html'), html.replace(/<script src="platform\.js[^"]*"><\/script>/,
+  match => `<script src="capacitor-core.js"></script>\n  ${match}`));
 console.log(`Built shared web UI: ${files.length} files + assets -> dist`);

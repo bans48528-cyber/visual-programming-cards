@@ -92,7 +92,7 @@
     if (!deletion) { input.focus(); input.select(); }
   }
   function persist() {
-    try { localStorage.setItem(KEY, JSON.stringify(projects)); return true; }
+    try { localStorage.setItem(KEY, JSON.stringify(projects.filter(project => !project.draft))); return true; }
     catch {
       setStatus("保存失败：设备存储空间不足或不可用");
       const error = home.querySelector(".home-error");
@@ -115,15 +115,51 @@
     }
     activeId = localStorage.getItem(ACTIVE);
   } catch { setStatus("作品列表读取失败，原有保存内容未修改"); }
+  function isBlankState(state) {
+    if (Array.isArray(state)) return state.length === 0;
+    return !(state?.program?.length || state?.stagedGroups?.length);
+  }
+  function rejectBlankSave() {
+    setStatus("程序为空，未保存");
+    window.showExecutionNotice?.("程序为空，未保存");
+    return true;
+  }
   function saveActive() {
     const project = projects.find(p => p.id === activeId);
     if (!project) return false;
-    project.state = serializeWorkspaceState(); project.updated = Date.now();
+    const state = serializeWorkspaceState();
+    if (isBlankState(state)) return true;
+    project.state = state; project.updated = Date.now(); project.draft = false;
     if (persist()) setStatus("作品已保存");
     return true;
   }
+  function saveFromEditor() {
+    const project = projects.find(p => p.id === activeId);
+    if (!project) return false;
+    const state = serializeWorkspaceState();
+    if (isBlankState(state)) return rejectBlankSave();
+    project.state = state; project.updated = Date.now();
+    if (!project.needsName) {
+      if (persist()) setStatus("作品已保存");
+      return true;
+    }
+    ask("保存作品", project.name, name => {
+      project.name = name;
+      project.needsName = false;
+      project.draft = false;
+      project.state = serializeWorkspaceState();
+      project.updated = Date.now();
+      if (persist()) {
+        document.querySelector(".brand-title").textContent = project.name;
+        document.title = `${project.name} · 小白编程`;
+        setStatus("作品已保存");
+      }
+    });
+    return true;
+  }
   window.CardHome = {
-    save: saveActive,
+    save: saveFromEditor,
+    autosave: saveActive,
     load() {
       const project = projects.find(p => p.id === activeId);
       if (!project) return false;
@@ -144,9 +180,9 @@
     if (navigate) location.hash = "editor";
   }
   function create(name, state = {program: [], stagedGroups: []}) {
-    const project = {id: crypto.randomUUID(), name, updated: Date.now(), state: clone(state)};
+    const project = {id: crypto.randomUUID(), name, updated: Date.now(), state: clone(state), needsName: true, draft: isBlankState(state)};
     projects.unshift(project);
-    if (persist()) enter(project);
+    if (project.draft || persist()) enter(project);
   }
   function preview(items, includeStart = false) {
     const wrap = document.createElement("div");wrap.className = "home-preview";
@@ -189,8 +225,8 @@
       const summary = document.createElement("summary");summary.textContent = "⋯";summary.setAttribute("aria-label",`${project.name}更多操作`);
       const actions = document.createElement("div");actions.className = "home-menu-items";
       const commands = {
-        "重命名": () => ask("重命名作品", project.name, name => {project.name=name;persist();render();}),
-        "复制": () => {projects.unshift({...clone(project),id:crypto.randomUUID(),name:`${project.name} 副本`,updated:Date.now()});persist();render();},
+        "重命名": () => ask("重命名作品", project.name, name => {project.name=name;project.needsName=false;persist();render();}),
+        "复制": () => {projects.unshift({...clone(project),id:crypto.randomUUID(),name:`${project.name} 副本`,updated:Date.now(),needsName:false});persist();render();},
         "删除": () => ask("删除作品",project.name,()=>{projects=projects.filter(p=>p.id!==project.id);persist();render();},true)
       };
       Object.entries(commands).forEach(([label, action])=>{const button=document.createElement("button");button.textContent=label;button.onclick=()=>{menu.open=false;action();};actions.append(button);});
@@ -213,10 +249,16 @@
     home.querySelector('.home-demo-blocks').replaceChildren(demo);
   }
   function showHome() {
+    const active = projects.find(project => project.id === activeId);
+    if (active?.draft && isBlankState(active.state)) {
+      projects = projects.filter(project => project.id !== active.id);
+      activeId = null;
+      try { localStorage.removeItem(ACTIVE); } catch { /* No saved blank project remains. */ }
+    }
     closeParamEditor();home.hidden=false;document.body.classList.add("home-open");
     document.title="小白编程";render();
   }
-  home.querySelector("#newProject").onclick = () => ask("新建作品", `我的作品 ${projects.length+1}`, name=>create(name));
+  home.querySelector("#newProject").onclick = () => create(`我的作品 ${projects.length+1}`);
   home.querySelector('#resumeProject').onclick = () => {
     const project = projects.find(p => p.id === activeId);
     if (project) enter(project);

@@ -6,11 +6,12 @@
     "build:web": "node scripts/build-web.cjs",
     "android:sync": "npm run build:web && cap sync android",
     "android:build": "npm run android:sync && node scripts/build-android.cjs",
-    "test": "node tests/xiaobai-runner.spec.cjs && node tests/xiaobai-ui.spec.cjs && node tests/remote-control.spec.cjs && node tests/transport.spec.cjs",
-    "test:ui": "node tests/home.spec.cjs && node tests/blocks.spec.cjs && node tests/bluetooth.spec.cjs",
+    "test": "node tests/device-preferences.spec.cjs && node tests/xiaobai-protocol.spec.cjs && node tests/xiaobai-runner.spec.cjs && node tests/xiaobai-ui.spec.cjs && node tests/remote-control.spec.cjs && node tests/transport.spec.cjs",
+    "test:ui": "node tests/home.spec.cjs && node tests/blocks.spec.cjs && node tests/drag-response.spec.cjs && node tests/palette-swipe.spec.cjs && node tests/block-sounds.spec.cjs && node tests/bluetooth.spec.cjs",
     "test:android": "node tests/android.spec.cjs",
     "test:keypad": "node tests/number-keypad.spec.cjs",
-    "test:android-ble": "node tests/android-bluetooth.spec.cjs"
+    "test:android-ble": "node tests/android-bluetooth.spec.cjs && node tests/xiaobai-app-flow.spec.cjs",
+    "test:catalog": "node tests/block-catalog.spec.cjs"
   },
   "dependencies": {
     "@capacitor/android": "8.5.2",

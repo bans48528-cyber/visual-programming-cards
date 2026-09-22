@@ -1,7 +1,7 @@
 (function(root) {
   'use strict';
   const protocol=typeof module==='object'&&module.exports?require('./spark-protocol.js'):root.SparkProtocol;
-  const keys=Object.freeze(['up','down','left','right','A','B','X','Y','L','R']);
+  const keys=Object.freeze(['up','down','left','right','Y','A','X','B','R','L']);
   function frame(pressed=[]) {
     if(!Array.isArray(pressed)||pressed.some(key=>!keys.includes(key))) throw new Error('未知遥控按键。');
     if(pressed.filter(key=>keys.indexOf(key)<4).length>1) throw new Error('方向键一次只能选择一个方向。');
@@ -10,7 +10,7 @@
   // Only one write is in flight. Pending state is replaced, never replayed as old presses.
   class Session {
     constructor(send,onError=()=>{}) {this.send=send;this.onError=onError;this.pressed=[];this.pending=null;this.running=null;this.closed=false;this.timer=null;}
-    start() {this.update([]);this.timer=setInterval(()=>this.update(this.pressed),1000);}
+    start() {this.update([]);this.timer=setInterval(()=>{if(this.pressed.length)this.update(this.pressed);},40);}
     update(pressed) {
       if(this.closed) return;
       const bytes=frame(pressed);this.pressed=[...pressed];this.pending=bytes;

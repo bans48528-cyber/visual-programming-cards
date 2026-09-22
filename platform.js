@@ -7,7 +7,10 @@
 
   function save() {
     // Do not overwrite an active project while its home thumbnail is being viewed.
-    if (!document.body.classList.contains('home-open')) window.CardHome?.save();
+    if (!document.body.classList.contains('home-open')) {
+      if (window.CardHome?.autosave) window.CardHome.autosave();
+      else window.CardHome?.save();
+    }
   }
   function suspend() {
     window.CardProgram?.stop("应用进入后台，程序停止").catch(()=>{});

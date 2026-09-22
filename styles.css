@@ -11,6 +11,7 @@
       --combo: #FF4CCD;
       --sensor: #34CCF1;
       --logic: #FFB515;
+      --dynamic: #9867E8;
       --light: #9B6AF6;
       --action: var(--motor);
       --look: var(--sensor);
@@ -18,7 +19,7 @@
       --control: var(--logic);
       --loop: var(--logic);
       --matrix: var(--light);
-      --start: #F5C402;
+      --start: var(--logic);
       --staging: #cfe0ff;
       --danger: #c83535;
       --blue-line: #2d6dff;

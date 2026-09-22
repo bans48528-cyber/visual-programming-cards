@@ -6,7 +6,7 @@
     run.disabled=Boolean(active||starting);
     document.body.classList.toggle('program-running',Boolean(active));
     run.setAttribute('aria-label','运行小白程序');run.title='在手机上运行程序';
-    stop.setAttribute('aria-label','停止全部电机');stop.title='停止程序和全部电机';
+    stop.setAttribute('aria-label','停止程序');stop.title='停止程序并刹停电机';
     run.classList.add('execution-compile');run.querySelector('span').textContent=active?'运行中':'运行';
   }
   async function halt(reason='程序已停止') {
@@ -25,14 +25,14 @@
       await window.CardRemote?.close();
       if(ticket!==generation || document.hidden || location.hash!=='#editor') return;
       const connection=window.CardBluetooth?.remoteConnection?.();
-      if(!connection) {notice('请先连接小白，并将主机切换到遥控模式。');location.hash='bluetooth';return;}
+      if(!connection) {notice('请先连接小白。');location.hash='bluetooth';return;}
       stopReason='';
       const runner=new XiaobaiRunner.Runner(connection,{
         isCurrent:()=>window.CardBluetooth?.remoteConnection?.()?.id===connection.id,
         onStep:item=>{run.title='正在执行：'+(cardById[item.id]?.label||item.id);}
       });
-      active=runner;render();notice('正在运行，请保持小白处于遥控模式。');
-      try {await runner.run(snapshot);notice(stopReason||'程序执行完成，已发送停止指令。');}
+      active=runner;render();notice('正在运行小白程序。');
+      try {await runner.run(snapshot);notice(stopReason||'程序执行完成，电机已停止。');}
       finally {if(active===runner) active=null;}
     } catch(error) {notice(error.message||'运行失败');}
     finally {starting=false;render();}
@@ -42,7 +42,7 @@
     try {
       await halt();await window.CardRemote?.close();
       const connection=window.CardBluetooth?.remoteConnection?.();
-      if(connection) {await connection.send(CardRemoteControl.frame([]));notice('已发送停止指令。');}
+      if(connection) {await connection.stopProgram();notice('已发送停止程序指令。');}
       else notice('设备未连接，请检查小白是否停止。');
     } catch(error) {notice(error.message);}
   };
@@ -51,6 +51,7 @@
   document.addEventListener('visibilitychange',()=>{if(document.hidden) cancel('应用进入后台，程序停止');});
   window.addEventListener('pagehide',()=>cancel('程序停止'));
   window.addEventListener('xiaobai-disconnected',()=>cancel('连接断开，程序已取消'));
+  window.addEventListener('xiaobai-program-abort',()=>cancel('设备已退出编程模式，程序停止'));
   window.CardProgram={stop:halt,get running(){return Boolean(active||starting);}};
   render();
 })();

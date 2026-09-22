@@ -1,41 +1,95 @@
-.android-bluetooth .bt-top {height:56px;padding:0 24px;}
-.bt-native-badge {margin-left:auto;font-size:12px;color:#52718a;background:#edf5fc;border-radius:20px;padding:6px 12px;}
-.bt-mobile-layout {display:grid;grid-template-columns:230px minmax(0,1fr);gap:28px;max-width:1100px;margin:auto;padding:24px;}
-.bt-phone-panel {padding:20px;background:#fff;border:1px solid #e1e9f1;border-radius:18px;align-self:start;}
-.bt-phone-symbol {display:grid;place-items:center;width:52px;height:52px;background:#e5f3ff;color:#078bdf;border-radius:15px;}
-.bt-phone-symbol svg {width:32px;height:32px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;}
-.bt-phone-panel h2 {font-size:20px;margin:14px 0 8px;}
-.bt-phone-panel p {font-size:13px;line-height:1.6;color:#748596;}
-.bt-phone-setting {display:flex;justify-content:space-between;gap:8px;font-size:13px;margin:18px 0 8px;}
-.bt-phone-setting strong {color:#356488;font-weight:500;}
-.bt-phone-panel .bt-button {width:100%;padding:8px;font-size:12px;}
-.bt-phone-panel .bt-stage-note {border-top:1px solid #e5ecf3;padding-top:14px;margin-bottom:0;}
-.bt-device-panel {min-width:0;}
-.android-bluetooth .bt-section-header {margin:4px 0 12px;}
-.bt-scan-description {display:block;font-size:12px;color:#75899a;margin-top:6px;}
-.android-bluetooth .bt-list {background:white;border-radius:14px;overflow:hidden;}
-.android-bluetooth .bt-device {padding:16px;min-height:80px;}
-.android-bluetooth .bt-device:last-child {border-bottom:0;}
-.bt-signal {display:flex;align-items:flex-end;gap:3px;width:35px;flex-shrink:0;}
-.bt-signal i {width:5px;background:#dfe7ed;border-radius:2px;}
-.bt-signal i.lit {background:#058ddf;}
-.bt-current {display:flex;align-items:center;justify-content:space-between;gap:15px;padding:18px;background:#edf8f3;border:1px solid #c2e7d6;border-radius:14px;margin-bottom:20px;}
-.bt-current[hidden] {display:none;}
-.bt-eyebrow {font-size:12px;color:#42846b;}
-.bt-current h2 {font-size:20px;margin:7px 0;overflow-wrap:anywhere;}
-.bt-current p {font-size:13px;margin:0;color:#267558;}
-.android-bluetooth .bt-empty {background:#fff;border:1px dashed #ccdce9;padding:32px 18px;}
-.bt-radar {display:block;width:38px;height:38px;border:2px solid #bcd9ed;border-radius:50%;margin:0 auto 16px;box-shadow:0 0 0 8px #edf6fc;}
-.is-scanning .bt-radar {border-top-color:#008deb;animation:bt-spin 1s linear infinite;}
-@keyframes bt-spin {to {transform:rotate(360deg);}}
-.bt-mobile-help {font-size:12px;line-height:1.7;color:#7c8e9f;margin:18px 0;}
-.android-bluetooth .bt-trace {user-select:text;-webkit-user-select:text;}
-@media(max-height:460px) and (min-width:701px) {
-  .bt-mobile-layout {padding:16px 24px;gap:24px;grid-template-columns:220px minmax(0,1fr);}
-  .bt-phone-panel {padding:16px;}
-  .bt-phone-symbol {float:left;margin:0 12px 8px 0;width:42px;height:42px;}
-  .bt-phone-panel h2 {font-size:17px;margin:0 0 8px;}
-  .bt-phone-setting {clear:both;margin-top:12px;}
-  .android-bluetooth .bt-empty {padding:26px 16px;}
+.android-bluetooth { background: #f3f6fa; }
+.android-bluetooth .bt-top { position: sticky; top: 0; z-index: 3; height: 52px; padding: 0 18px; border-bottom: 1px solid #dde5ec; background: rgba(255,255,255,.96); }
+.android-bluetooth .bt-top h1 { font-size: 18px; color: #1d3447; }
+.android-bluetooth .bt-back { display: inline-flex; align-items: center; gap: 3px; min-width: 74px; padding: 8px 6px; border-radius: 9px; color: #506b80; font-weight: 650; }
+.android-bluetooth .bt-back span { font: 400 28px/16px Arial,sans-serif; margin-top: -2px; }
+.android-bluetooth .bt-back:active { background: #edf3f7; }
+.bt-native-badge { display: inline-flex; align-items: center; gap: 6px; margin-left: auto; padding: 5px 10px; border-radius: 999px; background: #edf6fc; color: #44718f; font-size: 11px; font-weight: 650; }
+.bt-native-badge i { width: 7px; height: 7px; border-radius: 50%; background: #30a273; box-shadow: 0 0 0 3px #d8f1e6; }
+.bt-mobile-layout { display: grid; grid-template-columns: 250px minmax(0,1fr); gap: 16px; width: min(1080px,100%); margin: auto; padding: 16px; }
+.bt-phone-panel,.bt-device-panel { min-width: 0; padding: 17px; border: 1px solid #dfe7ee; border-radius: 16px; background: #fff; box-shadow: 0 4px 16px rgba(38,64,86,.05); }
+.bt-phone-panel { align-self: start; }
+.bt-phone-heading { display: flex; align-items: center; gap: 11px; }
+.bt-phone-symbol { display: grid; place-items: center; flex: 0 0 42px; width: 42px; height: 42px; border-radius: 12px; background: #e7f4fd; color: #0a8ddd; }
+.bt-phone-symbol svg { width: 25px; height: 25px; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
+.bt-phone-heading h2 { margin: 0 0 3px; font-size: 17px; color: #20394d; }
+.bt-phone-heading p { margin: 0; color: #718496; font-size: 11px; line-height: 1.4; }
+.bt-ready { display: flex; align-items: center; gap: 9px; min-height: 40px; margin-top: 14px; padding: 9px 11px; border: 1px solid #dfe8ef; border-radius: 11px; background: #f7f9fb; color: #5f7385; font-size: 12px; }
+.bt-ready > span { width: 9px; height: 9px; flex: 0 0 9px; border-radius: 50%; background: #9aaab7; }
+.bt-ready.is-ready { border-color: #cce8dc; background: #f0faf6; color: #28775b; }
+.bt-ready.is-ready > span { background: #2da376; box-shadow: 0 0 0 4px #dff3ea; }
+.bt-ready.needs-action { border-color: #efd7ad; background: #fff8eb; color: #8a5b12; }
+.bt-ready.needs-action > span { background: #e89b21; box-shadow: 0 0 0 4px #fae8c9; }
+.bt-settings { margin-top: 9px; border: 1px solid #e2e9ef; border-radius: 11px; overflow: hidden; }
+.bt-settings summary { display: flex; align-items: center; justify-content: space-between; min-height: 38px; padding: 8px 11px; color: #4d6579; font-size: 12px; font-weight: 650; cursor: pointer; list-style: none; }
+.bt-settings summary::-webkit-details-marker { display: none; }
+.bt-settings summary small { color: #8495a3; font-size: 10px; font-weight: 500; }
+.bt-settings[open] summary { border-bottom: 1px solid #e5ebf0; background: #f8fafc; }
+.bt-settings[open] summary small { font-size: 0; }
+.bt-settings[open] summary small::after { content: "收起"; font-size: 10px; }
+.bt-setting-list { display: grid; gap: 0; padding: 3px 10px 8px; }
+.bt-setting-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 0; border-bottom: 1px solid #edf1f4; }
+.bt-setting-row > div { display: grid; gap: 2px; font-size: 11px; color: #687d8e; }
+.bt-setting-row strong { color: #2f6f57; font-size: 11px; font-weight: 650; }
+.bt-setting-row .bt-button { min-height: 30px; padding: 4px 10px; border-radius: 8px; font-size: 10px; }
+.bt-location { padding: 8px 0 2px; }
+.bt-location p { margin: 0 0 7px; color: #7a6a4c; font-size: 10px; line-height: 1.45; }
+.bt-location .bt-button { width: 100%; min-height: 30px; padding: 4px 8px; font-size: 10px; }
+.bt-stage-note { margin: 10px 0 0; padding: 10px 11px; border-radius: 10px; background: #f5f7fa; color: #6d7f8e; font-size: 10px; line-height: 1.45; }
+.bt-stage-note strong { display: block; margin-bottom: 2px; color: #4d6376; font-size: 11px; }
+.bt-device-panel { align-self: start; }
+.android-bluetooth .bt-section-header { display: flex; align-items: center; margin: 0; }
+.android-bluetooth .bt-section-header h2 { margin: 0 0 3px; font-size: 18px; color: #20394d; }
+.bt-scan-description { display: block; color: #7a8c9b; font-size: 11px; }
+.android-bluetooth .bt-button { min-height: 36px; padding: 7px 14px; border-radius: 10px; font-size: 12px; font-weight: 650; }
+.android-bluetooth .bt-button.primary { border-color: #0783d1; background: #078bdd; box-shadow: 0 3px 8px rgba(7,139,221,.18); }
+.android-bluetooth .bt-button.primary:active { background: #087bc3; transform: translateY(1px); }
+.android-bluetooth .bt-message { min-height: 34px; margin: 12px 0; padding: 8px 11px; border-radius: 9px; background: #f3f7fa; color: #647b8e; font-size: 11px; line-height: 1.5; }
+.android-bluetooth .bt-message.error { background: #fff0f0; color: #a83939; }
+.android-bluetooth .bt-list { display: grid; gap: 8px; margin: 0; background: transparent; border-radius: 0; overflow: visible; }
+.android-bluetooth .bt-device { min-height: 68px; padding: 11px 12px; gap: 12px; border: 1px solid #e1e8ee; border-radius: 11px; background: #fbfcfd; }
+.android-bluetooth .bt-device:last-child { border-bottom: 1px solid #e1e8ee; }
+.bt-device-info strong { color: #243d51; font-size: 14px; }
+.bt-device-info small { margin-top: 3px; color: #8192a1; font-size: 10px; }
+.bt-signal { display: flex; align-items: flex-end; gap: 2px; width: 27px; flex-shrink: 0; }
+.bt-signal i { width: 4px; background: #dce5eb; border-radius: 2px; }
+.bt-signal i.lit { background: #078bdd; }
+.bt-device-actions { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+.android-bluetooth .bt-device-actions .bt-button { width: auto; min-height: 32px; padding: 5px 11px; white-space: nowrap; font-size: 10px; }
+.android-bluetooth .bt-rename { border-color: transparent; background: transparent; color: #61788b; }
+.android-bluetooth .bt-connect { border-color: #b8d9ee; background: #edf7fd; color: #087ebe; }
+.bt-current { display: flex; align-items: center; justify-content: space-between; gap: 15px; margin: 0 0 12px; padding: 12px 14px; border: 1px solid #c8e7d9; border-radius: 12px; background: #eff9f5; }
+.bt-current[hidden] { display: none; }
+.bt-eyebrow { color: #4a856e; font-size: 10px; font-weight: 650; }
+.bt-current h2 { margin: 3px 0; color: #234d3e; font-size: 16px; overflow-wrap: anywhere; }
+.bt-current p { margin: 0; color: #43806a; font-size: 10px; }
+.android-bluetooth .bt-empty { display: grid; place-items: center; min-height: 130px; padding: 18px; border: 1px solid #e2e9ef; border-radius: 12px; background: #fafcfd; text-align: center; color: #8192a1; }
+.android-bluetooth .bt-empty[hidden] { display: none; }
+.android-bluetooth .bt-empty strong { margin: 9px 0 3px; color: #4f6679; font-size: 14px; font-weight: 650; }
+.android-bluetooth .bt-empty > span:last-child { font-size: 10px; }
+.bt-radar { display: block; width: 28px; height: 28px; border: 2px solid #bdd9eb; border-radius: 50%; box-shadow: 0 0 0 7px #edf6fb; }
+.is-scanning .bt-radar { border-top-color: #078bdd; animation: bt-spin 1s linear infinite; }
+@keyframes bt-spin { to { transform: rotate(360deg); } }
+.bt-diagnostics { margin: 10px 0 0; color: #7b8d9c; font-size: 10px; }
+.bt-diagnostics summary { padding: 7px 2px; cursor: pointer; }
+.android-bluetooth .bt-trace { max-height: 110px; margin: 0 0 7px; padding: 8px; border-radius: 8px; user-select: text; -webkit-user-select: text; font-size: 9px; }
+.bt-rename-dialog { width: min(390px,88vw); border: 0; border-radius: 16px; padding: 0; box-shadow: 0 20px 70px #17324b55; }
+.bt-rename-dialog::backdrop { background: #263a4b66; }
+.bt-rename-dialog form { padding: 22px; }
+.bt-rename-dialog h2 { margin: 0 0 7px; color: #223b4e; font-size: 18px; }
+.bt-rename-dialog p { margin: 0 0 14px; color: #718395; font-size: 11px; line-height: 1.5; }
+.bt-rename-dialog input { box-sizing: border-box; width: 100%; height: 42px; padding: 0 11px; border: 1px solid #b9c9d8; border-radius: 9px; font-size: 15px; }
+.bt-rename-dialog form>div { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
+.bt-rename-dialog button { min-width: 76px; padding: 8px 13px; border: 0; border-radius: 9px; background: #edf2f6; color: #4c647b; font-weight: 700; }
+.bt-rename-dialog button.primary { background: #087fd8; color: #fff; }
+@media (max-height:460px) and (min-width:701px) {
+  .bt-mobile-layout { grid-template-columns: 238px minmax(0,1fr); gap: 12px; padding: 12px 16px; }
+  .bt-phone-panel,.bt-device-panel { padding: 14px; border-radius: 14px; }
+  .bt-phone-symbol { flex-basis: 38px; width: 38px; height: 38px; }
+  .bt-phone-heading h2 { font-size: 16px; }
+  .bt-ready { min-height: 36px; margin-top: 10px; padding-block: 7px; }
+  .bt-stage-note { padding: 8px 9px; }
+  .android-bluetooth .bt-empty { min-height: 112px; padding: 13px; }
 }
-@media(max-width:700px) {.bt-mobile-layout {grid-template-columns:1fr;padding:16px;}.bt-phone-panel {padding:16px;}.bt-phone-symbol {float:left;margin-right:16px;}}
+@media (max-width:700px) { .bt-mobile-layout { grid-template-columns: 1fr; padding: 12px; } .bt-phone-panel,.bt-device-panel { padding: 14px; } }
+@media (prefers-reduced-motion:reduce) { .is-scanning .bt-radar { animation: none; } }

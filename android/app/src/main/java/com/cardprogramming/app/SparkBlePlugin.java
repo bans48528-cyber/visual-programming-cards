@@ -22,6 +22,7 @@ import java.util.*;
 public class SparkBlePlugin extends Plugin {
     private static final UUID SERVICE=UUID.fromString("0000fff0-0000-1000-8000-00805f9b34fb");
     private static final UUID CHARACTERISTIC=UUID.fromString("0000fff1-0000-1000-8000-00805f9b34fb");
+    private static final UUID WRITE_CHARACTERISTIC=UUID.fromString("0000fff2-0000-1000-8000-00805f9b34fb");
     private static final UUID CCCD=UUID.fromString("00002902-0000-1000-8000-00805f9b34fb");
     private final Handler main=new Handler(Looper.getMainLooper());
     private final Map<String,BluetoothDevice> found=new HashMap<>();
@@ -30,7 +31,7 @@ public class SparkBlePlugin extends Plugin {
     private ScanCallback scanCallback;
     private String scanId="", connectionId="", deviceId="";
     private BluetoothGatt gatt;
-    private BluetoothGattCharacteristic characteristic;
+    private BluetoothGattCharacteristic characteristic, writeCharacteristic, fallbackCharacteristic;
     private PluginCall connectCall, operationCall;
     private String operation="";
     private boolean subscribed=false, foreground=true;
@@ -156,7 +157,7 @@ public class SparkBlePlugin extends Plugin {
     private boolean matches(PluginCall call) {
         if(!closingReason.isEmpty()) {call.reject("连接正在关闭。");return false;}
         if(!ready(call,false)) return false;
-        if(gatt==null || characteristic==null || !connectionId.equals(call.getString("connectionId",""))) {
+        if(gatt==null || characteristic==null || writeCharacteristic==null || !connectionId.equals(call.getString("connectionId",""))) {
             call.reject("连接已变化，请重新连接。");return false;
         }
         if(operationCall!=null) {call.reject("上一条蓝牙操作尚未完成。");return false;}
@@ -209,20 +210,28 @@ public class SparkBlePlugin extends Plugin {
         if(!subscribed) {call.reject("请先订阅设备通知。");return;}
         byte[] bytes;
         try {bytes=Base64.decode(call.getString("data",""),Base64.NO_WRAP);} catch(Exception e) {call.reject("无效的蓝牙数据。");return;}
-        // Xiaobai accepts only C1 remote key states; never upload or toggle B9.
+        // Only the fixed 17-byte remote and programming frames are allowed.
         boolean remote=RemoteFrame.valid(bytes);
+        boolean programming=ProgramFrame.valid(bytes);
         if(remote && uploadGate.active()) {call.reject("程序发送期间不能使用遥控。");return;}
-        if(!remote) {call.reject("无效指令或文件发送顺序错误。");return;}
+        if(!remote && !programming) {call.reject("无效的小白控制指令。");return;}
         if(remote) remoteUsed=true;
         beginOperation(call,"write");
-        int type=(characteristic.getProperties()&BluetoothGattCharacteristic.PROPERTY_WRITE_NO_RESPONSE)!=0
-            ? BluetoothGattCharacteristic.WRITE_TYPE_NO_RESPONSE:BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT;
+        BluetoothGattCharacteristic target=writeCharacteristic;
+        int type=(target.getProperties()&BluetoothGattCharacteristic.PROPERTY_WRITE)!=0
+            ? BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT:BluetoothGattCharacteristic.WRITE_TYPE_NO_RESPONSE;
         try {
             boolean accepted;
-            if(Build.VERSION.SDK_INT>=33) accepted=gatt.writeCharacteristic(characteristic,bytes,type)==BluetoothStatusCodes.SUCCESS;
-            else {characteristic.setWriteType(type);characteristic.setValue(bytes);accepted=gatt.writeCharacteristic(characteristic);}
+            if(Build.VERSION.SDK_INT>=33) accepted=gatt.writeCharacteristic(target,bytes,type)==BluetoothStatusCodes.SUCCESS;
+            else {target.setWriteType(type);target.setValue(bytes);accepted=gatt.writeCharacteristic(target);}
             if(!accepted) throw new IllegalStateException();
         } catch(Exception e) {closeConnection("蓝牙写入失败，连接已关闭，未自动重发。");}
+    });}
+    @PluginMethod public void useFallbackWrite(PluginCall call) {main.post(()->{
+        if(!matches(call)) return;
+        if(fallbackCharacteristic==null) {call.reject("设备没有可用的备用写入特征。");return;}
+        writeCharacteristic=fallbackCharacteristic;
+        call.resolve();
     });}
     @PluginMethod public void disconnect(PluginCall call) {main.post(()->{
         // A delayed JS cleanup must not tear down a newer connection.
@@ -239,13 +248,14 @@ public class SparkBlePlugin extends Plugin {
         operation="release";
         operationTimeout=()->closeConnection(reason);
         main.postDelayed(operationTimeout,1000);
-        int type=(characteristic.getProperties()&BluetoothGattCharacteristic.PROPERTY_WRITE_NO_RESPONSE)!=0
-            ? BluetoothGattCharacteristic.WRITE_TYPE_NO_RESPONSE:BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT;
+        BluetoothGattCharacteristic target=writeCharacteristic;
+        int type=(target.getProperties()&BluetoothGattCharacteristic.PROPERTY_WRITE)!=0
+            ? BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT:BluetoothGattCharacteristic.WRITE_TYPE_NO_RESPONSE;
         try {
             byte[] bytes=RemoteFrame.released();
             boolean accepted;
-            if(Build.VERSION.SDK_INT>=33) accepted=gatt.writeCharacteristic(characteristic,bytes,type)==BluetoothStatusCodes.SUCCESS;
-            else {characteristic.setWriteType(type);characteristic.setValue(bytes);accepted=gatt.writeCharacteristic(characteristic);}
+            if(Build.VERSION.SDK_INT>=33) accepted=gatt.writeCharacteristic(target,bytes,type)==BluetoothStatusCodes.SUCCESS;
+            else {target.setWriteType(type);target.setValue(bytes);accepted=gatt.writeCharacteristic(target);}
             if(!accepted) closeConnection(reason);
         } catch(Exception ignored) {closeConnection(reason);}
     }
@@ -254,7 +264,7 @@ public class SparkBlePlugin extends Plugin {
         closingReason="";remoteUsed=false;
         if(connectTimeout!=null) main.removeCallbacks(connectTimeout);
         if(operationTimeout!=null) main.removeCallbacks(operationTimeout);
-        BluetoothGatt previous=gatt;gatt=null;characteristic=null;subscribed=false;
+        BluetoothGatt previous=gatt;gatt=null;characteristic=null;writeCharacteristic=null;fallbackCharacteristic=null;subscribed=false;
         String ticket=connectionId;connectionId="";deviceId="";
         PluginCall pendingConnect=connectCall,pendingOperation=operationCall;
         connectCall=null;operationCall=null;operation="";
@@ -295,14 +305,21 @@ public class SparkBlePlugin extends Plugin {
             characteristic=service==null?null:service.getCharacteristic(CHARACTERISTIC);
             if(characteristic==null) {closeConnection("未找到 Spark_AI 的 FFF0 / FFF1 服务，请检查主机型号。");return;}
             int p=characteristic.getProperties();
-            if((p&(BluetoothGattCharacteristic.PROPERTY_NOTIFY|BluetoothGattCharacteristic.PROPERTY_INDICATE))==0 ||
-                (p&(BluetoothGattCharacteristic.PROPERTY_WRITE|BluetoothGattCharacteristic.PROPERTY_WRITE_NO_RESPONSE))==0) {closeConnection("主机不支持所需的通知和写入能力。");return;}
+            if((p&(BluetoothGattCharacteristic.PROPERTY_NOTIFY|BluetoothGattCharacteristic.PROPERTY_INDICATE))==0) {closeConnection("主机不支持所需的通知能力。");return;}
+            fallbackCharacteristic=(p&(BluetoothGattCharacteristic.PROPERTY_WRITE|BluetoothGattCharacteristic.PROPERTY_WRITE_NO_RESPONSE))!=0?characteristic:null;
+            BluetoothGattCharacteristic preferred=service.getCharacteristic(WRITE_CHARACTERISTIC);
+            if(preferred!=null&&(preferred.getProperties()&(BluetoothGattCharacteristic.PROPERTY_WRITE|BluetoothGattCharacteristic.PROPERTY_WRITE_NO_RESPONSE))!=0) writeCharacteristic=preferred;
+            else writeCharacteristic=fallbackCharacteristic;
+            if(writeCharacteristic==null) {closeConnection("主机不支持所需的写入能力。");return;}
             main.removeCallbacks(connectTimeout);
             JSObject result=new JSObject(),properties=new JSObject();
             properties.put("notify",(p&BluetoothGattCharacteristic.PROPERTY_NOTIFY)!=0);
             properties.put("indicate",(p&BluetoothGattCharacteristic.PROPERTY_INDICATE)!=0);
-            properties.put("write",(p&BluetoothGattCharacteristic.PROPERTY_WRITE)!=0);
-            properties.put("writeWithoutResponse",(p&BluetoothGattCharacteristic.PROPERTY_WRITE_NO_RESPONSE)!=0);
+            int wp=writeCharacteristic.getProperties();
+            properties.put("write",(wp&BluetoothGattCharacteristic.PROPERTY_WRITE)!=0);
+            properties.put("writeWithoutResponse",(wp&BluetoothGattCharacteristic.PROPERTY_WRITE_NO_RESPONSE)!=0);
+            properties.put("fallbackWrite",fallbackCharacteristic!=null&&fallbackCharacteristic!=writeCharacteristic);
+            properties.put("writeCharacteristic",writeCharacteristic.getUuid().toString());
             result.put("properties",properties);result.put("connectionId",connectionId);
             PluginCall call=connectCall;connectCall=null;call.resolve(result);
         });}
@@ -312,8 +329,8 @@ public class SparkBlePlugin extends Plugin {
             finishOperation(status);
         });}
         @Override public void onCharacteristicWrite(BluetoothGatt source,BluetoothGattCharacteristic item,int status) {main.post(()->{
-            if(source==gatt && CHARACTERISTIC.equals(item.getUuid()) && operation.equals("release")) {closeConnection(closingReason);return;}
-            if(source==gatt && CHARACTERISTIC.equals(item.getUuid()) && operation.equals("write")) finishOperation(status);
+            if(source==gatt && writeCharacteristic!=null && writeCharacteristic.getUuid().equals(item.getUuid()) && operation.equals("release")) {closeConnection(closingReason);return;}
+            if(source==gatt && writeCharacteristic!=null && writeCharacteristic.getUuid().equals(item.getUuid()) && operation.equals("write")) finishOperation(status);
         });}
         @Override public void onCharacteristicChanged(BluetoothGatt source,BluetoothGattCharacteristic item) {
             byte[] value=item.getValue();byte[] copy=value==null?null:value.clone();main.post(()->receive(source,item,copy));

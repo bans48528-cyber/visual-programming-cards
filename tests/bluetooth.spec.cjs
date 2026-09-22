@@ -36,10 +36,9 @@ const os=require('node:os');
       assert.equal((await page.request.get('http://127.0.0.1:4173/assets/toolbar/bluetooth.svg')).ok(),true);
       assert.deepEqual(await page.evaluate(()=>({
         motors:['motor-forward','motor-reverse','motor-stop'].map(id=>createProgramItem(id).params.port),
-        migrated:['A','B','C','D'].map(port=>normalizeParams(cardById['motor-forward'],{port,duration:1}).port),
-        sensors:['ultrasonic-sensor','grayscale-sensor','button-sensor'].map(id=>cardById[id].paramsSchema.port.options),
-        hostPort:cardById['host-button'].paramsSchema.port ?? null
-      })),{motors:['E','E','E'],migrated:['E','F','G','H'],sensors:[['A','B','C','D'],['A','B','C','D'],['A','B','C','D']],hostPort:null});
+        portLabels:cardById['motor-forward'].paramsSchema.port.options.map(value=>getParamOptionDisplay(cardById['motor-forward'].paramsSchema.port,value)),
+        categories:Object.fromEntries(Object.entries(categories).map(([key,group])=>[key,group.cards.length]))
+      })),{motors:['L/M1','L/M1','L/M1'],portLabels:['L','R'],categories:{motor:6,combo:7,logic:4,dynamic:5}});
       await page.evaluate(()=>addCard('motor-forward'));
       await page.locator('#bluetoothBtn').click();
       await page.locator('.bt-search').click();

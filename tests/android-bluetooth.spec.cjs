@@ -1,86 +1,101 @@
 const {chromium}=require('playwright');
 const assert=require('node:assert/strict');
-const path=require('node:path');
-const fs=require('node:fs');
-// Requires the usual 4173 repository server. dist is the actual Android asset build.
+const mockAndroid=require('./mock-android.cjs');
+const BASE='http://127.0.0.1:4173/dist/';
+async function makePage(browser,hash='editor'){
+  const context=await browser.newContext({viewport:{width:892,height:412},hasTouch:true});
+  await context.addInitScript(()=>{window.__XIAOBAI_BLE_TIMING={firstScanMs:80,defaultScanMs:180};});
+  await context.addInitScript(mockAndroid);
+  const page=await context.newPage(),errors=[];page.on('pageerror',error=>errors.push(error.message));
+  await page.goto(`${BASE}#${hash}`);await page.waitForFunction(()=>window.CardBluetooth);
+  return {context,page,errors};
+}
+async function setDevices(page,devices,connectErrors={}){await page.evaluate(({devices,connectErrors})=>{mockBle.devices=devices;mockBle.connectErrors=connectErrors;},{devices,connectErrors});}
+async function stopNative(page){await page.evaluate(async()=>{if(CardBluetooth.connected)await Capacitor.Plugins.SparkBle.disconnect({connectionId:mockBle.connectionId});});}
 (async()=>{
   const browser=await chromium.launch({channel:'msedge',headless:true});
-  try {
-    const context=await browser.newContext({viewport:{width:892,height:412},hasTouch:true});
-    await context.addInitScript(require('./mock-android.cjs'));
-    const page=await context.newPage(),errors=[];
-    page.on('pageerror',error=>errors.push(error.message));
-    await page.goto('http://127.0.0.1:4173/dist/#bluetooth');
-    await page.waitForFunction(()=>!document.querySelector('.bt-search').disabled);
-    assert.equal(await page.locator('.bt-top h1').textContent(),'手机蓝牙');
-    assert.equal(await page.locator('.bt-content').count(),0,'No browser pairing page on Android');
-    // A denied runtime permission must not start native scanning.
-    await page.evaluate(()=>{mockBle.grantPermission=false;mockBle.state.permissionsGranted=false;});
-    await page.locator('.bt-search').click();
-    await page.waitForFunction(()=>document.querySelector('.bt-message').textContent.includes('权限未获允许'));
-    assert.equal(await page.evaluate(()=>mockBle.calls.filter(c=>c.method==='startScan').length),0);
-    await page.evaluate(()=>{mockBle.grantPermission=true;mockBle.state.bluetoothEnabled=false;});
-    await page.locator('.bt-search').click();
-    await page.waitForFunction(()=>document.querySelector('.bt-message').textContent.includes('未开启'));
-    await page.locator('#btSystemSettings').click();
-    assert.equal(await page.evaluate(()=>mockBle.calls.at(-1).target),'bluetooth');
-    await page.evaluate(()=>{mockBle.state.bluetoothEnabled=true;mockBle.state.locationEnabled=false;});
-    await page.locator('.bt-search').click();
-    await page.waitForFunction(()=>document.querySelector('.bt-message').textContent.includes('系统定位'));
-    await page.evaluate(()=>{
-      mockBle.state.locationEnabled=true;
-      mockBle.devices=[{name:'Spark_AI',deviceId:'AA:BB:CC:DD:EE:01',rssi:-49},{name:'Spark_AI',deviceId:'AA:BB:CC:DD:EE:02',rssi:-82}];
-    });
-    await page.locator('.bt-search').click();
-    await page.locator('.bt-device').nth(1).waitFor();
-    assert.equal(await page.locator('.bt-device').count(),2);
-    const oldScan=await page.evaluate(()=>mockBle.scanId);
-    await page.locator('.bt-search').click();
-    await page.evaluate(id=>mockBle.emit('scanResult',{scanId:id,deviceId:'late',name:'Spark_AI',rssi:-10}),oldScan);
-    assert.equal(await page.locator('[data-device-id=late]').count(),0);
-    await page.locator('.bt-device .bt-button').first().click();
-    await page.waitForFunction(()=>window.CardBluetooth.connected);
-    assert.match(await page.locator('.bt-current p').textContent(),/已停止/);
-    const sequence=await page.evaluate(()=>mockBle.calls.filter(c=>['connect','subscribe','write'].includes(c.method)).map(c=>c.method));
-    assert.deepEqual(sequence,['connect','subscribe','write']);
-    const oldConnection=await page.evaluate(()=>mockBle.connectionId);
-    await page.evaluate(()=>mockBle.feed('{"WillAiState":"run"}'));
-    assert.match(await page.locator('.bt-current p').textContent(),/运行中/);
-    await page.waitForFunction(()=>document.getElementById('deviceStatus').dataset.state==='stale');
-    await page.evaluate(()=>mockBle.feed('{"WillAiState":"stop"}'));
-    fs.mkdirSync(path.resolve(__dirname,'../artifacts'),{recursive:true});
-    await page.screenshot({path:path.resolve(__dirname,'../artifacts/android-bluetooth-connected.png')});
-    await page.locator('#btDisconnect').click();
-    await page.waitForFunction(()=>!window.CardBluetooth.connected);
-    await page.evaluate(id=>mockBle.feed('{"WillAiState":"run"}',id),oldConnection);
-    assert.equal(await page.locator('#deviceStatus').getAttribute('data-state'),'disconnected');
-    // Cancel an in-flight native connect; late success must be closed without D0.
-    await page.evaluate(()=>{mockBle.connectionDelay=250;mockBle.calls=[];});
-    await page.locator('.bt-device .bt-button').first().click();
-    await page.waitForFunction(()=>mockBle.calls.some(c=>c.method==='connect'));
-    await page.locator('#btDisconnect').click();
-    await page.waitForFunction(()=>mockBle.calls.some(c=>c.method==='disconnect'));
-    await page.waitForTimeout(300);
-    assert.equal(await page.evaluate(()=>window.CardBluetooth.connected),false);
-    assert.equal(await page.evaluate(()=>mockBle.calls.some(c=>c.method==='write')),false);
-    // An actual disconnect event invalidates run/stop, including GATT failure.
-    await page.evaluate(()=>{mockBle.connectionDelay=10;});
-    await page.locator('.bt-device .bt-button').first().click();
-    await page.waitForFunction(()=>window.CardBluetooth.connected);
-    await page.evaluate(()=>mockBle.emit('disconnected',{connectionId:mockBle.connectionId,reason:'GATT 133'}));
-    assert.equal(await page.evaluate(()=>window.CardBluetooth.connected),false);
-    assert.match(await page.locator('.bt-message').textContent(),/GATT 133/);
-    await page.locator('.bt-device .bt-button').first().click();
-    await page.waitForFunction(()=>window.CardBluetooth.connected);
-    await page.evaluate(()=>{
-      Object.defineProperty(document,'hidden',{configurable:true,value:true});
-      document.dispatchEvent(new Event('visibilitychange'));
-    });
-    await page.waitForFunction(()=>!window.CardBluetooth.connected);
-    assert.equal(await page.locator('#deviceStatus').getAttribute('data-state'),'disconnected');
-    const commands=await page.evaluate(()=>mockBle.calls.filter(c=>c.method==='write').map(c=>atob(c.data).charCodeAt(4)));
-    assert.ok(commands.length>0 && commands.every(cmd=>cmd===0xd0));
-    assert.deepEqual(errors,[]);
-    console.log('PASS Android BLE: permission/radio/location, scan/stop, RSSI list, subscribe-before-D0, fragmented status, stale status, cancel/late callback, disconnect/background');
+  try{
+    // No default: scan for three-second-equivalent window, reject incompatible strongest, connect next strongest and save it.
+    {
+      const {context,page,errors}=await makePage(browser,'home');
+      await setDevices(page,[
+        {name:'Other BLE',deviceId:'BAD',rssi:-35},
+        {name:'Xiaobai Weak',deviceId:'GOOD',rssi:-58},
+        {name:'Xiaobai Far',deviceId:'FAR',rssi:-86}
+      ],{BAD:'未找到 FFF0 / FFF1'});
+      await page.evaluate(()=>location.hash='editor');
+      await page.waitForFunction(()=>document.getElementById('bluetoothBtn').classList.contains('is-connecting'));
+      await page.waitForFunction(()=>CardBluetooth.connected,null,{timeout:3000});
+      await page.waitForFunction(()=>CardBluetooth.defaultDeviceId==='GOOD');
+      assert.deepEqual(await page.evaluate(()=>mockBle.calls.filter(c=>c.method==='connect').map(c=>c.deviceId)),['BAD','GOOD']);
+      assert.equal(await page.evaluate(()=>CardBluetooth.defaultDeviceId),'GOOD');
+      assert.equal(await page.locator('#deviceStatus').getAttribute('data-state'),'stop');
+      assert.ok(await page.locator('#bluetoothBtn').evaluate(el=>el.classList.contains('is-connected')));
+      await page.evaluate(()=>mockBle.emit('scanResult',{scanId:mockBle.scanId,name:'Late Strong',deviceId:'LATE',rssi:-1}));
+      await page.waitForTimeout(50);assert.equal(await page.evaluate(()=>mockBle.calls.filter(c=>c.method==='connect').length),2,'connected device must not be replaced');
+      assert.deepEqual(errors,[]);await context.close();
+    }
+    // A default device restricts auto-connect. A stronger non-default result is ignored.
+    {
+      const {context,page,errors}=await makePage(browser,'bluetooth');
+      await page.evaluate(()=>localStorage.setItem('xiaobaiDefaultDeviceV1','DEFAULT'));
+      await setDevices(page,[{name:'Stronger',deviceId:'OTHER',rssi:-20},{name:'Remembered',deviceId:'DEFAULT',rssi:-70}]);
+      await page.evaluate(()=>location.hash='editor');await page.waitForFunction(()=>CardBluetooth.connected);
+      assert.deepEqual(await page.evaluate(()=>mockBle.calls.filter(c=>c.method==='connect').map(c=>c.deviceId)),['DEFAULT']);
+      assert.equal(await page.evaluate(()=>CardBluetooth.defaultDeviceId),'DEFAULT');assert.deepEqual(errors,[]);await context.close();
+    }
+    // Missing default: wait to deadline, do not fall back to another device.
+    {
+      const {context,page,errors}=await makePage(browser,'bluetooth');
+      await page.evaluate(()=>localStorage.setItem('xiaobaiDefaultDeviceV1','MISSING'));
+      await setDevices(page,[{name:'Available',deviceId:'OTHER',rssi:-15}]);
+      await page.evaluate(()=>location.hash='editor');
+      await page.waitForFunction(()=>document.getElementById('executionNotice').textContent.includes('10 秒内未找到默认设备'));
+      assert.equal(await page.evaluate(()=>mockBle.calls.filter(c=>c.method==='connect').length),0);
+      assert.equal(await page.locator('#deviceStatus').getAttribute('data-state'),'disconnected');assert.deepEqual(errors,[]);await context.close();
+    }
+    // Manual selection cancels an automatic connect; its late success cannot replace the manual device.
+    {
+      const {context,page,errors}=await makePage(browser,'home');
+      await setDevices(page,[{name:'Auto',deviceId:'AUTO',rssi:-30},{name:'Manual',deviceId:'MANUAL',rssi:-60}]);
+      await page.evaluate(()=>{mockBle.connectionDelay=250;location.hash='editor';});
+      await page.waitForFunction(()=>mockBle.calls.some(c=>c.method==='connect'&&c.deviceId==='AUTO'));
+      await page.evaluate(()=>location.hash='bluetooth');await page.locator('[data-device-id=MANUAL] .bt-connect').click();
+      await page.waitForFunction(()=>CardBluetooth.connected,null,{timeout:3000});
+      await page.waitForFunction(()=>CardBluetooth.defaultDeviceId==='MANUAL');
+      assert.equal(await page.evaluate(()=>CardBluetooth.defaultDeviceId),'MANUAL');
+      assert.equal(await page.locator('.bt-current h2').textContent(),'Manual');
+      await page.waitForTimeout(300);assert.equal(await page.locator('.bt-current h2').textContent(),'Manual');assert.deepEqual(errors,[]);await context.close();
+    }
+    // Failed manual choice keeps the old default.
+    {
+      const {context,page,errors}=await makePage(browser,'bluetooth');
+      await page.evaluate(()=>localStorage.setItem('xiaobaiDefaultDeviceV1','OLD'));
+      await setDevices(page,[{name:'Broken',deviceId:'BROKEN',rssi:-40}],{BROKEN:'连接失败'});
+      await page.locator('.bt-search').click();await page.locator('[data-device-id=BROKEN]').waitFor();await page.locator('[data-device-id=BROKEN] .bt-connect').click();
+      await page.waitForFunction(()=>document.querySelector('.bt-message').textContent.includes('连接 Broken 失败'));
+      assert.equal(await page.evaluate(()=>CardBluetooth.defaultDeviceId),'OLD');assert.deepEqual(errors,[]);await context.close();
+    }
+    // Rename is local, shown in list/current status, independent from default, and survives reload.
+    {
+      const {context,page,errors}=await makePage(browser,'bluetooth');
+      await setDevices(page,[{name:'Factory Name',deviceId:'RENAMED',rssi:-45}]);
+      await page.locator('.bt-search').click();await page.locator('[data-device-id=RENAMED]').waitFor();await page.locator('[data-device-id=RENAMED] .bt-rename').click();
+      await page.locator('.bt-rename-dialog input').fill('教室一号');await page.locator('.bt-rename-dialog button[value=confirm]').click();
+      await page.waitForFunction(()=>document.querySelector('[data-device-id=RENAMED] strong').textContent.includes('教室一号'));
+      assert.match(await page.locator('[data-device-id=RENAMED] strong').textContent(),/教室一号/);assert.equal(await page.evaluate(()=>CardBluetooth.defaultDeviceId),'');
+      await page.reload();await page.waitForFunction(()=>window.CardBluetooth);await setDevices(page,[{name:'Factory Name',deviceId:'RENAMED',rssi:-45}]);
+      await page.locator('.bt-search').click();await page.locator('[data-device-id=RENAMED]').waitFor();assert.match(await page.locator('[data-device-id=RENAMED] strong').textContent(),/教室一号/);
+      await page.locator('[data-device-id=RENAMED] .bt-connect').click();await page.waitForFunction(()=>CardBluetooth.connected);assert.equal(await page.locator('.bt-current h2').textContent(),'教室一号');assert.equal(await page.evaluate(()=>CardBluetooth.defaultDeviceId),'RENAMED');
+      assert.deepEqual(errors,[]);await context.close();
+    }
+    // Repeated entry points share one flow; remote entry also starts auto-connect.
+    {
+      const {context,page,errors}=await makePage(browser,'home');await setDevices(page,[{name:'Remote Device',deviceId:'REMOTE',rssi:-45}]);
+      await page.locator('.home-remote-entry').click();await page.evaluate(()=>CardBluetooth.ensureConnected());await page.evaluate(()=>CardBluetooth.ensureConnected());
+      await page.waitForFunction(()=>CardBluetooth.connected);assert.equal(await page.evaluate(()=>mockBle.calls.filter(c=>c.method==='startScan').length),1);
+      assert.deepEqual(errors,[]);await context.close();
+    }
+    console.log('PASS Android BLE auto/default/manual/rename: strongest compatible, default-only timeout, manual priority, late-result guard, failure preservation, persistence, single flow.');
   } finally {await browser.close();}
 })().catch(error=>{console.error(error);process.exitCode=1;});
