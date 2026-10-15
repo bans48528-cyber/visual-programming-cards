@@ -4,6 +4,7 @@ const assert=require('node:assert/strict');
  const browser=await chromium.launch({channel:'msedge'});
  try {
   const context=await browser.newContext({viewport:{width:892,height:412},hasTouch:true});
+    await context.addInitScript(()=>localStorage.setItem('cardDefaultModelV1','xiaobai'));
   await context.addInitScript(require('./mock-android.cjs'));
   const page=await context.newPage(),errors=[];page.on('pageerror',e=>errors.push(e.message));
   await page.goto('http://127.0.0.1:4173/dist/#bluetooth');

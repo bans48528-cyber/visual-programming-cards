@@ -1,0 +1,14 @@
+{
+  "xiaobai": [
+    {
+      "id": "duck-v2-test",
+      "name": "机器鸭 v2",
+      "description": "测试搭建图 · 仅适用于小白",
+      "file": "assets/building-models/xiaobai-duck-v2.io"
+    }
+  ],
+  "lbs2206": [],
+  "spark-ai": [],
+  "tc01": [],
+  "receiver2226": []
+}

@@ -1,0 +1,1 @@
+lego-local-viewer local commit fc3ed4b; upstream files in js/css/textures unchanged. App adapters are applied by scripts/build-viewer.cjs. See licenses/.

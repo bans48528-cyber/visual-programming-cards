@@ -23,7 +23,7 @@ android {
         }
     }
     buildFeatures { buildConfig true }
-    sourceSets { main { jniLibs.srcDirs = [] } }
+    sourceSets { main { jniLibs.srcDirs = ['src/main/jniLibs'] } }
 }
 
 repositories {

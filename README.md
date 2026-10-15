@@ -1,5 +1,7 @@
 # 小白编程 Android 1.2.3
 
+设备型号架构和接入说明见 [docs/DEVICE_MODELS.md](docs/DEVICE_MODELS.md)。小白保持原有功能，LBS2206 已接入独立模块（业务发送待实物验证，见 [接入状态](docs/LBS2206_INTEGRATION.md)），型号、作品和默认蓝牙设备分别管理；网页用于界面预览，硬件操作在 Android APP 中验证。
+
 当前分支：xiaobai/remote-blocks。基于 ddb4db7 开发。
 
 - 支持小白积木、作品保存与手动遥控。手机负责程序顺序、循环和等待时间；设备按 C2 指令执行电机、红外、显示和语音动作。

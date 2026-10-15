@@ -20,6 +20,7 @@ const server = http.createServer((req, res) => {
   const browser = await chromium.launch({channel:'msedge', headless:true});
   try {
     const context = await browser.newContext({viewport:{width:844, height:390}, hasTouch:true});
+      await context.addInitScript(()=>localStorage.setItem('cardDefaultModelV1','xiaobai'));
     await context.addInitScript(() => {
       window.__playedBlockSounds = [];
       window.Audio = class MockAudio {

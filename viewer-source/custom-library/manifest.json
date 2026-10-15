@@ -1,0 +1,160 @@
+{
+  "version": 1,
+  "description": "User supplied XiaoBai assemblies; separate from the standard LEGO library",
+  "assemblies": [
+    {
+      "id": "xiaobai-hub.dat",
+      "name": "小白主机",
+      "components": [
+        {
+          "color": "151",
+          "position": [
+            160.274,
+            -45.0,
+            -39.91438
+          ],
+          "matrix": [
+            1.0,
+            0.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            0.0,
+            1.0
+          ],
+          "id": "m3f5402ce_2026723_040059.dat"
+        },
+        {
+          "color": "232",
+          "position": [
+            -80.27402,
+            -1.00201,
+            40.08663
+          ],
+          "matrix": [
+            1.0,
+            0.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            0.0,
+            1.0
+          ],
+          "id": "m3f5402ce_2026723_040103.dat"
+        },
+        {
+          "color": "0",
+          "position": [
+            -80.27402,
+            -0.002,
+            39.93013
+          ],
+          "matrix": [
+            1.0,
+            0.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            0.0,
+            1.0
+          ],
+          "id": "m3f5402ce_2026723_040107.dat"
+        },
+        {
+          "color": "72",
+          "position": [
+            0.27399,
+            0.0,
+            -40.10237
+          ],
+          "matrix": [
+            1.0,
+            0.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            0.0,
+            1.0
+          ],
+          "id": "m3f5402ce_2026723_040838.dat"
+        }
+      ]
+    }
+  ],
+  "aliases": {
+    "m3f5402ce_2026312_042221.dat": "xiaobai-motor-plug.dat"
+  },
+  "products": [
+    {
+      "id": "xiaobai-hub.dat",
+      "name": "小白主机"
+    },
+    {
+      "id": "xiaobai-motor-plug.dat",
+      "name": "小白马达接线头"
+    }
+  ],
+  "source_archives": {
+    "小白主机.io": {
+      "sha256": "51ada9423379bff127e415da6e3315e8cccb369865ea7e20ca4aa331b8d09e17",
+      "bytes": 1529091
+    },
+    "小白接线头.io": {
+      "sha256": "f9bc732a611f68b10ffb865134e2a8da3ce7b1f224351a344dbc6292a9bf3d67",
+      "bytes": 131105
+    }
+  },
+  "parts": {
+    "m3f5402ce_2026723_040059.dat": {
+      "url": "/custom-library/m3f5402ce_2026723_040059.dat",
+      "bytes": 1000607,
+      "sha256": "9c2bc302b87af504a2aa2141894d3492fac99571ad954129f809c8e70d73c215",
+      "source": "小白主机.io!CustomParts/m3f5402ce_2026723_040059.dat"
+    },
+    "m3f5402ce_2026723_040103.dat": {
+      "url": "/custom-library/m3f5402ce_2026723_040103.dat",
+      "bytes": 379266,
+      "sha256": "6a975a7d3c32693edd4002e37e1692e7092c6dfc81243b1ecec1666842cccc3e",
+      "source": "小白主机.io!CustomParts/m3f5402ce_2026723_040103.dat"
+    },
+    "m3f5402ce_2026723_040107.dat": {
+      "url": "/custom-library/m3f5402ce_2026723_040107.dat",
+      "bytes": 49112,
+      "sha256": "648b4ae4e0f7930bdced9e9df6d6091e1c05f0b3f6db11291dc6f176251b73cf",
+      "source": "小白主机.io!CustomParts/m3f5402ce_2026723_040107.dat"
+    },
+    "m3f5402ce_2026723_040838.dat": {
+      "url": "/custom-library/m3f5402ce_2026723_040838.dat",
+      "bytes": 4245329,
+      "sha256": "737c1449b200a7a14467204fe6fddf78a5b53bdc63c3de20338b62061853d828",
+      "source": "小白主机.io!CustomParts/m3f5402ce_2026723_040838.dat"
+    },
+    "xiaobai-hub.dat": {
+      "url": "/custom-library/xiaobai-hub.dat",
+      "bytes": 734,
+      "sha256": "8c50545c03f0c2e5c1b68efad64f0c64383ae064d8f4a8c5b72258840d649e50",
+      "source": "小白主机.io!model.ldr#小白 copy"
+    },
+    "xiaobai-motor-plug.dat": {
+      "url": "/custom-library/xiaobai-motor-plug.dat",
+      "bytes": 468788,
+      "sha256": "87da7f7ac257dbc799133dd505795470d6b0a25e5e26c34c3237ed3e90f2bad4",
+      "source": "小白接线头.io!CustomParts/m3f5402ce_2026312_042221.dat"
+    },
+    "m3f5402ce_2026312_042221.dat": {
+      "url": "/custom-library/m3f5402ce_2026312_042221.dat",
+      "bytes": 167,
+      "sha256": "1fe8e09c25b28a295bbfeb98b63ba278cafa50f38e45974ac277c00c82ed7488",
+      "source": "Compatibility alias; original coordinates retained"
+    }
+  },
+  "asset_bytes": 6144126
+}

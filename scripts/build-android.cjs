@@ -15,6 +15,9 @@ if (!env.JAVA_HOME && fs.existsSync(path.join(cache, 'jdk-ms'))) {
 if (!env.ANDROID_HOME && !env.ANDROID_SDK_ROOT && fs.existsSync(path.join(cache, 'sdk'))) {
   env.ANDROID_HOME = path.join(cache, 'sdk');
 }
+const compiler = spawnSync(process.execPath, [path.join(root, 'scripts/build-native-compiler.cjs')], {env, stdio: 'inherit'});
+if (compiler.error) throw compiler.error;
+if (compiler.status !== 0) process.exit(compiler.status || 1);
 const result = spawnSync(process.platform === 'win32' ? 'gradlew.bat' : './gradlew',
   ['assembleDebug', '--console=plain'], {
     cwd: path.join(root, 'android'), env, stdio: 'inherit', shell: process.platform === 'win32'

@@ -36,6 +36,9 @@ public class SparkBlePlugin extends Plugin {
     private String operation="";
     private boolean subscribed=false, foreground=true;
     private boolean remoteUsed=false;
+    private String profile="xiaobai", lbsWriteMode="", tcWriteMode="", tcLineEnding="";
+    private UUID selectedService=SERVICE, selectedNotify=CHARACTERISTIC, selectedWrite=WRITE_CHARACTERISTIC;
+    private int lbsMaxBytes=0, lbsSafeActions=0;
     private String closingReason="";
     private final UploadGate uploadGate=new UploadGate();
     private int negotiatedMtu=23;
@@ -105,12 +108,13 @@ public class SparkBlePlugin extends Plugin {
         if(gatt!=null) {call.reject("请先断开当前设备再扫描。");return;}
         stopScanInternal("replaced");found.clear();scanId=call.getString("scanId","");
         final String ticket=scanId;
+        final boolean includeUnnamed=call.getBoolean("includeUnnamed",false);
         scanCallback=new ScanCallback() {
             @Override public void onScanResult(int type,ScanResult result) {main.post(()->{
                 if(scanCallback!=this || !ticket.equals(scanId)) return;
                 String name=result.getScanRecord()==null?null:result.getScanRecord().getDeviceName();
                 try {if(name==null) name=result.getDevice().getName();} catch(SecurityException ignored) {}
-                if(name==null || name.isEmpty()) return;
+                if(name==null || name.isEmpty()) {if(!includeUnnamed)return;name="未命名设备";}
                 String id=result.getDevice().getAddress();
                 found.put(id,result.getDevice());
                 JSObject row=new JSObject();row.put("scanId",ticket);row.put("deviceId",id);row.put("name",name);row.put("rssi",result.getRssi());
@@ -145,7 +149,33 @@ public class SparkBlePlugin extends Plugin {
         String id=call.getString("deviceId","");
         BluetoothDevice device=found.get(id);
         if(device==null) {call.reject("设备不在本次扫描结果中，请重新搜索。");return;}
+        String requested=call.getString("profile","xiaobai");
+        if(!requested.equals("xiaobai") && !requested.equals("spark-ai") && !requested.equals("tc01") && !requested.equals("lbs2206") && !requested.equals("inspect")) {call.reject("未知设备协议");return;}
+        UUID service=SERVICE,notify=CHARACTERISTIC,write=requested.equals("spark-ai")?CHARACTERISTIC:WRITE_CHARACTERISTIC;
+        if(requested.equals("tc01")) {
+            try {
+                service=UUID.fromString(call.getString("serviceUuid",""));
+                write=UUID.fromString(call.getString("writeUuid",""));
+                String notification=call.getString("notifyUuid","");
+                notify=notification.isEmpty()?write:UUID.fromString(notification);
+            }catch(Exception e){call.reject("TC-01 的 BLE UUID 尚未确认。");return;}
+            String mode=call.getString("writeMode","");
+            if((!mode.equals("response")&&!mode.equals("no-response"))||!Tc01Frame.validEnding(call.getString("lineEnding",null))) {call.reject("TC-01 写入方式或字符串结束符未确认。");return;}
+        }
+        if(requested.equals("lbs2206")) {
+            try {
+                service=UUID.fromString(call.getString("serviceUuid",""));
+                notify=UUID.fromString(call.getString("notifyUuid",""));
+                write=UUID.fromString(call.getString("writeUuid",""));
+            }catch(Exception e){call.reject("LBS2206 的 GATT UUID 尚未确认");return;}
+            int max=call.getInt("maxFrameBytes",0);
+            String mode=call.getString("writeMode","");
+            if(max<4 || max>20 || (!mode.equals("response")&&!mode.equals("no-response"))) {call.reject("LBS2206 单帧传输配置无效");return;}
+        }
         stopScanInternal("connecting");closeConnection("切换连接");
+        profile=requested;selectedService=service;selectedNotify=notify;selectedWrite=write;
+        tcWriteMode=call.getString("writeMode","");tcLineEnding=call.getString("lineEnding","");
+        lbsWriteMode=call.getString("writeMode","");lbsMaxBytes=call.getInt("maxFrameBytes",0);lbsSafeActions=call.getInt("safeActions",0);
         connectionId=call.getString("connectionId","");deviceId=id;connectCall=call;
         try {
             gatt=device.connectGatt(getContext(),false,callback,BluetoothDevice.TRANSPORT_LE);
@@ -178,6 +208,7 @@ public class SparkBlePlugin extends Plugin {
     @PluginMethod public void subscribe(PluginCall call) {main.post(()->{
         if(!matches(call)) return;
         if(subscribed) {call.resolve();return;}
+        if(profile.equals("tc01")&&(characteristic.getProperties()&(BluetoothGattCharacteristic.PROPERTY_NOTIFY|BluetoothGattCharacteristic.PROPERTY_INDICATE))==0) {subscribed=true;call.resolve();return;}
         beginOperation(call,"subscribe");
         try {
             BluetoothGattDescriptor descriptor=characteristic.getDescriptor(CCCD);
@@ -191,6 +222,7 @@ public class SparkBlePlugin extends Plugin {
         } catch(Exception e) {closeConnection("无法订阅主机通知，请重新连接。");}
     });}
     @PluginMethod public void prepareUpload(PluginCall call) {main.post(()->{
+        if(!profile.equals("spark-ai")) {call.reject("只有 Spark AI 支持编译文件上传。");return;}
         if(!matches(call)) return;
         if(!subscribed) {call.reject("请先订阅主机通知。");return;}
         if(uploadGate.active()) {call.reject("已有文件正在发送。");return;}
@@ -210,16 +242,27 @@ public class SparkBlePlugin extends Plugin {
         if(!subscribed) {call.reject("请先订阅设备通知。");return;}
         byte[] bytes;
         try {bytes=Base64.decode(call.getString("data",""),Base64.NO_WRAP);} catch(Exception e) {call.reject("无效的蓝牙数据。");return;}
-        // Only the fixed 17-byte remote and programming frames are allowed.
+        // Validate against the connection profile; LBS frames are never sent to Xiaobai.
         boolean remote=RemoteFrame.valid(bytes);
         boolean programming=ProgramFrame.valid(bytes);
         if(remote && uploadGate.active()) {call.reject("程序发送期间不能使用遥控。");return;}
-        if(!remote && !programming) {call.reject("无效的小白控制指令。");return;}
+        if(profile.equals("tc01")) {
+            if(!Tc01Frame.valid(bytes,tcLineEnding)||bytes.length>negotiatedMtu-3) {call.reject("无效或超长的 TC-01 遥控字符串。");return;}
+            remote=false;remoteUsed=true;
+        } else if(profile.equals("lbs2206")) {
+            if(!LbsFrame.valid(bytes,lbsMaxBytes,lbsSafeActions) || bytes.length>negotiatedMtu-3) {call.reject("无效或超长的 LBS2206 完整帧，未发送。");return;}
+            remote=false;
+        } else if(profile.equals("spark-ai")) {
+            if(bytes.length>negotiatedMtu-3) {call.reject("Spark AI 数据帧超过 MTU。");return;}
+            if(!remote && !SparkControlFrame.valid(bytes) && !uploadGate.accept(bytes)) {call.reject("无效的 Spark AI 上传或控制指令。");return;}
+        } else if(!remote && !programming) {call.reject("无效的小白控制指令。");return;}
         if(remote) remoteUsed=true;
         beginOperation(call,"write");
         BluetoothGattCharacteristic target=writeCharacteristic;
         int type=(target.getProperties()&BluetoothGattCharacteristic.PROPERTY_WRITE)!=0
             ? BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT:BluetoothGattCharacteristic.WRITE_TYPE_NO_RESPONSE;
+        if(profile.equals("tc01")) type=tcWriteMode.equals("response")?BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT:BluetoothGattCharacteristic.WRITE_TYPE_NO_RESPONSE;
+        if(profile.equals("lbs2206")) type=lbsWriteMode.equals("response")?BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT:BluetoothGattCharacteristic.WRITE_TYPE_NO_RESPONSE;
         try {
             boolean accepted;
             if(Build.VERSION.SDK_INT>=33) accepted=gatt.writeCharacteristic(target,bytes,type)==BluetoothStatusCodes.SUCCESS;
@@ -252,7 +295,8 @@ public class SparkBlePlugin extends Plugin {
         int type=(target.getProperties()&BluetoothGattCharacteristic.PROPERTY_WRITE)!=0
             ? BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT:BluetoothGattCharacteristic.WRITE_TYPE_NO_RESPONSE;
         try {
-            byte[] bytes=RemoteFrame.released();
+            if(profile.equals("tc01"))type=tcWriteMode.equals("response")?BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT:BluetoothGattCharacteristic.WRITE_TYPE_NO_RESPONSE;
+            byte[] bytes=profile.equals("tc01")?Tc01Frame.stopped(tcLineEnding):RemoteFrame.released();
             boolean accepted;
             if(Build.VERSION.SDK_INT>=33) accepted=gatt.writeCharacteristic(target,bytes,type)==BluetoothStatusCodes.SUCCESS;
             else {target.setWriteType(type);target.setValue(bytes);accepted=gatt.writeCharacteristic(target);}
@@ -275,7 +319,7 @@ public class SparkBlePlugin extends Plugin {
         if(!ticket.isEmpty()) {JSObject event=new JSObject();event.put("connectionId",ticket);event.put("reason",reason);notifyListeners("disconnected",event);}
     }
     private void receive(BluetoothGatt source,BluetoothGattCharacteristic item,byte[] value) {
-        if(source!=gatt || !CHARACTERISTIC.equals(item.getUuid()) || value==null) return;
+        if(source!=gatt || !selectedNotify.equals(item.getUuid()) || value==null) return;
         JSObject event=new JSObject();event.put("connectionId",connectionId);event.put("data",Base64.encodeToString(value,Base64.NO_WRAP));
         notifyListeners("notification",event);
     }
@@ -301,16 +345,38 @@ public class SparkBlePlugin extends Plugin {
         @Override public void onServicesDiscovered(BluetoothGatt source,int status) {main.post(()->{
             if(source!=gatt || connectCall==null) return;
             if(status!=BluetoothGatt.GATT_SUCCESS) {closeConnection("服务发现失败（GATT "+status+"）。");return;}
-            BluetoothGattService service=source.getService(SERVICE);
-            characteristic=service==null?null:service.getCharacteristic(CHARACTERISTIC);
-            if(characteristic==null) {closeConnection("未找到 Spark_AI 的 FFF0 / FFF1 服务，请检查主机型号。");return;}
+            if(profile.equals("inspect")) {
+                JSArray services=new JSArray();
+                for(BluetoothGattService foundService:source.getServices()) {
+                    JSObject row=new JSObject();row.put("uuid",foundService.getUuid().toString());JSArray chars=new JSArray();
+                    for(BluetoothGattCharacteristic ch:foundService.getCharacteristics()) {
+                        JSObject entry=new JSObject();entry.put("uuid",ch.getUuid().toString());entry.put("properties",ch.getProperties());chars.put(entry);
+                    }
+                    row.put("characteristics",chars);services.put(row);
+                }
+                JSObject result=new JSObject();result.put("services",services);result.put("connectionId",connectionId);
+                PluginCall inspection=connectCall;connectCall=null;inspection.resolve(result);closeConnection("GATT 检查完成，未发送业务指令");return;
+            }
+            BluetoothGattService service=source.getService(selectedService);
+            characteristic=service==null?null:service.getCharacteristic(selectedNotify);
+            if(characteristic==null) {closeConnection("未找到当前型号配置的 GATT 服务或通知特征。");return;}
             int p=characteristic.getProperties();
-            if((p&(BluetoothGattCharacteristic.PROPERTY_NOTIFY|BluetoothGattCharacteristic.PROPERTY_INDICATE))==0) {closeConnection("主机不支持所需的通知能力。");return;}
+            if(!profile.equals("tc01")&&(p&(BluetoothGattCharacteristic.PROPERTY_NOTIFY|BluetoothGattCharacteristic.PROPERTY_INDICATE))==0) {closeConnection("主机不支持所需的通知能力。");return;}
             fallbackCharacteristic=(p&(BluetoothGattCharacteristic.PROPERTY_WRITE|BluetoothGattCharacteristic.PROPERTY_WRITE_NO_RESPONSE))!=0?characteristic:null;
-            BluetoothGattCharacteristic preferred=service.getCharacteristic(WRITE_CHARACTERISTIC);
+            BluetoothGattCharacteristic preferred=service.getCharacteristic(selectedWrite);
             if(preferred!=null&&(preferred.getProperties()&(BluetoothGattCharacteristic.PROPERTY_WRITE|BluetoothGattCharacteristic.PROPERTY_WRITE_NO_RESPONSE))!=0) writeCharacteristic=preferred;
-            else writeCharacteristic=fallbackCharacteristic;
+            else writeCharacteristic=profile.equals("xiaobai")?fallbackCharacteristic:null;
             if(writeCharacteristic==null) {closeConnection("主机不支持所需的写入能力。");return;}
+            if(profile.equals("tc01")) {
+                fallbackCharacteristic=null;
+                int required=tcWriteMode.equals("response")?BluetoothGattCharacteristic.PROPERTY_WRITE:BluetoothGattCharacteristic.PROPERTY_WRITE_NO_RESPONSE;
+                if((writeCharacteristic.getProperties()&required)==0) {closeConnection("TC-01 写入属性与配置不符。");return;}
+            }
+            if(profile.equals("lbs2206")) {
+                fallbackCharacteristic=null;
+                int required=lbsWriteMode.equals("response")?BluetoothGattCharacteristic.PROPERTY_WRITE:BluetoothGattCharacteristic.PROPERTY_WRITE_NO_RESPONSE;
+                if((writeCharacteristic.getProperties()&required)==0) {closeConnection("LBS2206 写入属性与已确认配置不符");return;}
+            }
             main.removeCallbacks(connectTimeout);
             JSObject result=new JSObject(),properties=new JSObject();
             properties.put("notify",(p&BluetoothGattCharacteristic.PROPERTY_NOTIFY)!=0);

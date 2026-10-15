@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <title>查看设置 · 积木本地查看器</title>
+  <link rel="stylesheet" href="/app/settings.css">
+</head>
+<body>
+  <header class="settings-header">
+    <div class="header-inner">
+      <a id="settings-back" href="/">← 返回模型</a>
+      <span class="compact-title" aria-hidden="true">查看设置</span>
+      <span id="save-status" role="status" aria-live="polite">设置自动保存</span>
+    </div>
+  </header>
+  <main>
+    <h1>查看设置</h1>
+    <p class="intro">调整搭建界面的显示方式，返回后生效。</p>
+    <form id="settings-form">
+      <fieldset>
+        <legend>零件边线</legend>
+        <div class="choices two-columns">
+          <label class="choice"><input type="radio" name="lineContrast" value="0"><span><strong>高对比</strong><small>让不同颜色零件的边缘更清晰。</small></span></label>
+          <label class="choice"><input type="radio" name="lineContrast" value="1"><span><strong>标准</strong><small>使用零件原有的边线颜色。</small></span></label>
+        </div>
+      </fieldset>
+      <fieldset>
+        <legend>凸点细节</legend>
+        <div class="choices">
+          <label class="choice"><input type="checkbox" name="studHighContrast"><span><strong>凸点高对比</strong><small>加深凸点顶部，方便辨认连接位置。</small></span></label>
+        </div>
+      </fieldset>
+      <fieldset>
+        <legend>新零件提示</legend>
+        <div class="choices two-columns">
+          <label class="choice"><input type="radio" name="showOldColors" value="0"><span><strong>红色轮廓</strong><small>用红色标记本步骤新增的零件。</small></span></label>
+          <label class="choice"><input type="radio" name="showOldColors" value="1"><span><strong>绿色轮廓</strong><small>用绿色标记本步骤新增的零件。</small></span></label>
+          <label class="choice"><input type="radio" name="showOldColors" value="2"><span><strong>原色显示</strong><small>全部零件保持原色，不增加轮廓提示。</small></span></label>
+          <label class="choice"><input type="radio" name="showOldColors" value="3"><span><strong>淡化已完成零件</strong><small>之前的零件统一显示为浅黄色。</small></span></label>
+        </div>
+      </fieldset>
+      <fieldset>
+        <legend>步骤动画</legend>
+        <div class="choices three-columns">
+          <label class="choice"><input type="radio" name="showStepRotationAnimations" value="0"><span><strong>慢速</strong></span></label>
+          <label class="choice"><input type="radio" name="showStepRotationAnimations" value="1"><span><strong>正常</strong></span></label>
+          <label class="choice"><input type="radio" name="showStepRotationAnimations" value="2"><span><strong>关闭</strong></span></label>
+        </div>
+      </fieldset>
+    </form>
+    <p class="footnote">设置保存在本浏览器中，对其他模型同样生效。</p>
+  </main>
+  <script>window.LDR = {};</script>
+  <script src="/js/LDROptions.js"></script>
+  <script src="/js/LDRSVG.js"></script>
+  <script>LDR.Colors={int2Hex:i=>"#"+(i>>>0).toString(16).padStart(6,"0")};</script>
+  <script type="module" src="/app/settings.js"></script>
+</body>
+</html>

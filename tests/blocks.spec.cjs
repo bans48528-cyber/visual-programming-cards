@@ -70,6 +70,7 @@ async function touchDrag(page, selector, point) {
   try {
     for(const viewport of [{width:1280,height:800},{width:844,height:390},{width:390,height:844}]) {
       const context=await browser.newContext({viewport,hasTouch:viewport.width<1000});
+      await context.addInitScript(()=>localStorage.setItem('cardDefaultModelV1','xiaobai'));
       const page=await context.newPage();
       const errors=[];page.on('pageerror',e=>errors.push(e.message));
       await page.goto(process.env.CARDS_URL || 'http://127.0.0.1:4173/#editor');
@@ -89,6 +90,7 @@ async function touchDrag(page, selector, point) {
       await checkGeometry(page);
       await page.screenshot({path:path.join(os.tmpdir(),`cards-nested-${viewport.width}.png`)});
       await page.locator('#saveBtn').click();
+      if(await page.locator('.home-dialog').isVisible())await page.locator('.home-dialog [type=submit]').click();
       const saved=await page.evaluate(()=>getProgramSnapshot());
       await page.evaluate(() => document.getElementById('clearBtn').click());
       assert.equal(await page.locator('#loadBtn').count(),0);

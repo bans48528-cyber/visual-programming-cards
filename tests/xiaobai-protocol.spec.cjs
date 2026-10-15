@@ -26,10 +26,21 @@ const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
   const paced=new Link({
     async start(){},close(){},
     async write(){starts.push(Date.now());if(starts.length===1)await new Promise(resolve=>finishFirst=resolve);}
-  },{minWriteMs:30});
+  },{minWriteMs:5});
   const first=paced.write(command(0,OP.HEARTBEAT));await sleep(40);finishFirst();await first;
   assert.equal(paced.lastWrite,starts[0],'write interval begins when transmission starts, not after its ACK');
-  await paced.write(command(0,OP.HEARTBEAT));assert(starts[1]-starts[0]>=30);
+  await paced.write(command(0,OP.HEARTBEAT));assert(starts[1]-starts[0]>=5);
   paced.close();
-  console.log('PASS Xiaobai frames, notifications, DONE/abort and 30ms start-to-start write pacing.');
+  let release;const queuedWrites=[];
+  const queued=new Link({start:async()=>{},close(){},write:async bytes=>{
+    queuedWrites.push(bytes[6]);if(bytes[6]===OP.HEARTBEAT)await new Promise(r=>release=r);
+  }},{minWriteMs:0});queued.mode=MODE.PROGRAM;
+  const busy=queued.write(command(0,OP.HEARTBEAT));await sleep(0);
+  const staleAction=queued.action(OP.MOTOR_RUN,[0,1]);
+  const staleWait=queued.action(OP.WAIT_IR,[1,0,30],true).catch(e=>e.message);
+  queued.rejectPending(new Error('切换型号'));release();await busy;await staleAction;await staleWait;
+  assert.deepEqual(queuedWrites,[OP.HEARTBEAT],'cancelled queued commands never reach the transport');queued.close();
+  let releaseMode;const retiring=new Link({start:async()=>{},close(){},write:()=>new Promise(r=>releaseMode=r)},{minWriteMs:0});
+  const entering=retiring.enterProgram();await sleep(0);retiring.close();releaseMode();await entering;assert.equal(retiring.heartbeatTimer,null,'late mode result cannot restart heartbeat');
+  console.log('PASS Xiaobai frames, notifications, DONE/abort and 5ms start-to-start write pacing.');
 })().catch(error=>{console.error(error);process.exitCode=1;});

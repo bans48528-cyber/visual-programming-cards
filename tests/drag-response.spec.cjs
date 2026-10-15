@@ -15,6 +15,7 @@ async function shortDrag(page,session,selector){
   const browser=await chromium.launch({channel:'msedge',headless:true});
   try{
     const context=await browser.newContext({viewport:{width:844,height:390},hasTouch:true});
+      await context.addInitScript(()=>localStorage.setItem('cardDefaultModelV1','xiaobai'));
     const page=await context.newPage();await page.goto(BASE);
     const session=await context.newCDPSession(page);
     assert.equal(await shortDrag(page,session,'#palette [data-card-id="motor-forward"]'),true,'palette block responds within 6 px');

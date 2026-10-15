@@ -1,9 +1,8 @@
+window.CardBluetoothBack=()=>{const target=window.CardBluetoothReturnHash||'#editor';window.CardBluetoothReturnHash=null;location.hash=target;};
 (() => {
   const icon='<svg viewBox="0 0 32 24" aria-hidden="true"><path d="M9 4h14c5 0 8 15 4 17-2 1-5-4-7-4h-8c-2 0-5 5-7 4C1 19 4 4 9 4Z"/><path d="M10 8v7m-3-3.5h6M23 9v1m-4 3v1"/></svg>';
   const entry=document.createElement('button');entry.className='btn remote-entry';entry.type='button';entry.title='遥控';entry.setAttribute('aria-label','遥控');entry.innerHTML=icon;
   document.querySelector('.toolbar').prepend(entry);
-  const homeEntry=document.createElement('button');homeEntry.className='home-remote-entry';homeEntry.type='button';homeEntry.innerHTML=icon+'<span>遥控</span>';
-  document.querySelector('.home-sidebar').insertBefore(homeEntry,document.querySelector('.home-local'));
   const dialog=document.createElement('dialog');dialog.className='remote-dialog';dialog.id='remoteControl';
   dialog.innerHTML=`<header class="remote-header"><button type="button" class="remote-back" aria-label="关闭遥控">‹</button><div><h1>遥控</h1><p>按住操作 · 松手释放</p></div><button type="button" class="remote-connect">连接主机</button></header>
     <div class="remote-shoulders"><button data-remote-key="L" aria-label="速度加一档">速度 +</button><div class="remote-connection" role="status">未连接</div><button data-remote-key="R" aria-label="速度减一档">速度 −</button></div>
@@ -15,10 +14,11 @@
   const buttons=[...dialog.querySelectorAll('[data-remote-key]')];
   const message=dialog.querySelector('.remote-message'),status=dialog.querySelector('.remote-connection');
   let session=null,connectionId=null,poll=null,failedId=null,lastStop=Promise.resolve(),opening=false,activating=null;
+  let generation=0;
   const pointers=new Map(),keyboard=new Map();
   function state() {
     const all=[...pointers.values(),...keyboard.values()];
-    for(const pair of [['Y','A'],['X','B'],['L','R']]) {const selected=all.filter(k=>pair.includes(k)).slice(-1)[0];for(let i=all.length-1;i>=0;i--) if(pair.includes(all[i])&&all[i]!==selected) all.splice(i,1);}
+    for(const pair of (window.CardModelSession?.current.remote?.pairs||[['Y','A'],['X','B'],['L','R']])) {const selected=all.filter(k=>pair.includes(k)).slice(-1)[0];for(let i=all.length-1;i>=0;i--) if(pair.includes(all[i])&&all[i]!==selected) all.splice(i,1);}
     const directions=all.filter(k=>CardRemoteControl.keys.indexOf(k)<4);
     return [...new Set([...all.filter(k=>CardRemoteControl.keys.indexOf(k)>=4),...directions.slice(-1)])];
   }
@@ -35,31 +35,33 @@
     if(connectionId!==connection?.id) {
       stop();
       if(connection && failedId!==connection.id && !activating) {
-        activating=connection.enterRemote().then(()=>{
-          if(!dialog.open||window.CardBluetooth?.remoteConnection?.()?.id!==connection.id)return;
+        const ticket=generation;
+        const task=connection.enterRemote().then(()=>{
+          if(ticket!==generation||!dialog.open||window.CardBluetooth?.remoteConnection?.()?.id!==connection.id)return;
           connectionId=connection.id;
           const candidate=new CardRemoteControl.Session(connection.send,error=>{
           if(session!==candidate) return;
           failedId=connection.id;release();session=null;connectionId=null;
           message.textContent=error.message||'发送失败，请重新连接';refresh();
-          });
+          },window.CardModelSession?.current.remote?.encode);
           session=candidate;session.start();refresh();
-        }).catch(error=>{failedId=connection.id;message.textContent=error.message||'无法进入遥控模式';}).finally(()=>{activating=null;});
+        }).catch(error=>{if(ticket!==generation||!dialog.open||window.CardBluetooth?.remoteConnection?.()?.id!==connection.id)return;failedId=connection.id;message.textContent=error.message||'无法进入遥控模式';}).finally(()=>{if(activating===task)activating=null;});
+        activating=task;
       }
     }
     const ready=Boolean(session&&!session.closed);
     buttons.forEach(b=>b.disabled=!ready);
-    status.textContent=ready?'小白已连接':'未连接遥控';status.classList.toggle('is-connected',ready);
+    status.textContent=ready?(window.CardModelSession?.current.name||'小白')+'已连接':'未连接遥控';status.classList.toggle('is-connected',ready);
     dialog.querySelector('.remote-connect').textContent=ready?'蓝牙连接':'连接主机';
     if(ready) message.textContent='支持同时按住多个按键';
-    else if(!failedId) message.textContent=window.CardPlatform?.isAndroid?'连接小白后即可操作':'请在安卓应用中连接主机';
+    else if(!failedId) message.textContent=window.CardPlatform?.isAndroid?`连接${window.CardModelSession?.current.name||'小白'}后即可操作`:'请在安卓应用中连接主机';
   }
   buttons.forEach(button=>{
     const key=button.dataset.remoteKey;
     button.addEventListener('pointerdown',event=>{
       if(button.disabled||event.button>0||!session) return;
       event.preventDefault();pointers.set(event.pointerId,key);button.setPointerCapture(event.pointerId);changed();
-      if(key==='L'||key==='R') setTimeout(()=>{if(pointers.get(event.pointerId)===key){pointers.delete(event.pointerId);changed();}},100);
+      if(window.CardModelSession?.current.remote?.shoulderPulse!==false&&(key==='L'||key==='R')) setTimeout(()=>{if(pointers.get(event.pointerId)===key){pointers.delete(event.pointerId);changed();}},100);
     });
     const up=event=>{if(pointers.delete(event.pointerId)) changed();};
     button.addEventListener('pointerup',up);button.addEventListener('pointercancel',up);button.addEventListener('lostpointercapture',up);
@@ -69,28 +71,39 @@
   dialog.addEventListener('keydown',event=>{
     if(!keyMap[event.code]||!session||event.repeat||event.target.closest('.remote-connect,.remote-back,.remote-release')) return;
     event.preventDefault();keyboard.set(event.code,keyMap[event.code]);changed();
-    if(['L','R'].includes(keyMap[event.code])) setTimeout(()=>{keyboard.delete(event.code);changed();},100);
+    if(window.CardModelSession?.current.remote?.shoulderPulse!==false&&['L','R'].includes(keyMap[event.code])) setTimeout(()=>{keyboard.delete(event.code);changed();},100);
   });
   dialog.addEventListener('keyup',event=>{if(keyboard.delete(event.code)){event.preventDefault();changed();}});
-  dialog.addEventListener('close',()=>{clearInterval(poll);stop();if(location.hash==='#editor')window.CardBluetooth?.enterProgram?.().catch(error=>window.showExecutionNotice?.(error.message));});
+  dialog.addEventListener('close',()=>{if(dialog.open)return;clearInterval(poll);stop();if(location.hash==='#editor'&&!window.CardModelSession?.switching)window.CardBluetooth?.enterProgram?.().catch(error=>window.showExecutionNotice?.(error.message));});
   dialog.querySelector('.remote-back').onclick=()=>dialog.close();
   dialog.querySelector('.remote-release').onclick=release;
   dialog.querySelector('.remote-connect').onclick=()=>{
-    dialog.close();
-    if(window.CardPlatform?.isAndroid) location.hash='bluetooth';
+    if(window.CardPlatform?.isAndroid) window.CardOpenBluetoothFromRemote(returnHash,close);
     else window.showExecutionNotice?.('请在安卓应用中使用手机蓝牙遥控。');
   };
   window.addEventListener('blur',release);
   document.addEventListener('visibilitychange',()=>{if(document.hidden&&dialog.open) dialog.close();});
+  let returnHash='#home';
   async function open() {
-    if(dialog.open||opening) return;
+    if(dialog.open||opening||window.CardModelSession?.switching||window.CardModelSession?.selected===false) return;
+    const scope=window.CardModelSession?.capture();
+    if(scope&&!scope.model.features.some(feature=>feature.id==='remote'))return;
+    const config=scope?.model.remote;
+    const labels=config?.labels||{Y:'左正',A:'左反',X:'右正',B:'右反',L:'速度 +',R:'速度 −'};
+    buttons.forEach(button=>{const label=labels[button.dataset.remoteKey];if(label){button.textContent=label;button.setAttribute('aria-label',label);}});
+    dialog.querySelector('footer').textContent=config?.footer||'主机需处于遥控模式 · 左电机 Y/A · 右电机 X/B';
+    dialog.querySelector('.remote-header p').textContent=config?.hint||'按住操作 · 松手释放';
+    returnHash=location.hash==='#editor'?'#editor':'#home';
+    const ticket=++generation;
     opening=true;
-    try {await window.CardProgram?.stop("已切换到手动遥控");await lastStop;} catch(error) {window.showExecutionNotice(error.message);opening=false;return;}
-    opening=false;if(document.hidden) return;
-    cancelDrag();closeParamEditor();failedId=null;dialog.showModal();window.CardBluetooth?.enterRemote?.().catch(error=>window.showExecutionNotice?.(error.message));refresh();
-    window.CardBluetooth?.ensureConnected?.().catch(error=>window.showExecutionNotice?.(error.message));
+    try {await window.CardProgram?.stop("已切换到手动遥控");await lastStop;} catch(error) {if(ticket===generation){window.showExecutionNotice(error.message);opening=false;}return;}
+    if(ticket!==generation)return;
+    opening=false;if(document.hidden||(scope&&!scope.isCurrent())) return;
+    cancelDrag();closeParamEditor();failedId=null;dialog.showModal();window.CardBluetooth?.enterRemote?.().catch(error=>{if(ticket===generation)window.showExecutionNotice?.(error.message);});refresh();
+    window.CardBluetooth?.ensureConnected?.().catch(error=>{if(ticket===generation)window.showExecutionNotice?.(error.message);});
     poll=setInterval(refresh,200);
   }
-  entry.onclick=open;homeEntry.onclick=open;
-  window.CardRemote={open,close:()=>{if(dialog.open) dialog.close();clearInterval(poll);return stop();},release};
+  entry.onclick=()=>window.CardModelSession?.current.remote?.open();
+  function close() {generation++;opening=false;activating=null;if(dialog.open)dialog.close();clearInterval(poll);return stop();}
+  window.CardRemote={open,close,release,reset:()=>{const pending=close();lastStop=Promise.resolve();failedId=null;return pending;}};
 })();

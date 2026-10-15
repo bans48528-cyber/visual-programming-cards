@@ -1,25 +1,21 @@
 (() => {
-  const KEY = "xiaobaiProjectsV1";
-  const ACTIVE = "xiaobaiActiveProjectV1";
+  let model = CardModelSession.current;
+  let store = DeviceModels.createStore(localStorage, model.id);
   const clone = value => JSON.parse(JSON.stringify(value));
-  let projects = [], activeId = null, view = "files";
+  let projects = [], activeId = null, view = "files", storageReadable = true;
   const makeItem = (id, params = {}, children) => {
     const item = createProgramItem(id);
     Object.assign(item.params || {}, params);
     if (children) item.children = children;
     return item;
   };
-  const examples = [
-    {name: "电机往返", color: "#edf5ff", items: [makeItem("motor-forward"), makeItem("wait-time"), makeItem("motor-reverse")]},
-    {name: "重复转向", color: "#fff5dc", items: [makeItem("loop-count", {count: 4}, [makeItem("combo-forward"), makeItem("combo-turn-right")])]},
-    {name: "持续移动与停止", color: "#f3edff", items: [makeItem("combo-continuous"), makeItem("wait-time", {duration: 2}), makeItem("combo-stop")]}
-  ];
+  const exampleItem = item => makeItem(item.id, item.params, item.children?.map(exampleItem));
+  const modelExamples = () => (model.examples || []).map(example => ({...example,items:example.items.map(exampleItem)}));
   const home = document.createElement("section");
   home.className = "home-screen";
   home.setAttribute("aria-label", "小白编程主页");
   home.innerHTML = `<nav class="home-sidebar" aria-label="主页导航">
     <button class="home-nav" data-view="files" role="tab"><img src="assets/home-icon-file.png" alt=""><span>我的作品</span></button>
-    <button class="home-nav" data-view="examples" role="tab"><img src="assets/home-icon-build.png" alt=""><span>积木示例</span></button>
     <span class="home-local">保存在此设备</span>
   </nav><main class="home-main">
     <section class="home-start" aria-labelledby="homeStartTitle">
@@ -66,6 +62,7 @@
     <p class="home-error" role="alert" hidden></p>
   </main>`;
   document.body.prepend(home);
+  const animatedHomeArt=home.querySelector('.home-demo-robot').innerHTML;
   const dialog = document.createElement("dialog");
   dialog.className = "home-dialog";
   dialog.innerHTML = `<form><h2 id="projectDialogTitle"></h2><input aria-label="作品名称" maxlength="40" required><p hidden></p><div class="home-dialog-actions"><button type="button">取消</button><button type="submit">确定</button></div></form>`;
@@ -92,7 +89,8 @@
     if (!deletion) { input.focus(); input.select(); }
   }
   function persist() {
-    try { localStorage.setItem(KEY, JSON.stringify(projects.filter(project => !project.draft))); return true; }
+    if (!storageReadable || window.cardMigrationError) return false;
+    try { store.write(projects); return true; }
     catch {
       setStatus("保存失败：设备存储空间不足或不可用");
       const error = home.querySelector(".home-error");
@@ -100,21 +98,12 @@
       return false;
     }
   }
-  try {
-    const raw = localStorage.getItem(KEY);
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed)) projects = parsed.filter(p => p && typeof p.id === "string" && typeof p.name === "string" && p.state);
-    } else {
-      const legacy = localStorage.getItem(STORAGE_KEY) || localStorage.getItem(LEGACY_STORAGE_KEY);
-      if (legacy) {
-        const state = JSON.parse(legacy);
-        projects.push({id: crypto.randomUUID(), name: "原有作品", updated: Date.now(), state});
-        persist();
-      }
-    }
-    activeId = localStorage.getItem(ACTIVE);
-  } catch { setStatus("作品列表读取失败，原有保存内容未修改"); }
+  function readProjects() {
+    projects = []; activeId = null;storageReadable = true;
+    try {projects=store.read();activeId=store.getActive();}
+    catch (error) {storageReadable = false;setStatus(error.message);home.querySelector('.home-error').hidden=false;home.querySelector('.home-error').textContent=error.message;}
+  }
+  readProjects();
   function isBlankState(state) {
     if (Array.isArray(state)) return state.length === 0;
     return !(state?.program?.length || state?.stagedGroups?.length);
@@ -126,16 +115,16 @@
   }
   function saveActive() {
     const project = projects.find(p => p.id === activeId);
-    if (!project) return false;
+    if (!project || project.modelId !== model.id) return false;
     const state = serializeWorkspaceState();
     if (isBlankState(state)) return true;
-    project.state = state; project.updated = Date.now(); project.draft = false;
+    project.state = state; project.updated = Date.now();
     if (persist()) setStatus("作品已保存");
     return true;
   }
   function saveFromEditor() {
     const project = projects.find(p => p.id === activeId);
-    if (!project) return false;
+    if (!project || project.modelId !== model.id) return false;
     const state = serializeWorkspaceState();
     if (isBlankState(state)) return rejectBlankSave();
     project.state = state; project.updated = Date.now();
@@ -143,7 +132,9 @@
       if (persist()) setStatus("作品已保存");
       return true;
     }
+    const owner = model.id;
     ask("保存作品", project.name, name => {
+      if (model.id !== owner) return;
       project.name = name;
       project.needsName = false;
       project.draft = false;
@@ -158,6 +149,14 @@
     return true;
   }
   window.CardHome = {
+    get modelId() {return model.id;},
+    get activeModelId() {return projects.find(p=>p.id===activeId)?.modelId;},
+    checkpoint() {if (!home.hidden) return;saveActive();if (!persist()) throw new Error('草稿保存失败，未切换设备。');},
+    useModel(next) {
+      CardBuildings.close();dialog.close();model=next;store=DeviceModels.createStore(localStorage,model.id);readProjects();view='files';
+      renderNavigation();showHome();
+    },
+    refreshNavigation: () => renderNavigation(),
     save: saveFromEditor,
     autosave: saveActive,
     load() {
@@ -168,8 +167,9 @@
     }
   };
   function enter(project, navigate = true) {
+    if (project.modelId !== model.id) {setStatus("作品所属型号不匹配。");return;}
     activeId = project.id;
-    try { localStorage.setItem(ACTIVE, activeId); } catch { /* Saving reports storage failures. */ }
+    try { store.setActive(activeId); } catch { /* Saving reports storage failures. */ }
     home.hidden = true;document.body.classList.remove("home-open");
     applyWorkspaceState(clone(project.state));
     historySnapshots = [];historyIndex = -1;
@@ -180,7 +180,7 @@
     if (navigate) location.hash = "editor";
   }
   function create(name, state = {program: [], stagedGroups: []}) {
-    const project = {id: crypto.randomUUID(), name, updated: Date.now(), state: clone(state), needsName: true, draft: isBlankState(state)};
+    const project = {id: crypto.randomUUID(), modelId: model.id, name, updated: Date.now(), state: clone(state), needsName: true, draft: isBlankState(state)};
     projects.unshift(project);
     if (project.draft || persist()) enter(project);
   }
@@ -205,22 +205,22 @@
     });
     return wrap;
   }
-  function card(project, index, example = false) {
+  function card(project, index) {
     const article = document.createElement("article");article.className = "home-card";
-    article.style.setProperty("--thumb-color", example ? project.color : ["#edf5ff","#fff5dc","#eef8f3","#f3edff"][index%4]);
+    article.style.setProperty("--thumb-color", ["#edf5ff","#fff5dc","#eef8f3","#f3edff"][index%4]);
     const open = document.createElement("button");open.className = "home-card-open";
-    open.setAttribute("aria-label", `${example ? "使用示例" : "打开"}：${project.name}`);
+    open.setAttribute("aria-label", `打开：${project.name}`);
     const thumb = document.createElement("div");thumb.className = "home-thumb";
     const state = project.state;
-    const items = example ? project.items : (Array.isArray(state) ? state : state.program || []);
-    thumb.append(preview(items, !example));
+    const items = (Array.isArray(state) ? state : state.program || []);
+    thumb.append(preview(items, true));
     const text = document.createElement("div");text.className = "home-card-text";
     const name = document.createElement("strong");name.textContent = project.name;
     const meta = document.createElement("small");
-    meta.textContent = example ? `${countProgramItems(items)} 张积木` : new Date(project.updated).toLocaleString("zh-CN", {month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit"});
+    meta.textContent = new Date(project.updated).toLocaleString("zh-CN", {month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit"});
     text.append(name,meta);open.append(thumb,text);article.append(open);
-    open.onclick = () => example ? create(project.name,{program:project.items,stagedGroups:[]}) : enter(project);
-    if (!example) {
+    open.onclick = () => enter(project);
+    {
       const menu = document.createElement("details");menu.className = "home-menu";
       const summary = document.createElement("summary");summary.textContent = "⋯";summary.setAttribute("aria-label",`${project.name}更多操作`);
       const actions = document.createElement("div");actions.className = "home-menu-items";
@@ -235,15 +235,20 @@
     return article;
   }
   function render() {
+    home.querySelector('.home-start').hidden = view === 'buildings';
+    const art=home.querySelector('.home-demo-robot');
+    if(model.homeAnimation) art.innerHTML=animatedHomeArt;
+    else {const img=document.createElement('img');img.src=model.image;img.alt='';art.replaceChildren(img);}
     home.querySelectorAll(".home-nav").forEach(button=>button.setAttribute("aria-selected",String(button.dataset.view===view)));
-    const example = view === "examples";
-    const entries = example ? examples : [...projects].sort((a,b)=>b.updated-a.updated);
-    home.querySelector(".home-section-heading h2").textContent = example ? "积木示例" : "最近作品";
-    home.querySelector(".home-section-heading span").textContent = `${entries.length} 个${example ? "示例" : "作品"}`;
-    home.querySelector(".home-grid").replaceChildren(...entries.map((p,i)=>card(p,i,example)));
+    if(view==='buildings'){CardBuildings.render(home,model);return;}
+    CardBuildings.cancel();
+    const entries = [...projects].sort((a,b)=>b.updated-a.updated);
+    home.querySelector(".home-section-heading h2").textContent = "最近作品";
+    home.querySelector(".home-section-heading span").textContent = `${entries.length} 个作品`;
+    home.querySelector(".home-grid").replaceChildren(...entries.map((p,i)=>card(p,i)));
     home.querySelector(".home-empty").hidden = Boolean(entries.length);
     home.querySelector('#resumeProject').hidden = !projects.some(p => p.id === activeId);
-    const demo = preview([makeItem('motor-forward'), makeItem('wait-time'), makeItem('motor-stop')], true);
+    const demo = preview(modelExamples()[0]?.items || [], true);
     // Decorative, read-only clones use the same shapes and layout as the editor.
     demo.querySelectorAll('button, [tabindex]').forEach(el => el.tabIndex = -1);
     home.querySelector('.home-demo-blocks').replaceChildren(demo);
@@ -253,7 +258,7 @@
     if (active?.draft && isBlankState(active.state)) {
       projects = projects.filter(project => project.id !== active.id);
       activeId = null;
-      try { localStorage.removeItem(ACTIVE); } catch { /* No saved blank project remains. */ }
+      try { store.setActive(null); } catch { /* No saved blank project remains. */ }
     }
     closeParamEditor();home.hidden=false;document.body.classList.add("home-open");
     document.title="小白编程";render();
@@ -263,20 +268,37 @@
     const project = projects.find(p => p.id === activeId);
     if (project) enter(project);
   };
-  home.querySelectorAll(".home-nav").forEach(button=>button.onclick=()=>{view=button.dataset.view;render();});
+  function renderNavigation() {
+    const sidebar=home.querySelector('.home-sidebar');
+    sidebar.querySelectorAll('.home-nav,.home-remote-entry').forEach(button=>button.remove());
+    for(const feature of [...model.features,{id:'buildings',label:'搭建图',icon:'assets/home-icon-build.png'}]) {
+      const button=document.createElement('button');button.className='home-nav';button.dataset.view=feature.id;
+      button.setAttribute('role','tab');button.type='button';
+      const img=document.createElement('img');img.src=feature.icon;img.alt='';
+      const label=document.createElement('span');label.textContent=feature.label;button.append(img,label);
+      button.onclick=()=>{if(feature.open)feature.open();else if(feature.id==='remote')model.remote?.open();else {view=feature.id;render();}};
+      sidebar.insertBefore(button,sidebar.querySelector('.home-local'));
+    }
+    home.setAttribute('aria-label',model.name+'编程主页');
+  }
+  renderNavigation();
   document.getElementById("homeBtn").onclick = () => {saveActive();location.hash="home";showHome();};
   window.addEventListener("hashchange",()=>{
     if(location.hash==="#bluetooth") return;
     if(location.hash!=="#editor") {if(home.hidden)saveActive();showHome();}
     else if(!home.hidden) {
       const project=projects.find(p=>p.id===activeId);
-      if(project)enter(project);else {home.hidden=true;document.body.classList.remove("home-open");updateProgramAnchor();}
+      if(project)enter(project);else create(`我的作品 ${projects.length+1}`);
     }
+  });
+  document.addEventListener('card-workspace-changed',()=>{
+    if (!home.hidden || CardModelSession.switching || CardModelSession.current.id!==model.id) return;
+    saveActive();
   });
   window.addEventListener("beforeunload",()=>{if(home.hidden)saveActive();});
   window.addEventListener("resize",()=>{if(!home.hidden)render();});
   if(location.hash==="#editor" || location.hash==="#bluetooth") {
     const project=projects.find(p=>p.id===activeId);
-    if(project)enter(project, false);else home.hidden=true;
+    if(project)enter(project, false);else if(location.hash==="#editor")create(`我的作品 ${projects.length+1}`);else home.hidden=true;
   } else showHome();
 })();

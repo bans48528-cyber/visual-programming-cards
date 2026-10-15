@@ -19,6 +19,7 @@ const server = http.createServer((req, res) => {
   const browser = await chromium.launch({channel:'msedge', headless:true});
   try {
     const context = await browser.newContext({viewport:{width:844, height:390}, hasTouch:true});
+    await context.addInitScript(()=>localStorage.setItem('cardDefaultModelV1','xiaobai'));
     await context.addInitScript(require('./mock-android.cjs'));
     const page = await context.newPage();
     const errors = [], requests = [];
@@ -100,6 +101,18 @@ const server = http.createServer((req, res) => {
     await page.waitForURL('**/#home');
     await back();
     assert.equal(await page.evaluate(() => window.minimized), true);
+    await page.getByRole('button', {name:'打开：安卓触摸测试', exact:true}).tap();
+    await page.waitForURL('**/#editor');
+    assert.equal(await page.evaluate(() => getProgramSnapshot()), snapshot);
+    // Backgrounding past the rest delay returns the app to the home screen,
+    // so a later launch opens on home instead of the last file.
+    await page.evaluate(() => Promise.all([
+      Object.defineProperty(document, 'hidden', {configurable:true, get:() => true}),
+      new Promise(done => { document.addEventListener('visibilitychange', () => done(), {once:true}); document.dispatchEvent(new Event('visibilitychange')); })
+    ]));
+    await page.waitForURL('**/#home', {timeout: 6000});
+    assert.equal(await page.locator('.home-screen').isVisible(), true);
+    await page.evaluate(() => Object.defineProperty(document, 'hidden', {configurable:true, get:() => false}));
     await page.getByRole('button', {name:'打开：安卓触摸测试', exact:true}).tap();
     await page.waitForURL('**/#editor');
     assert.equal(await page.evaluate(() => getProgramSnapshot()), snapshot);

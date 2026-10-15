@@ -40,10 +40,10 @@
     }
   }
   class Link {
-    constructor(transport,{onEvent=()=>{},onError=()=>{},minWriteMs=30,heartbeatMs=400}={}) {
+    constructor(transport,{onEvent=()=>{},onError=()=>{},minWriteMs=5,heartbeatMs=400}={}) {
       this.transport=transport;this.onEvent=onEvent;this.onError=onError;this.minWriteMs=minWriteMs;this.heartbeatMs=heartbeatMs;
       this.receiver=new Receiver(packet=>this.receive(packet));this.pending=new Map();this.seq=0;this.queue=Promise.resolve();
-      this.lastWrite=0;this.mode=null;this.closed=false;this.heartbeatTimer=null;this.heartbeatBusy=false;
+      this.actionVersion=0;this.lastWrite=0;this.mode=null;this.closed=false;this.heartbeatTimer=null;this.heartbeatBusy=false;
     }
     async start() {await this.transport.start(bytes=>this.receiver.feed(bytes));}
     async write(bytes,guard=()=>true) {
@@ -75,15 +75,16 @@
       if(result) pending.reject(new Error(`设备拒绝指令 ${opcode.toString(16)}（错误 ${result}）。`));
       else pending.resolve(data.slice(3));
     }
-    rejectPending(error) {for(const pending of this.pending.values()){clearTimeout(pending.timer);pending.reject(error);}this.pending.clear();}
+    rejectPending(error) {this.actionVersion++;for(const pending of this.pending.values()){clearTimeout(pending.timer);pending.reject(error);}this.pending.clear();}
     nextSeq() {this.seq=this.seq%255+1;return this.seq;}
     async request(seq,opcode,args=[],timeout=0) {
       const key=`${seq}:${opcode}`;
       if(this.pending.has(key)) throw new Error('同一设备指令仍在等待回报。');
       let timer;
       const answer=new Promise((resolve,reject)=>{this.pending.set(key,{resolve,reject,timer:null});});
+      answer.catch(()=>{});
       if(timeout) {timer=setTimeout(()=>{const pending=this.pending.get(key);if(pending){this.pending.delete(key);pending.reject(new Error('设备未返回指令完成消息。'));}},timeout);this.pending.get(key).timer=timer;}
-      try {await this.write(command(seq,opcode,args));return await answer;}
+      try {await this.write(command(seq,opcode,args),()=>this.pending.has(key));return await answer;}
       catch(error) {const pending=this.pending.get(key);if(pending){this.pending.delete(key);clearTimeout(timer);pending.reject(error);}answer.catch(()=>{});throw error;}
     }
     async probe() {return this.request(0,OP.QUERY_STATUS,[],1200);}
@@ -96,14 +97,15 @@
       },this.heartbeatMs);
     }
     stopHeartbeat(){clearInterval(this.heartbeatTimer);this.heartbeatTimer=null;}
-    async enterProgram(){if(this.mode===MODE.PROGRAM&&this.heartbeatTimer)return;await this.write(command(0,OP.ENTER_PROGRAM));this.mode=MODE.PROGRAM;this.startHeartbeat();}
-    async enterRemote(){if(this.mode===MODE.REMOTE)return;this.stopHeartbeat();this.rejectPending(new Error('已切换到遥控模式。'));await this.write(command(0,OP.ENTER_REMOTE));this.mode=MODE.REMOTE;}
+    async enterProgram(){if(this.mode===MODE.PROGRAM&&this.heartbeatTimer)return;await this.write(command(0,OP.ENTER_PROGRAM));if(this.closed)return;this.mode=MODE.PROGRAM;this.startHeartbeat();}
+    async enterRemote(){if(this.mode===MODE.REMOTE)return;this.stopHeartbeat();this.rejectPending(new Error('已切换到遥控模式。'));await this.write(command(0,OP.ENTER_REMOTE));if(this.closed)return;this.mode=MODE.REMOTE;}
     async stopProgram(){this.rejectPending(new Error('程序已停止。'));if(this.mode===MODE.PROGRAM)await this.write(command(0,OP.STOP_PROGRAM));}
     async action(opcode,args=[],blocking=false,timeout=0){
       if(this.mode!==MODE.PROGRAM) throw new Error('设备未处于编程模式。');
       const seq=this.nextSeq();
       if(blocking)return this.request(seq,opcode,args,timeout);
-      return this.write(command(seq,opcode,args));
+      const version=this.actionVersion;
+      return this.write(command(seq,opcode,args),()=>version===this.actionVersion);
     }
     close(){this.closed=true;this.stopHeartbeat();this.rejectPending(new Error('蓝牙连接已断开。'));this.transport.close();}
   }

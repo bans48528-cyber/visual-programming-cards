@@ -18,6 +18,7 @@ const server = http.createServer((req, res) => {
   const browser = await chromium.launch({ channel: 'msedge', headless: true });
   try {
     const page = await browser.newPage({ viewport: { width: 844, height: 390 }, hasTouch: true });
+      await page.addInitScript(()=>localStorage.setItem('cardDefaultModelV1','xiaobai'));
     const errors = [];
     page.on('pageerror', error => errors.push(error.message));
     await page.goto(`http://127.0.0.1:${server.address().port}/#editor`);
@@ -67,16 +68,26 @@ const server = http.createServer((req, res) => {
     assert.ok(Math.max(...paletteGeometry.tops) - Math.min(...paletteGeometry.tops) < .2, 'palette blocks should align at the top');
     assert.ok(Math.max(...paletteGeometry.gaps) - Math.min(...paletteGeometry.gaps) < .2, 'palette gaps should be equal');
 
+    assert.equal(await page.locator('#palette [data-card-id=motor-forward-continuous] .param-bubble').textContent(), '持续正转');
+    assert.equal(await page.locator('#palette [data-card-id=motor-reverse-continuous] .param-bubble').textContent(), '持续反转');
+
     await page.locator('#tab-combo').click();
     assert.equal(await page.locator('#palette').getAttribute('data-slide-direction'), 'forward');
     assert.ok(await page.locator('.tab-slider').evaluate(slider => slider.getAnimations().length > 0), 'category selection should animate');
     await page.waitForTimeout(340);
     const sliderAlignment = await page.evaluate(() => {
+      const tabs = document.querySelector('.tabs').getBoundingClientRect();
       const tab = document.querySelector('#tab-combo').getBoundingClientRect();
       const slider = document.querySelector('.tab-slider').getBoundingClientRect();
-      return { delta: Math.abs((tab.left + tab.width / 2) - (slider.left + slider.width / 2)) };
+      return {
+        delta: Math.abs((tab.left + tab.width / 2) - (slider.left + slider.width / 2)),
+        heightDelta: Math.abs(tab.height - slider.height),
+        topDelta: Math.abs((tab.top - tabs.top) - (slider.top - tabs.top))
+      };
     });
     assert.ok(sliderAlignment.delta < 1, 'category slider should sit behind the selected tab');
+    assert.ok(sliderAlignment.heightDelta < 1, `category slider should match the tab height (${sliderAlignment.heightDelta})`);
+    assert.ok(sliderAlignment.topDelta < 1, `category slider should match the tab top (${sliderAlignment.topDelta})`);
     await page.locator('#tab-motor').click();
     assert.equal(await page.locator('#palette').getAttribute('data-slide-direction'), 'backward');
 
@@ -89,6 +100,8 @@ const server = http.createServer((req, res) => {
       });
       assert.ok(Math.abs(centers[0] - centers[1]) < .1, `${id} icon and parameter centers differ`);
     }
+
+    assert.equal(await page.locator('#palette [data-card-id=combo-continuous] .param-bubble').textContent(), '持续前进');
 
     await page.locator('#tab-logic').click();
     await page.locator('#palette [data-card-id=infrared-wait]').click();
@@ -141,6 +154,13 @@ const server = http.createServer((req, res) => {
     assert.match(loopScale, /1\.1466/);
     const waitOffset = await page.locator('#palette [data-card-id=wait-time] .ai-art-icon').evaluate(icon => getComputedStyle(icon).transform);
     assert.match(waitOffset, /matrix\(1, 0, 0, 1, 0\.8, 1\.2\)/);
+
+    await page.locator('#tab-combo').click();
+    await page.locator('#palette [data-card-id=combo-continuous]').click();
+    assert.equal(await page.locator('#chain [data-card-id=combo-continuous] .param-bubble').textContent(), '持续前进');
+    await page.locator('#chain [data-card-id=combo-continuous] .param-bubble').click();
+    await page.locator('#paramEditor .param-option-btn').nth(1).click();
+    assert.equal(await page.locator('#chain [data-card-id=combo-continuous] .param-bubble').textContent(), '持续后退');
     assert.deepEqual(errors, []);
     console.log('PASS block catalog: spreadsheet categories, infrared placement, dynamic palette, parameters, and tuned AI icons.');
   } finally { await browser.close(); }

@@ -7,12 +7,17 @@
   <link rel="stylesheet" href="styles.css?v=palette-slider-9">
   <link rel="stylesheet" href="blocks.css?v=palette-follow-20">
   <link rel="stylesheet" href="home.css">
+  <link rel="stylesheet" href="buildings.css">
   <link rel="stylesheet" href="bluetooth.css">
   <link rel="stylesheet" href="android-bluetooth.css?v=bluetooth-redesign-16">
   <link rel="stylesheet" href="toolbar.css?v=editor-controls-13">
   <link rel="stylesheet" href="remote.css">
+  <link rel="stylesheet" href="device-models.css">
+  <link rel="stylesheet" href="lbs2206.css">
+  <link rel="stylesheet" href="tc01.css">
 </head>
-<body>
+<!-- Keep editor measurable but hidden until home.js selects the initial route. -->
+<body class="home-open">
   <div class="app">
     <header class="topbar">
       <div class="brand">
@@ -62,17 +67,41 @@
   <div class="param-popover" id="paramEditor" hidden aria-live="polite"></div>
 
   <script src="platform.js?v=deferred-name-14"></script>
+  <script src="device-models.js"></script>
+  <script src="xiaobai-model.js"></script>
+  <script src="lbs2206-protocol.js"></script>
+  <script src="lbs2206-profile.js"></script>
+  <script src="lbs2206-runner.js"></script>
+  <script src="lbs2206-model.js"></script>
+  <script src="program-codegen.js"></script>
+  <script src="spark-ai-model.js"></script>
+  <script src="tc01-profile.js"></script>
+  <script src="tc01-protocol.js"></script>
+  <script src="tc01-runner.js"></script>
+  <script src="tc01-model.js"></script>
+  <script src="receiver2226-protocol.js"></script>
+  <script src="receiver2226-runner.js"></script>
+  <script src="receiver2226-model.js"></script>
+  <script src="device-context.js"></script>
   <script src="block-layout.js?v=program-scale-11"></script>
   <script src="app.js?v=palette-follow-20"></script>
+  <script src="buildings.js"></script>
   <script src="home.js?v=skip-blank-save-15"></script>
   <script src="spark-protocol.js"></script>
   <script src="xiaobai-protocol.js"></script>
   <script src="xiaobai-device-preferences.js"></script>
+  <script src="device-preview.js"></script>
   <script src="android-bluetooth.js?v=bluetooth-redesign-16"></script>
   <script src="bluetooth.js"></script>
   <script src="remote-control.js"></script>
   <script src="remote-ui.js"></script>
   <script src="xiaobai-runner.js"></script>
   <script src="xiaobai-ui.js"></script>
+  <script src="lbs2206-bluetooth.js"></script>
+  <script src="lbs2206-ui.js"></script>
+  <script src="card-compiler.js"></script>
+  <script src="spark-ai-adapter.js"></script>
+  <script src="tc01-ui.js"></script>
+  <script src="device-picker.js"></script>
 </body>
 </html>

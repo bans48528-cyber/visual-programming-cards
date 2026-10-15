@@ -4,6 +4,7 @@ const mockAndroid=require('./mock-android.cjs');
 const BASE='http://127.0.0.1:4173/dist/';
 async function makePage(browser,hash='editor'){
   const context=await browser.newContext({viewport:{width:892,height:412},hasTouch:true});
+      await context.addInitScript(()=>localStorage.setItem('cardDefaultModelV1','xiaobai'));
   await context.addInitScript(()=>{window.__XIAOBAI_BLE_TIMING={firstScanMs:80,defaultScanMs:180};});
   await context.addInitScript(mockAndroid);
   const page=await context.newPage(),errors=[];page.on('pageerror',error=>errors.push(error.message));
@@ -38,7 +39,7 @@ async function stopNative(page){await page.evaluate(async()=>{if(CardBluetooth.c
     // A default device restricts auto-connect. A stronger non-default result is ignored.
     {
       const {context,page,errors}=await makePage(browser,'bluetooth');
-      await page.evaluate(()=>localStorage.setItem('xiaobaiDefaultDeviceV1','DEFAULT'));
+      await page.evaluate(()=>localStorage.setItem('cardModel:xiaobai:bluetooth:v1','DEFAULT'));
       await setDevices(page,[{name:'Stronger',deviceId:'OTHER',rssi:-20},{name:'Remembered',deviceId:'DEFAULT',rssi:-70}]);
       await page.evaluate(()=>location.hash='editor');await page.waitForFunction(()=>CardBluetooth.connected);
       assert.deepEqual(await page.evaluate(()=>mockBle.calls.filter(c=>c.method==='connect').map(c=>c.deviceId)),['DEFAULT']);
@@ -47,7 +48,7 @@ async function stopNative(page){await page.evaluate(async()=>{if(CardBluetooth.c
     // Missing default: wait to deadline, do not fall back to another device.
     {
       const {context,page,errors}=await makePage(browser,'bluetooth');
-      await page.evaluate(()=>localStorage.setItem('xiaobaiDefaultDeviceV1','MISSING'));
+      await page.evaluate(()=>localStorage.setItem('cardModel:xiaobai:bluetooth:v1','MISSING'));
       await setDevices(page,[{name:'Available',deviceId:'OTHER',rssi:-15}]);
       await page.evaluate(()=>location.hash='editor');
       await page.waitForFunction(()=>document.getElementById('executionNotice').textContent.includes('10 秒内未找到默认设备'));
@@ -70,7 +71,7 @@ async function stopNative(page){await page.evaluate(async()=>{if(CardBluetooth.c
     // Failed manual choice keeps the old default.
     {
       const {context,page,errors}=await makePage(browser,'bluetooth');
-      await page.evaluate(()=>localStorage.setItem('xiaobaiDefaultDeviceV1','OLD'));
+      await page.evaluate(()=>localStorage.setItem('cardModel:xiaobai:bluetooth:v1','OLD'));
       await setDevices(page,[{name:'Broken',deviceId:'BROKEN',rssi:-40}],{BROKEN:'连接失败'});
       await page.locator('.bt-search').click();await page.locator('[data-device-id=BROKEN]').waitFor();await page.locator('[data-device-id=BROKEN] .bt-connect').click();
       await page.waitForFunction(()=>document.querySelector('.bt-message').textContent.includes('连接 Broken 失败'));
@@ -92,7 +93,7 @@ async function stopNative(page){await page.evaluate(async()=>{if(CardBluetooth.c
     // Repeated entry points share one flow; remote entry also starts auto-connect.
     {
       const {context,page,errors}=await makePage(browser,'home');await setDevices(page,[{name:'Remote Device',deviceId:'REMOTE',rssi:-45}]);
-      await page.locator('.home-remote-entry').click();await page.evaluate(()=>CardBluetooth.ensureConnected());await page.evaluate(()=>CardBluetooth.ensureConnected());
+      await page.locator('.home-nav[data-view=remote]').click();await page.evaluate(()=>CardBluetooth.ensureConnected());await page.evaluate(()=>CardBluetooth.ensureConnected());
       await page.waitForFunction(()=>CardBluetooth.connected);assert.equal(await page.evaluate(()=>mockBle.calls.filter(c=>c.method==='startScan').length),1);
       assert.deepEqual(errors,[]);await context.close();
     }

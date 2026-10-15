@@ -51,11 +51,11 @@
     });}
     cancel(){this.cancelled=true;for(const wake of [...this.waiters])wake();this.connection.cancelPending?.();}
     async action(op,args=[],blocking=false,timeout=0){this.check();await this.connection.action(op,args,blocking,timeout);this.check();}
-    async sequence(items){
-      for(const item of items){
-        this.check();this.onStep(item);const {id,params:p={}}=item;
+    async sequence(items,parentPath=[]){
+      for(const [index,item] of items.entries()){
+        this.check();const path=[...parentPath,index];this.onStep(item,path);const {id,params:p={}}=item;
         if(id==='loop'||id==='loop-count'){
-          for(let n=0;id==='loop'||n<p.count;n++){await this.sequence(item.children);await this.delay(10);}
+          for(let n=0;id==='loop'||n<p.count;n++){await this.sequence(item.children,path);await this.delay(10);}
         }else if(id==='wait-time')await this.delay(p.duration*1000);
         else if(motorIds.has(id)){
           const motor=motorIndex(p.port);

@@ -28,6 +28,16 @@
 }
 .block-outline { position: absolute; left: -1px; top: -1px; overflow: visible; pointer-events: none; }
 .block-outline > path { fill: var(--block-color); stroke: var(--block-edge); stroke-width: 1.2; stroke-linejoin: round; }
+.program-block.is-executing { z-index: 5; }
+.program-block.is-executing > .block-outline > path {
+  stroke: #ffe44d; stroke-width: 4;
+  filter: drop-shadow(0 0 4px #ffc400) drop-shadow(0 0 8px #ffca28);
+}
+.loop-block.is-executing > .loop-top,
+.loop-block.is-executing > .loop-left,
+.loop-block.is-executing > .loop-tail {
+  filter: drop-shadow(0 0 3px #ffe44d) drop-shadow(0 0 7px #ffc400);
+}
 .block .block-label { display: none; }
 .block .card-icon, .block.icon-card.has-param-bubble .card-icon {
   position: absolute; left: 18px; top: 16px; width: 40px; height: 40px;
@@ -289,6 +299,8 @@
   .library-area { grid-template-rows: 32px minmax(0, 1fr); }
   .library-area .tabs { height: 32px; padding-block: 2px; }
   .library-area .tab, .library-area .tab[aria-selected="true"] { height: 28px; font-size: 13px; }
+  /* Keep the category highlight the same size as the compact tabs. */
+  .tab-slider { top: 2px; height: 28px; }
 }
 @media (max-width: 680px) {
   .library-area .tabs { padding-inline: 6px; gap: 4px; }

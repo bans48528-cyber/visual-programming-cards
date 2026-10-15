@@ -3,7 +3,7 @@ const {create,DEFAULT_KEY,NAMES_KEY}=require('../xiaobai-device-preferences.js')
 const data=new Map(),storage={getItem:key=>data.get(key)??null,setItem:(key,value)=>data.set(key,String(value))};
 const prefs=create(storage),device={deviceId:'AA:BB',name:'Xiaobai'};
 assert.equal(prefs.getDefault(),'');assert.equal(prefs.displayName(device),'Xiaobai');
-prefs.setDefault(device.deviceId);assert.equal(prefs.getDefault(),'AA:BB');assert.equal(data.get(DEFAULT_KEY),'AA:BB');
+prefs.setDefault(device.deviceId);assert.equal(prefs.getDefault(),'AA:BB');assert.equal(data.get('cardModel:xiaobai:bluetooth:v1'),'AA:BB');
 assert.equal(prefs.rename('AA:BB','  小白一号  '),'小白一号');assert.equal(prefs.displayName(device),'小白一号');
 assert.equal(JSON.parse(data.get(NAMES_KEY))['AA:BB'],'小白一号');
 prefs.rename('AA:BB','');assert.equal(prefs.displayName(device),'Xiaobai');assert.equal(prefs.getDefault(),'AA:BB');

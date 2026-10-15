@@ -8,6 +8,7 @@ const fs = require('node:fs');
   try {
     for (const viewport of [{width:1280,height:800},{width:844,height:390},{width:390,height:844},{width:568,height:320}]) {
       const context = await browser.newContext({viewport,hasTouch:true});
+      await context.addInitScript(()=>localStorage.setItem('cardDefaultModelV1','xiaobai'));
       const page = await context.newPage();
       page.setDefaultTimeout(8000);
       const errors = [];

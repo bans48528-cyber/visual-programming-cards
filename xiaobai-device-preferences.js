@@ -8,14 +8,16 @@
   const NAMES_KEY='xiaobaiDeviceNamesV1';
   function cleanId(value){return typeof value==='string'?value.trim():'';}
   function cleanName(value){return typeof value==='string'?value.trim().slice(0,24):'';}
-  function create(storage){
+  function create(storage,modelId='xiaobai'){
+    const defaultKey='cardModel:'+modelId+':bluetooth:v1';
+    if(modelId==='xiaobai'&&storage.getItem(defaultKey)===null&&storage.getItem(DEFAULT_KEY)) storage.setItem(defaultKey,storage.getItem(DEFAULT_KEY));
     function readNames(){
       try {const value=JSON.parse(storage.getItem(NAMES_KEY)||'{}');return value&&typeof value==='object'&&!Array.isArray(value)?value:{};}
       catch{return {};}
     }
     return {
-      getDefault(){try{return cleanId(storage.getItem(DEFAULT_KEY));}catch{return '';}},
-      setDefault(deviceId){const id=cleanId(deviceId);if(!id)throw new Error('设备标识不能为空。');storage.setItem(DEFAULT_KEY,id);},
+      getDefault(){try{return cleanId(storage.getItem(defaultKey));}catch{return '';}},
+      setDefault(deviceId){const id=cleanId(deviceId);if(!id)throw new Error('设备标识不能为空。');storage.setItem(defaultKey,id);},
       displayName(device){const id=cleanId(device?.deviceId),custom=cleanName(readNames()[id]);return custom||cleanName(device?.name)||'小白设备';},
       customName(deviceId){return cleanName(readNames()[cleanId(deviceId)]);},
       rename(deviceId,name){

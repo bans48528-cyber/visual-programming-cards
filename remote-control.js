@@ -9,11 +9,11 @@
   }
   // Only one write is in flight. Pending state is replaced, never replayed as old presses.
   class Session {
-    constructor(send,onError=()=>{}) {this.send=send;this.onError=onError;this.pressed=[];this.pending=null;this.running=null;this.closed=false;this.timer=null;}
+    constructor(send,onError=()=>{},encode=frame) {this.encode=encode;this.send=send;this.onError=onError;this.pressed=[];this.pending=null;this.running=null;this.closed=false;this.timer=null;}
     start() {this.update([]);this.timer=setInterval(()=>{if(this.pressed.length)this.update(this.pressed);},40);}
     update(pressed) {
       if(this.closed) return;
-      const bytes=frame(pressed);this.pressed=[...pressed];this.pending=bytes;
+      const bytes=this.encode(pressed);this.pressed=[...pressed];this.pending=bytes;
       this.drain();
     }
     drain() {
@@ -30,7 +30,7 @@
     async stop() {
       clearInterval(this.timer);
       if(this.closed) return;
-      this.closed=true;this.pressed=[];this.pending=frame();
+      this.closed=true;this.pressed=[];this.pending=this.encode();
       await this.drain();
     }
   }

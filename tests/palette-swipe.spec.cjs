@@ -64,6 +64,7 @@ async function followFingerWhileDown(page, selector) {
   const browser = await chromium.launch({channel:'msedge', headless:true});
   try {
     const context = await browser.newContext({viewport:{width:844, height:390}, hasTouch:true});
+      await context.addInitScript(()=>localStorage.setItem('cardDefaultModelV1','xiaobai'));
     const page = await context.newPage();
     const errors = [];
     page.on('pageerror', error => errors.push(error.message));

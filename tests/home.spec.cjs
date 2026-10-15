@@ -7,6 +7,7 @@ const os=require('node:os');
   try {
     for(const width of [1280,390]) {
       const page=await browser.newPage({viewport:{width,height:844},hasTouch:width<600});
+      await page.addInitScript(()=>localStorage.setItem('cardDefaultModelV1','xiaobai'));
       const errors=[];page.on('pageerror',e=>errors.push(e.message));
       await page.goto('http://127.0.0.1:4173/');
       assert.equal(await page.locator('.home-screen').isVisible(),true);
@@ -19,7 +20,7 @@ const os=require('node:os');
       assert.match(await page.locator('#executionNotice').textContent(), /程序为空/);
       await page.locator('#homeBtn').click();
       assert.equal(await page.locator('.home-card').count(),0);
-      assert.deepEqual(await page.evaluate(() => JSON.parse(localStorage.getItem('xiaobaiProjectsV1') || '[]')), []);
+      assert.deepEqual(await page.evaluate(() => JSON.parse(localStorage.getItem('cardModel:xiaobai:projects:v1') || '[]')), []);
       await page.locator('#newProject').click();
       await page.locator('#palette [data-card-id=motor-forward]').click();
       await page.locator('#saveBtn').click();
@@ -61,6 +62,32 @@ const os=require('node:os');
       assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
       assert.deepEqual(errors,[]);
       console.log(`PASS ${width}: create, save, return, reload, rename, copy, delete, example`);
+      await page.close();
+    }
+    {
+      const page=await browser.newPage({viewport:{width:751,height:360},hasTouch:true});
+      await page.addInitScript(()=>localStorage.setItem('cardDefaultModelV1','xiaobai'));
+      await page.goto('http://127.0.0.1:4173/');
+      await page.evaluate(()=>{
+        localStorage.setItem('cardModel:xiaobai:projects:v1',JSON.stringify(Array.from({length:8},(_,i)=>({
+          modelId:'xiaobai',id:`seed-${i}`,name:`作品 ${i+1}`,updated:Date.now()-i*36e5,needsName:false,
+          state:{program:[{id:'motor-forward',params:{port:'L/M1',duration:1}}],stagedGroups:[]}
+        }))));
+      });
+      await page.reload();
+      const reach=await page.evaluate(()=>{
+        const main=document.querySelector('.home-main');
+        const cards=[...document.querySelectorAll('.home-card')];
+        const last=cards[cards.length-1];
+        main.scrollTop=main.scrollHeight;
+        const menu=last.querySelector('.home-menu').getBoundingClientRect();
+        const text=last.querySelector('.home-card-text').getBoundingClientRect();
+        return {menuBottom:menu.bottom,textTop:text.top,textBottom:text.bottom,viewH:innerHeight,mainH:main.clientHeight};
+      });
+      assert.ok(reach.mainH<=360,`home main should stay within the viewport (${reach.mainH})`);
+      assert.ok(reach.menuBottom<=reach.viewH,`last work's action menu should scroll into view (${reach.menuBottom})`);
+      assert.ok(reach.textTop>=0&&reach.textBottom<=reach.viewH,`last work's name should scroll into view`);
+      console.log('PASS 751: landscape home bottom row scrolls into view');
       await page.close();
     }
   } finally { await browser.close(); }

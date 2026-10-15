@@ -1,4 +1,4 @@
-.home-screen { position: fixed; inset: 0; z-index: 1200; display: grid; grid-template-columns: 132px minmax(0,1fr); background: #fbfcfe; color: #203044; letter-spacing: 0; }
+.home-screen { position: fixed; inset: 0; z-index: 1200; display: grid; grid-template-columns: 132px minmax(0,1fr); grid-template-rows: minmax(0,1fr); overflow: hidden; background: #fbfcfe; color: #203044; letter-spacing: 0; }
 .home-screen[hidden] { display: none; }
 body.home-open .app { visibility: hidden; }
 .home-sidebar { background: #e9edf2; border-right: 1px solid #d9e0e7; padding: 28px 10px 20px 0; display: flex; flex-direction: column; gap: 12px; }

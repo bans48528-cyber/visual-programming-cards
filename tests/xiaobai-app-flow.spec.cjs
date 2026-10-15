@@ -6,6 +6,7 @@ const BASE='http://127.0.0.1:4173/dist/';
   const browser=await chromium.launch({channel:'msedge',headless:true});
   try{
     const context=await browser.newContext({viewport:{width:892,height:412},hasTouch:true});
+      await context.addInitScript(()=>localStorage.setItem('cardDefaultModelV1','xiaobai'));
     await context.addInitScript(()=>{window.__XIAOBAI_BLE_TIMING={firstScanMs:80,defaultScanMs:180};});
     await context.addInitScript(mockAndroid);
     const page=await context.newPage(),errors=[];page.on('pageerror',error=>errors.push(error.message));
@@ -23,7 +24,7 @@ const BASE='http://127.0.0.1:4173/dist/';
     await page.evaluate(()=>CardRemote.open());await page.waitForFunction(()=>mockBle.calls.some(call=>call.method==='write'&&atob(call.data).charCodeAt(6)===2));
     await page.locator('[data-remote-key=Y]').click();
     await page.waitForFunction(()=>mockBle.calls.some(call=>call.method==='write'&&atob(call.data).charCodeAt(4)===0xc1&&atob(call.data).charCodeAt(9)===1));
-    await page.locator('.remote-back').click();
+    await page.locator('#remoteControl .remote-back').click();
     await page.waitForFunction(()=>mockBle.calls.filter(call=>call.method==='write'&&atob(call.data).charCodeAt(6)===1).length>=2);
     await page.evaluate(()=>{program=[{id:'wait-time',params:{duration:30}}];document.getElementById('runProgramBtn').click();});
     await page.waitForFunction(()=>document.body.classList.contains('program-running'));

@@ -52,5 +52,8 @@ function fixture(){
   assert.deepEqual(withWait.calls.slice(1,3),[[OP.MOTOR_RUN,[0,2],false],[OP.MOTOR_STOP,[0],false]]);
   const cancel=fixture();const running=cancel.runner.run([block('loop',{},[block('wait-time',{duration:30})])]);
   await sleep(10);await cancel.runner.stop();await running;assert.equal(cancel.calls.filter(x=>x[0]==='stop').length>=1,true);
+  const paths=[];const nested=fixture();nested.runner.onStep=(_item,path)=>paths.push(path.join('.'));
+  await nested.runner.run([block('loop-count',{count:2},[block('display-off')]),block('display-off')]);
+  assert.deepEqual(paths,['0','0.0','0.0','1']);
   console.log('PASS Xiaobai C2 block mapping, middle IR, blocking DONE, ordered continuous/power/stop commands, loop cancellation and stop.');
 })().catch(error=>{console.error(error);process.exitCode=1;});

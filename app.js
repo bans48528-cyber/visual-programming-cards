@@ -1,83 +1,10 @@
     const STORAGE_KEY = "xiaobaiVisualProgramV1";
     const LEGACY_STORAGE_KEY = "xiaobaiVisualProgramLegacy";
 
-    const portParam = () => ({ label: "电机", type: "select", default: "L/M1", options: ["L/M1", "R/M2"] });
-    const durationParam = label => ({ label, type: "number", default: 1, min: 0.1, max: 86400, step: 0.1, unit: "秒" });
-    const powerParam = () => ({
-      label: "功率", type: "select", default: 3,
-      options: [1, 2, 3].map(value => ({ value, label: `${value}档` }))
-    });
-    const expressions = ["待机", "开心", "生气", "伤心", "惊讶", "眨眼", "喜欢", "晕眩", "困倦", "好奇"];
-    const speechLines = [
-      "小白开始行动啦", "跟我一起出发吧", "前方道路畅通", "我发现前面有东西", "让我想一想",
-      "小心一点哦", "太棒了，继续加油", "我找到目标啦", "挑战成功", "我的表演结束啦"
-    ];
-    const recognizedLines = ["开始", "下一步", "再来一次", "你好", "再见", "谢谢", "打开", "关闭", "前进", "后退"];
-
-    const categories = {
-      motor: {
-        color: "var(--motor)",
-        cards: [
-          { id: "motor-forward", label: "电机正转", type: "motor", paramsSchema: { port: portParam(), duration: durationParam("运行时间") } },
-          { id: "motor-reverse", label: "电机反转", type: "motor", paramsSchema: { port: portParam(), duration: durationParam("运行时间") } },
-          { id: "motor-forward-continuous", label: "持续正转", type: "motor", paramsSchema: { port: portParam() } },
-          { id: "motor-reverse-continuous", label: "持续反转", type: "motor", paramsSchema: { port: portParam() } },
-          { id: "motor-stop", label: "电机停止", type: "motor", paramsSchema: { port: portParam() } },
-          { id: "motor-power", label: "电机功率", type: "motor", paramsSchema: { power: powerParam() } }
-        ]
-      },
-      combo: {
-        color: "var(--combo)",
-        cards: [
-          { id: "combo-forward", label: "前进", type: "combo", paramsSchema: { duration: durationParam("运行时间") } },
-          { id: "combo-backward", label: "后退", type: "combo", paramsSchema: { duration: durationParam("运行时间") } },
-          { id: "combo-turn-left", label: "左转", type: "combo", paramsSchema: { duration: durationParam("运行时间") } },
-          { id: "combo-turn-right", label: "右转", type: "combo", paramsSchema: { duration: durationParam("运行时间") } },
-          {
-            id: "combo-continuous", label: "持续移动", type: "combo",
-            paramsSchema: { direction: { label: "方向", type: "select", default: "advance", options: [
-              { value: "advance", label: "前进" }, { value: "retreat", label: "后退" },
-              { value: "left", label: "左转" }, { value: "right", label: "右转" }
-            ] } }
-          },
-          { id: "combo-stop", label: "组合停止", type: "combo" },
-          { id: "combo-power", label: "组合功率", type: "combo", paramsSchema: { power: powerParam() } }
-        ]
-      },
-      logic: {
-        color: "var(--logic)",
-        cards: [
-          { id: "wait-time", label: "等待时间", type: "logic", kind: "action", paramsSchema: { duration: durationParam("等待时间") } },
-          { id: "loop-count", label: "循环次数", type: "logic", kind: "loop", paramsSchema: { count: { label: "次数", type: "number", default: 1, min: 1, max: 1000000, step: 1, integer: true } } },
-          { id: "loop", label: "一直循环", type: "logic", kind: "loop" },
-          {
-            id: "infrared-wait", label: "等待红外", type: "logic",
-            paramsSchema: {
-              comparison: { label: "条件", type: "select", default: "greater", options: [{ value: "greater", label: "大于" }, { value: "less", label: "小于" }] },
-              threshold: { label: "数值", type: "number", default: 50, min: 0, max: 100, step: 1, integer: true }
-            }
-          }
-        ]
-      },
-      dynamic: {
-        color: "#9867E8",
-        cards: [
-          { id: "eye-expression", label: "显示表情", type: "dynamic", paramsSchema: { expression: { label: "表情", type: "select", default: "EYE_01", options: expressions.map((label, index) => ({ value: `EYE_${String(index + 1).padStart(2, "0")}`, label })) } } },
-          { id: "display-number", label: "显示数字", type: "dynamic", paramsSchema: { value: { label: "数字", type: "number", default: 0, min: 0, max: 100, step: 1, integer: true } } },
-          { id: "display-off", label: "关闭显示", type: "dynamic" },
-          { id: "speech-play", label: "语音播报", type: "dynamic", paramsSchema: { phrase: { label: "播报词条", type: "select", default: "P01", options: speechLines.map((label, index) => ({ value: `P${String(index + 1).padStart(2, "0")}`, label, bubble: `P${String(index + 1).padStart(2, "0")}` })) } } },
-          { id: "speech-wait", label: "等待词条", type: "dynamic", paramsSchema: { phrase: { label: "识别词条", type: "select", default: "ASR_01", options: recognizedLines.map((label, index) => ({ value: `ASR_${String(index + 1).padStart(2, "0")}`, label })) } } }
-        ]
-      }
-    };
-
-    // Keep old saved programs readable while removing these superseded cards from the palette.
-    const legacyCards = [
-      { id: "speed-up", label: "速度加一档", type: "combo" },
-      { id: "speed-down", label: "速度减一档", type: "combo" }
-    ];
-    const flatCards = [...Object.values(categories).flatMap(group => group.cards), ...legacyCards];
-    const cardById = Object.fromEntries(flatCards.map(card => [card.id, card]));
+    let categories = CardModelSession.current.catalog;
+    let legacyCards = CardModelSession.current.legacyCards || [];
+    let flatCards = [...Object.values(categories).flatMap(group => group.cards), ...legacyCards];
+    let cardById = Object.fromEntries(flatCards.map(card => [card.id, card]));
     const chain = document.getElementById("chain");
     const palette = document.getElementById("palette");
     const deleteOverlay = document.getElementById("deleteOverlay");
@@ -105,12 +32,12 @@
       audio.preload = "auto";
       audio.volume = 0.7;
     });
-    const categoryOrder = ["motor", "combo", "logic", "dynamic", "staging"];
+    let categoryOrder = [...Object.keys(categories), "staging"];
     const categorySliderColors = {
       motor: "#e9f4ff", combo: "#fce9f6", logic: "#fff0de", dynamic: "#eee7ff", staging: "#eef2f7"
     };
 
-    let activeCategory = "motor";
+    let activeCategory = Object.keys(categories)[0] || "staging";
     let program = [];
     let stagedGroups = [];
     let dragState = null;
@@ -191,6 +118,8 @@
         startX: event.clientX,
         startY: event.clientY,
         source: event.target.closest(".block, .loop-block"),
+        scrollOnly: activeCategory === "all",
+        scrollStart: palette.scrollLeft,
         locked: false,
         width: palette.clientWidth,
         offset: 0,
@@ -252,10 +181,11 @@
       if (dragState?.active || stagedGroupPointerState) { cancelPaletteSwipe(event); return; }
       if (!state.locked) {
         if (Math.abs(deltaX) < PALETTE_SWIPE_LOCK_DISTANCE || Math.abs(deltaX) <= Math.abs(deltaY) * 1.2) return;
-        beginPaletteGesture(state);
+        if(state.scrollOnly) state.locked=true; else beginPaletteGesture(state);
         if (state.source) state.source.dataset.dragged = "true";
       }
       event.preventDefault();
+      if(state.scrollOnly){palette.scrollLeft=state.scrollStart-deltaX;return;}
       const index = categoryOrder.indexOf(activeCategory);
       const hasNeighbor = deltaX < 0 ? index < categoryOrder.length - 1 : index > 0;
       state.offset = Math.max(-state.width, Math.min(state.width, hasNeighbor ? deltaX : deltaX * .22));
@@ -267,6 +197,7 @@
       const state = paletteSwipeState;
       paletteSwipeState = null;
       if (!state.locked) return;
+      if(state.scrollOnly){if(state.source)setTimeout(()=>{state.source.dataset.dragged="false";},0);return;}
       const index = categoryOrder.indexOf(activeCategory);
       const direction = state.offset < 0 ? 1 : -1;
       const nextIndex = index + direction;
@@ -307,7 +238,7 @@
       if (!tabSlider || !selected) return;
       const targetX = selected.offsetLeft;
       const targetWidth = selected.offsetWidth;
-      const targetColor = categorySliderColors[activeCategory];
+      const targetColor = categorySliderColors[activeCategory] || "#e9f4fc";
       const targetOpacity = activeCategory === "staging" ? 0 : 1;
       const tabs = tabSlider.parentElement;
       const tabsRect = tabs.getBoundingClientRect();
@@ -549,6 +480,9 @@
     }
 
     function createCardIcon(card, item = null) {
+      if (card.icon && !["hourglass", "ultrasonic", "matrix"].includes(card.icon)) {
+        const icon=document.createElement('img');icon.className='card-icon';icon.src=card.icon;icon.alt='';icon.draggable=false;return icon;
+      }
       const icon = document.createElement("span");
       icon.className = "card-icon";
       if (card.id === "eye-expression") {
@@ -598,6 +532,7 @@
       if (card.id === "combo-continuous") {
         artIcons[card.id] = `combo-continuous-${getParamValue(card, item, "direction")}`;
       }
+      if (card.artIcon) artIcons[card.id] = card.artIcon;
       if (artIcons[card.id]) {
         icon.classList.add("ai-art-icon");
         if (card.id === "motor-power" || card.id === "combo-power") icon.classList.add("motor-power-icon");
@@ -854,7 +789,7 @@
     }
 
     function getCardColor(card) {
-      return card.color || categories[card.type].color;
+      return card.color || categories[card.type]?.color || `var(--${card.type})`;
     }
 
     function createDefaultParams(schema = {}) {
@@ -932,8 +867,8 @@
 
     function getParamBubbleText(card, item = null) {
       if (card.id.endsWith("-continuous")) {
-        if (card.id === "combo-continuous") return `${getParamOptionDisplay(card.paramsSchema.direction,getParamValue(card,item,"direction"))}∞`;
-        return `${getParamOptionDisplay(card.paramsSchema.port,getParamValue(card,item,"port"))}${card.id === "motor-forward-continuous" ? "正转" : "反转"}∞`;
+        if (card.id === "combo-continuous") return `持续${getParamOptionDisplay(card.paramsSchema.direction,getParamValue(card,item,"direction"))}`;
+        return card.id === "motor-forward-continuous" ? "持续正转" : "持续反转";
       }
       if (card.id === "play-note") return `${getParamValue(card, item, "note")}·${getParamValue(card, item, "beats")}拍`;
       if (card.id === "matrix-display") {
@@ -2932,12 +2867,14 @@
     }
 
     function saveProgram() {
+      if (window.CardHome) { window.CardHome.save(); return; }
       if (window.CardHome?.save()) return;
       localStorage.setItem(STORAGE_KEY, JSON.stringify(serializeWorkspaceState()));
       setStatus("已保存");
     }
 
     function loadProgram() {
+      if (window.CardHome) { window.CardHome.load(); return; }
       if (window.CardHome?.load()) return;
       const raw = localStorage.getItem(STORAGE_KEY) || localStorage.getItem(LEGACY_STORAGE_KEY);
       if (!raw) {
@@ -2992,10 +2929,9 @@
       if (statusEl) statusEl.textContent = text;
     }
 
-    document.querySelectorAll(".tab").forEach(tab => {
-      tab.addEventListener("click", () => {
-        selectCategory(tab.id.replace("tab-", ""));
-      });
+    tabs.addEventListener("click", event => {
+      const tab = event.target.closest('.tab');
+      if (tab) selectCategory(tab.id.replace('tab-', ''));
     });
     palette.addEventListener("pointerdown", startPaletteSwipe, true);
     document.addEventListener("pointermove", movePaletteSwipe, true);
@@ -3069,3 +3005,24 @@
     updateCategorySlider(false);
     renderProgram();
     commitHistory();
+
+    window.CardEditor = {
+      configure(model) {
+        cancelDrag(); closeParamEditor(); paletteGestureCleanup?.(); finishPaletteTransition();
+        categories = model.singlePalette ? {all:{label:'积木',color:'var(--motor)',cards:Object.values(model.catalog).flatMap(group=>group.cards.map(card=>({...card,color:card.color||group.color})))}} : model.catalog; legacyCards = model.legacyCards || [];
+        flatCards = [...Object.values(categories).flatMap(group => group.cards), ...legacyCards];
+        cardById = Object.fromEntries(flatCards.map(card => [card.id, card]));
+        categoryOrder = [...Object.keys(categories), 'staging'];
+        tabs.querySelectorAll('.tab:not(#tab-staging)').forEach(tab => tab.remove());
+        Object.entries(categories).forEach(([id, group]) => {
+          const tab = document.createElement('button'); tab.className='tab'; tab.id='tab-'+id;
+          tab.type='button'; tab.setAttribute('role','tab'); tab.textContent=group.label || id;
+          tab.style.setProperty('--tab-color',group.color); tabs.insertBefore(tab,stagingTab);
+        });
+        applyWorkspaceState({program:[],stagedGroups:[]});
+        historySnapshots=[];historyIndex=-1;grabMarkedPaths.clear();
+        activeCategory=categoryOrder[0];selectCategory(activeCategory,false);renderProgram();commitHistory();
+      }
+    };
+
+    CardEditor.configure(CardModelSession.current);
