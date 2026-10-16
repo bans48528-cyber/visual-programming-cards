@@ -32,22 +32,22 @@ const server = http.createServer((req, res) => {
       return { left: ['homeBtn', 'saveBtn', 'bluetoothBtn'].map(rect), right: ['pauseProgramBtn', 'runProgramBtn'].map(rect) };
     });
     assert.ok(controls.left[0].left < controls.left[1].left && controls.left[1].left < controls.left[2].left);
-    assert.ok(controls.left.every(rect => rect.top <= 10));
+    assert.ok(controls.left.every(rect => rect.top >= 10 && rect.top <= 16), 'editor buttons should sit inside the padded floating toolbar');
     assert.ok(controls.right.every(rect => rect.top <= 10 && Math.abs(rect.width - 46.4) < 1));
     assert.ok(controls.right[1].right > 832);
 
     const expected = {
       motor: ['motor-forward', 'motor-reverse', 'motor-forward-continuous', 'motor-reverse-continuous', 'motor-stop', 'motor-power'],
       combo: ['combo-forward', 'combo-backward', 'combo-turn-left', 'combo-turn-right', 'combo-continuous', 'combo-stop', 'combo-power'],
-      logic: ['wait-time', 'loop-count', 'loop', 'infrared-wait'],
-      dynamic: ['eye-expression', 'display-number', 'display-off', 'speech-play', 'speech-wait']
+      logic: ['wait-time', 'tilt-wait', 'loop-count', 'loop', 'infrared-wait'],
+      dynamic: ['eye-expression', 'eye-matrix', 'display-number', 'display-off', 'speech-play', 'speech-wait']
     };
     for (const [category, ids] of Object.entries(expected)) {
       await page.locator(`#tab-${category}`).click();
       assert.deepEqual(await page.locator('#palette > [data-card-id]').evaluateAll(nodes => nodes.map(node => node.dataset.cardId)), ids);
     }
 
-    assert.match(await page.locator('#startBlock .start-art-icon').getAttribute('src'), /assets\/blocks\/start\.svg$/);
+    assert.match(await page.locator('#startBlock .start-art-icon').getAttribute('src'), /assets\/blocks\/xiaobai-20261016\/start\.svg$/);
     await page.locator('#tab-logic').click();
     const logicFill = await page.locator('#palette [data-card-id=wait-time] > .block-outline > path').evaluate(path => getComputedStyle(path).fill);
     const startFill = await page.locator('#startBlock > .block-outline > path').evaluate(path => getComputedStyle(path).fill);
@@ -110,14 +110,14 @@ const server = http.createServer((req, res) => {
     assert.deepEqual(await page.locator('#paramEditor .param-option-btn').allTextContents(), ['大于', '小于']);
 
     await page.locator('#tab-dynamic').click();
-    assert.equal(await page.locator('#palette [data-card-id=eye-expression] img').getAttribute('src'), 'assets/eyes/eye-01.svg');
-    assert.equal(await page.locator('#palette [data-card-id=display-number] .number-dot-matrix').getAttribute('data-value'), '0');
-    assert.equal(await page.locator('#palette [data-card-id=display-number] .ai-art-icon').count(), 0);
-    assert.match(await page.locator('#palette [data-card-id=display-off] img').getAttribute('src'), /assets\/blocks\/display-off\.svg$/);
+    assert.equal(await page.locator('#palette [data-card-id=eye-expression] img').getAttribute('src'), 'assets/blocks/xiaobai-20261016/eye-expression.svg');
+    assert.equal(await page.locator('#palette [data-card-id=display-number] img').getAttribute('src'), 'assets/blocks/xiaobai-20261016/display-number.svg');
+    assert.equal(await page.locator('#palette [data-card-id=display-number] .model-art-icon').count(), 1);
+    assert.match(await page.locator('#palette [data-card-id=display-off] img').getAttribute('src'), /assets\/blocks\/xiaobai-20261016\/display-off\.svg$/);
     const scale = await page.locator('#palette [data-card-id=speech-play] img').evaluate(img => getComputedStyle(img).transform);
-    assert.match(scale, /1\.638/);
+    assert.equal(scale, 'none');
     const offset = await page.locator('#palette [data-card-id=speech-play] .ai-art-icon').evaluate(icon => getComputedStyle(icon).transform);
-    assert.match(offset, /matrix\(1, 0, 0, 1, 0, -2\.8\)/);
+    assert.equal(offset, 'none');
 
     await page.locator('#palette [data-card-id=display-number]').click();
     await page.locator('#chain [data-card-id=display-number] .param-bubble').click();
@@ -125,7 +125,7 @@ const server = http.createServer((req, res) => {
     await page.locator('.number-key[data-key="4"]').click();
     await page.locator('.number-key[data-key="8"]').click();
     assert.equal(await page.locator('#chain [data-card-id=display-number] .number-dot-matrix').getAttribute('data-value'), '48');
-    await page.locator('#startBlock').click();
+    await page.locator('.program-canvas').click({position:{x:400,y:20}});
 
     await page.locator('#tab-dynamic').click();
     await page.locator('#palette [data-card-id=eye-expression]').click();
@@ -134,7 +134,7 @@ const server = http.createServer((req, res) => {
     await page.locator('#paramEditor .eye-option-btn').nth(1).click();
     assert.match(await page.locator('#chain [data-card-id=eye-expression] img').getAttribute('src'), /eye-02\.svg$/);
 
-    await page.locator('#startBlock').click();
+    await page.locator('.program-canvas').click({position:{x:400,y:20}});
     await page.locator('#tab-dynamic').click();
     await page.locator('#palette [data-card-id=speech-play]').click();
     await page.locator('#chain [data-card-id=speech-play] .param-bubble').click();
@@ -151,9 +151,9 @@ const server = http.createServer((req, res) => {
     assert.equal(await page.locator('#paramEditor').isVisible(), false);
     await page.locator('#tab-logic').click();
     const loopScale = await page.locator('#palette [data-card-id=loop] img').evaluate(img => getComputedStyle(img).transform);
-    assert.match(loopScale, /1\.1466/);
+    assert.equal(loopScale, 'none');
     const waitOffset = await page.locator('#palette [data-card-id=wait-time] .ai-art-icon').evaluate(icon => getComputedStyle(icon).transform);
-    assert.match(waitOffset, /matrix\(1, 0, 0, 1, 0\.8, 1\.2\)/);
+    assert.equal(waitOffset, 'none');
 
     await page.locator('#tab-combo').click();
     await page.locator('#palette [data-card-id=combo-continuous]').click();

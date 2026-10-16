@@ -2,6 +2,7 @@
     const LEGACY_STORAGE_KEY = "xiaobaiVisualProgramLegacy";
 
     let categories = CardModelSession.current.catalog;
+    let modelArtworkByCard = CardModelSession.current.artworkByCard || {};
     let legacyCards = CardModelSession.current.legacyCards || [];
     let flatCards = [...Object.values(categories).flatMap(group => group.cards), ...legacyCards];
     let cardById = Object.fromEntries(flatCards.map(card => [card.id, card]));
@@ -434,7 +435,7 @@
           addCard(card.id);
         });
       }
-      if (mode === "program" && card.paramsSchema && card.id !== "matrix-display") {
+      if (mode === "program" && card.paramsSchema && !hasMatrixParams(card)) {
         block.addEventListener("click", () => {
           if (dragState || block.dataset.dragged === "true") return;
           openParamEditor(nodePath, block);
@@ -449,7 +450,7 @@
       block.classList.add("icon-card");
       block.classList.toggle("wait-card", card.icon === "hourglass");
       block.classList.toggle("sensor-card", card.icon === "ultrasonic");
-      block.classList.toggle("matrix-card", card.id === "matrix-display");
+      block.classList.toggle("matrix-card", hasMatrixParams(card));
 
       block.title = card.label;
       const icon = createCardIcon(card, item);
@@ -467,7 +468,7 @@
       const isProgramControl = mode === "program";
       const bubble = document.createElement(isProgramControl ? "button" : "span");
       bubble.className = "param-bubble";
-      bubble.classList.toggle("matrix-param-trigger", card.id === "matrix-display");
+      bubble.classList.toggle("matrix-param-trigger", hasMatrixParams(card));
       bubble.textContent = getParamBubbleText(card, item);
 
       if (!isProgramControl) {
@@ -499,6 +500,26 @@
       }
       const icon = document.createElement("span");
       icon.className = "card-icon";
+      const artwork = modelArtworkByCard[card.id] || card;
+      const modelArtwork = (!item && artwork.paletteArtIcon) ||
+        artwork.artIcons?.[getParamValue(card, item, "direction")] || artwork.artIcon;
+      if (modelArtwork && (!hasMatrixParams(card) || !item)) {
+        icon.classList.add("ai-art-icon");
+        icon.classList.toggle("model-art-icon", artwork.artStyle === "fitted");
+        const image = document.createElement("img");
+        image.src = `assets/blocks/${modelArtwork}.svg`;
+        image.alt = "";
+        image.setAttribute("aria-hidden", "true");
+        icon.appendChild(image);
+        return icon;
+      }
+      if (card.id === "eye-matrix") {
+        icon.classList.add("dual-eye-matrix-icon");
+        ["leftPattern", "rightPattern"].forEach(key => {
+          icon.appendChild(createMatrixPreview(getParamValue(card, item, key), card.paramsSchema[key]));
+        });
+        return icon;
+      }
       if (card.id === "eye-expression") {
         icon.classList.add("eye-thumbnail-icon");
         const image = document.createElement("img");
@@ -591,7 +612,7 @@
       }
 
       if (card.icon === "matrix") {
-        icon.appendChild(createMatrixPreview(getMatrixPattern(card, item)));
+        icon.appendChild(createMatrixPreview(getMatrixPattern(card, item), card.paramsSchema.pattern));
         return icon;
       }
 
@@ -665,13 +686,17 @@
       return matrix;
     }
 
-    function createMatrixPreview(pattern) {
+    function createMatrixPreview(pattern, definition = {}) {
       const preview = document.createElement("span");
       preview.className = "matrix-preview";
-      pattern.forEach(value => {
+      const { rows, columns, disabledIndexes } = matrixGeometry(definition);
+      preview.style.setProperty("--matrix-rows", rows);
+      preview.style.setProperty("--matrix-columns", columns);
+      pattern.forEach((value, index) => {
         const dot = document.createElement("span");
         dot.className = "matrix-dot";
         dot.classList.toggle("is-on", Boolean(value));
+        dot.classList.toggle("is-missing", disabledIndexes.has(index));
         preview.appendChild(dot);
       });
       return preview;
@@ -823,6 +848,19 @@
       return params;
     }
 
+    function hasMatrixParams(card) {
+      return Object.values(card?.paramsSchema || {}).some(definition => definition.type === "matrix");
+    }
+
+    function matrixGeometry(definition = {}) {
+      const dimension = value => Number.isInteger(value) && value > 0 ? value : 5;
+      const rows = dimension(definition.rows ?? definition.size);
+      const columns = dimension(definition.columns ?? definition.size);
+      const disabledIndexes = new Set((definition.disabledIndexes || []).filter(index =>
+        Number.isInteger(index) && index >= 0 && index < rows * columns));
+      return { rows, columns, disabledIndexes };
+    }
+
     function normalizeParamValue(definition, rawValue) {
       if (definition.type === "number") {
         const defaultValue = Number(definition.default ?? 0);
@@ -853,11 +891,11 @@
       }
 
       if (definition.type === "matrix") {
-        const size = definition.size || 5;
-        const length = size * size;
+        const { rows, columns, disabledIndexes } = matrixGeometry(definition);
+        const length = rows * columns;
         const source = Array.isArray(rawValue) ? rawValue : definition.default;
         const values = Array.isArray(source) ? source : [];
-        return Array.from({ length }, (_, index) => values[index] ? 1 : 0);
+        return Array.from({ length }, (_, index) => !disabledIndexes.has(index) && values[index] ? 1 : 0);
       }
 
       return rawValue ?? definition.default;
@@ -885,7 +923,7 @@
         return card.id === "motor-forward-continuous" ? "持续正转" : "持续反转";
       }
       if (card.id === "play-note") return `${getParamValue(card, item, "note")}·${getParamValue(card, item, "beats")}拍`;
-      if (card.id === "matrix-display") {
+      if (hasMatrixParams(card)) {
         return "";
       }
 
@@ -939,6 +977,7 @@
       const card = cardById[item?.id];
       if (!item || !card?.paramsSchema) return;
 
+      cancelMatrixPaint();
       activeNumberKeypad = null;
       activeParamEditor = {
         nodePath: [...nodePath]
@@ -964,7 +1003,8 @@
       paramEditor.setAttribute("role", "dialog");
       paramEditor.setAttribute("aria-label", `${card.label}参数`);
       paramEditor.hidden = false;
-      paramEditor.classList.toggle("is-matrix", card.id === "matrix-display");
+      paramEditor.classList.toggle("is-matrix", hasMatrixParams(card));
+      paramEditor.classList.toggle("is-dual-eye-matrix", card.id === "eye-matrix");
       paramEditor.classList.toggle("is-number-keypad", Boolean(activeNumberKeypad));
       paramEditor.appendChild(activeNumberKeypad
         ? createNumberKeypad(card)
@@ -976,6 +1016,11 @@
     function createGenericParamEditor(card, item) {
       const panel = document.createElement("div");
       panel.className = "param-editor-panel";
+      if (card.id === "eye-matrix") {
+        panel.classList.add("dual-eye-matrix-editor");
+        ["leftPattern", "rightPattern"].forEach(key => panel.appendChild(createMatrixParamEditor(card, item, key)));
+        return panel;
+      }
       if (card.id === "motor-power" || card.id === "combo-power") {
         panel.classList.add("motor-power-editor");
         panel.appendChild(createCardIcon(card, item));
@@ -1115,18 +1160,33 @@
       panel.className = "matrix-editor-panel";
 
       const pattern = getParamValue(card, item, key);
+      const definition = card.paramsSchema[key];
+      const { rows, columns, disabledIndexes } = matrixGeometry(definition);
+      if (card.id === "eye-matrix") {
+        const title = document.createElement("div");
+        title.className = "matrix-editor-title";
+        title.textContent = definition.label;
+        panel.appendChild(title);
+      }
       const grid = document.createElement("div");
       grid.className = "matrix-editor-grid";
+      grid.style.setProperty("--matrix-rows", rows);
+      grid.style.setProperty("--matrix-columns", columns);
       grid.addEventListener("pointerdown", startMatrixPaint);
       grid.dataset.paramKey = key;
+      grid.setAttribute("role", "group");
+      grid.setAttribute("aria-label", definition.label || "点阵图案");
 
       pattern.forEach((value, index) => {
         const button = document.createElement("button");
         button.className = "matrix-cell";
         button.classList.toggle("is-on", Boolean(value));
+        button.classList.toggle("is-missing", disabledIndexes.has(index));
+        button.disabled = disabledIndexes.has(index);
         button.type = "button";
         button.dataset.matrixIndex = String(index);
-        button.setAttribute("aria-label", `点阵第${index + 1}格`);
+        button.setAttribute("aria-label", `${definition.label || "点阵"}第${Math.floor(index / columns) + 1}行第${index % columns + 1}列`);
+        button.setAttribute("aria-pressed", String(Boolean(value)));
         grid.appendChild(button);
       });
 
@@ -1135,9 +1195,9 @@
     }
 
     function startMatrixPaint(event) {
-      if (event.button > 0) return;
+      if (event.button > 0 || matrixPaintState || !activeParamEditor) return;
       const cell = event.target.closest(".matrix-cell");
-      if (!cell) return;
+      if (!cell || cell.disabled) return;
       event.preventDefault();
       event.stopPropagation();
 
@@ -1152,6 +1212,9 @@
         pointerId: event.pointerId,
         grid,
         paramKey,
+        item,
+        nodePath: [...activeParamEditor.nodePath],
+        disabledIndexes: matrixGeometry(definition).disabledIndexes,
         paintedIndexes: new Set(),
         pattern: [...getParamValue(card, item, paramKey)],
         lastX: event.clientX,
@@ -1162,6 +1225,7 @@
       grid.addEventListener("pointermove", moveMatrixPaint);
       grid.addEventListener("pointerup", endMatrixPaint);
       grid.addEventListener("pointercancel", endMatrixPaint);
+      grid.addEventListener("lostpointercapture", endMatrixPaint);
     }
 
     function moveMatrixPaint(event) {
@@ -1180,30 +1244,41 @@
 
     function endMatrixPaint(event) {
       if (!matrixPaintState || event.pointerId !== matrixPaintState.pointerId) return;
-      const { grid, pointerId, pattern, paramKey } = matrixPaintState;
+      const state = matrixPaintState;
+      const valid = activeParamEditor && pathsEqual(activeParamEditor.nodePath, state.nodePath) &&
+        getNodeAtPath(state.nodePath) === state.item;
+      cancelMatrixPaint();
+      // The grid already reflects the stroke; keep its touch target alive through touchend.
+      if (valid) setActiveParamValue(state.paramKey, state.pattern, false);
+    }
+
+    function cancelMatrixPaint() {
+      if (!matrixPaintState) return;
+      const { grid, pointerId } = matrixPaintState;
+      matrixPaintState = null;
       grid.removeEventListener("pointermove", moveMatrixPaint);
       grid.removeEventListener("pointerup", endMatrixPaint);
       grid.removeEventListener("pointercancel", endMatrixPaint);
+      grid.removeEventListener("lostpointercapture", endMatrixPaint);
       if (grid.hasPointerCapture?.(pointerId)) {
         grid.releasePointerCapture(pointerId);
       }
-      setActiveParamValue(paramKey, pattern);
-      matrixPaintState = null;
     }
 
     function paintMatrixCell(index) {
       if (!activeParamEditor) return;
       if (!Number.isInteger(index) || index < 0) return;
       if (matrixPaintState?.paintedIndexes.has(index)) return;
+      if (matrixPaintState?.disabledIndexes.has(index)) return;
 
       const pattern = matrixPaintState?.pattern;
       if (!pattern) return;
       if (index >= pattern.length) return;
       matrixPaintState?.paintedIndexes.add(index);
       pattern[index] = pattern[index] ? 0 : 1;
-      matrixPaintState?.grid
-        .querySelector(`.matrix-cell[data-matrix-index="${index}"]`)
-        ?.classList.toggle("is-on", Boolean(pattern[index]));
+      const cell = matrixPaintState.grid.querySelector(`.matrix-cell[data-matrix-index="${index}"]`);
+      cell?.classList.toggle("is-on", Boolean(pattern[index]));
+      cell?.setAttribute("aria-pressed", String(Boolean(pattern[index])));
     }
 
     function paintMatrixCellsAlongPath(fromX, fromY, toX, toY) {
@@ -1489,10 +1564,11 @@
     }
 
     function closeParamEditor() {
+      cancelMatrixPaint();
       activeParamEditor = null;
       activeNumberKeypad = null;
       paramEditor.hidden = true;
-      paramEditor.classList.remove("is-matrix", "is-above-anchor", "is-number-keypad", "is-side-anchor", "is-right-of-anchor", "is-left-of-anchor");
+      paramEditor.classList.remove("is-matrix", "is-dual-eye-matrix", "is-above-anchor", "is-number-keypad", "is-side-anchor", "is-right-of-anchor", "is-left-of-anchor");
       paramEditor.style.removeProperty("--param-arrow-left");
       paramEditor.style.removeProperty("--param-arrow-top");
       paramEditor.replaceChildren();
@@ -2953,6 +3029,34 @@
     document.addEventListener("pointercancel", cancelPaletteSwipe, true);
 
     document.getElementById("saveBtn").addEventListener("click", saveProgram);
+    // Use the same entry point and disabled state as the toolbar run button.
+    // Sliding across the start block must not accidentally start hardware.
+    let startBlockPress = null;
+    startBlock.addEventListener("pointerdown", event => {
+      startBlockPress = { id: event.pointerId, x: event.clientX, y: event.clientY,
+        cancelled: event.button !== 0 || event.isPrimary === false };
+    });
+    startBlock.addEventListener("pointermove", event => {
+      if (startBlockPress?.id === event.pointerId &&
+          Math.hypot(event.clientX - startBlockPress.x, event.clientY - startBlockPress.y) > 8) {
+        startBlockPress.cancelled = true;
+      }
+    });
+    startBlock.addEventListener("pointerleave", event => {
+      if (startBlockPress && event.buttons) startBlockPress.cancelled = true;
+    });
+    startBlock.addEventListener("pointercancel", () => {
+      if (startBlockPress) startBlockPress.cancelled = true;
+    });
+    startBlock.addEventListener("click", event => {
+      if (event.detail !== 0 && startBlockPress?.cancelled) return;
+      document.getElementById("runProgramBtn").click();
+    });
+    startBlock.addEventListener("keydown", event => {
+      if (event.key !== "Enter" && event.key !== " ") return;
+      event.preventDefault();
+      if (!event.repeat) document.getElementById("runProgramBtn").click();
+    });
     const executionControls = document.querySelector(".execution-controls");
     const executionNotice = document.getElementById("executionNotice");
     let executionNoticeTimer;
@@ -3023,6 +3127,12 @@
     window.CardEditor = {
       configure(model) {
         cancelDrag(); closeParamEditor(); paletteGestureCleanup?.(); finishPaletteTransition();
+        modelArtworkByCard = model.artworkByCard || {};
+        const startIcon = startBlock.querySelector(".start-art-icon");
+        if (startIcon) {
+          startIcon.src = model.startIcon || "assets/blocks/start.svg";
+          startIcon.classList.toggle("model-art-icon", model.artStyle === "fitted");
+        }
         categories = model.singlePalette ? {all:{label:'积木',color:'var(--motor)',cards:Object.values(model.catalog).flatMap(group=>group.cards.map(card=>({...card,color:card.color||group.color})))}} : model.catalog; legacyCards = model.legacyCards || [];
         flatCards = [...Object.values(categories).flatMap(group => group.cards), ...legacyCards];
         cardById = Object.fromEntries(flatCards.map(card => [card.id, card]));

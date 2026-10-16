@@ -1,0 +1,110 @@
+{
+  "source": "图标SVG.ai",
+  "sourceSha256": "df7cf70576dc0777f89d40b502ffa9075755ac602f8fa632702738989b2d8728",
+  "artboards": [
+    {
+      "page": 1,
+      "asset": "motor-forward.svg"
+    },
+    {
+      "page": 2,
+      "asset": "motor-reverse.svg"
+    },
+    {
+      "page": 3,
+      "asset": "motor-forward-continuous.svg"
+    },
+    {
+      "page": 4,
+      "asset": "motor-reverse-continuous.svg"
+    },
+    {
+      "page": 5,
+      "asset": "motor-stop.svg"
+    },
+    {
+      "page": 6,
+      "asset": "motor-power.svg"
+    },
+    {
+      "page": 7,
+      "asset": "combo-forward.svg"
+    },
+    {
+      "page": 8,
+      "asset": "combo-backward.svg"
+    },
+    {
+      "page": 9,
+      "asset": "combo-turn-right.svg"
+    },
+    {
+      "page": 10,
+      "asset": "combo-turn-left.svg"
+    },
+    {
+      "page": 11,
+      "asset": "combo-continuous-advance.svg"
+    },
+    {
+      "page": 12,
+      "asset": "combo-continuous-retreat.svg"
+    },
+    {
+      "page": 13,
+      "asset": "wait-time.svg"
+    },
+    {
+      "page": 14,
+      "asset": "loop.svg"
+    },
+    {
+      "page": 15,
+      "asset": "combo-continuous-right.svg"
+    },
+    {
+      "page": 16,
+      "asset": "combo-continuous-left.svg"
+    },
+    {
+      "page": 17,
+      "asset": "combo-stop.svg"
+    },
+    {
+      "page": 18,
+      "asset": "combo-power.svg"
+    },
+    {
+      "page": 19,
+      "asset": "eye-expression.svg"
+    },
+    {
+      "page": 20,
+      "asset": "display-number.svg"
+    },
+    {
+      "page": 21,
+      "asset": "display-off.svg"
+    },
+    {
+      "page": 22,
+      "asset": "speech-play.svg"
+    },
+    {
+      "page": 23,
+      "asset": "infrared-wait.svg"
+    },
+    {
+      "page": 24,
+      "asset": "start.svg"
+    },
+    {
+      "page": 25,
+      "asset": "speech-wait.svg"
+    },
+    {
+      "page": 26,
+      "asset": "tilt-wait.svg"
+    }
+  ]
+}

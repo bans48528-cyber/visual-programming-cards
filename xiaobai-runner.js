@@ -17,6 +17,10 @@
       for(const item of items){
         if(!item||++count>1000)throw new Error('程序最多支持 1000 块积木。');
         const {id,params:p={}}=item;
+        // Validate the whole program before entering program mode. Neither command is
+        // defined in the supplied C2 protocol; never guess opcodes or execute a prefix.
+        if(id==='tilt-wait')throw new Error('尚未提供“等待倾倒”的通信协议，暂不能运行包含此积木的程序。');
+        if(id==='eye-matrix')throw new Error('尚未提供“点阵表情”的通信协议，暂不能运行包含此积木的程序。');
         if(!supported.has(id))throw new Error('小白不支持此积木：'+id);
         if(motorIds.has(id)&&!['L/M1','R/M2','L','R'].includes(p.port))throw new Error('请选择左或右电机。');
         if(id==='combo-continuous'&&!Object.hasOwn(move,p.direction))throw new Error('移动方向无效。');

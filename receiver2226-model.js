@@ -7,7 +7,7 @@
   const combo=original.catalog.combo.cards.map(copy);
   const power=combo.find(c=>c.id==='combo-power');power.label='三路共用档位';
   power.paramsSchema.power={label:'三路共用档位',type:'select',default:3,options:[1,2,3,4,5].map(value=>({value,label:value+'档'}))};
-  CardModels.register({id:'receiver2226',name:'小方块 2226',singlePalette:true,image:'assets/devices/receiver2226.svg',
+  CardModels.register({id:'receiver2226',name:'小方块 2226',singlePalette:true,image:'assets/devices/receiver2226-product.webp',
     description:'1、2 路组合运动，第三路独立控制，三路共用五档速度。蓝牙连接待配置。',
     features:[{id:'files',label:'我的作品',icon:'assets/home-icon-file.png'},],
     catalog:{combo:{label:'组合电机',color:'var(--combo)',cards:combo},motor:{label:'第三路电机',color:'var(--motor)',cards:motor},logic:{label:'逻辑',color:'var(--logic)',cards:original.catalog.logic.cards.filter(c=>['wait-time','loop-count','loop'].includes(c.id)).map(copy)}},

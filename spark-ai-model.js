@@ -259,7 +259,7 @@
     }));
   });
   CardModels.register({
-    id:'spark-ai',name:'Spark AI',image:'assets/devices/spark-ai.svg',description:'电机、传感器与点阵编程，上传完整程序后由主机执行。',
+    id:'spark-ai',name:'Spark AI',image:'assets/devices/spark-ai-product-cutout.webp',description:'电机、传感器与点阵编程，上传完整程序后由主机执行。',
     features:[{id:'files',label:'我的作品',icon:'assets/home-icon-file.png'},{id:'remote',label:'遥控',icon:'assets/devices/remote.svg'}],
     catalog:categories,
     examples:[{name:'等待与音符',color:'#f3edff',items:[{id:'wait-time'},{id:'play-note'}]},

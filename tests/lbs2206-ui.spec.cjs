@@ -11,7 +11,7 @@ const verified={serviceUuid:'11111111-1111-1111-1111-111111111111',writeUuid:'22
    const page=await context.newPage(),errors=[];page.on('pageerror',e=>errors.push(e.message));await page.goto('http://127.0.0.1:4173/dist/#home');return {page,context,errors};
   }
   {
-   const {page,context,errors}=await setup({});assert.equal(await page.locator('.home-model-entry strong').textContent(),'LBS2206 V1.02');
+   const {page,context,errors}=await setup({});assert.equal(await page.locator('.home-model-entry strong').textContent(),'LBS2206');
    await page.evaluate(()=>Lbs2206UI.open());await page.locator('#lbsRemoteControl .remote-connect').click();await page.locator('.lbs-page .bt-back').click();await page.waitForFunction(()=>document.getElementById('lbsRemoteControl').open&&!CardPageTransition.busy);assert.equal(await page.evaluate(()=>location.hash),'#home');await page.locator('#lbsRemoteControl .remote-back').click();await page.waitForFunction(()=>!CardPageTransition.busy);
    await page.locator('#newProject').click();assert.equal(await page.locator('#palette [data-card-id]').count(),9);assert.equal(await page.locator('#tab-dynamic').count(),0);
    await page.locator('#palette [data-card-id=combo-forward]').click();assert.equal(await page.locator('#chain .param-bubble').textContent(),'1秒');

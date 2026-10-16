@@ -116,7 +116,7 @@ async function touchDrag(page, selector, point) {
       await page.locator('#paramEditor .param-current').click();
       await page.locator('.number-key[data-key="4"]').click();
       assert.equal(await page.evaluate(()=>program[0].params.count),4);
-      await page.locator('#startBlock').click();
+      await page.locator('.tab[aria-selected="true"]').click();
       assert.equal(await page.locator('#paramEditor').isVisible(),false);
       await checkGeometry(page);
       await page.screenshot({path:path.join(os.tmpdir(),`cards-interaction-${viewport.width}.png`)});

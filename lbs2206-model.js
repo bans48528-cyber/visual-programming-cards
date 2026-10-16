@@ -1,7 +1,7 @@
 (() => {
   const steps={label:'步数',type:'number',default:1,min:1,max:1000,step:1,integer:true,unit:'步'};
   CardModels.register({
-    id:'lbs2206',singlePalette:true,name:'LBS2206 V1.02',image:'assets/devices/lbs2206.svg',description:'双电机编程小车。手机编排遥控指令，支持按时间运动、持续运动与五档功率。',
+    id:'lbs2206',singlePalette:true,name:'LBS2206',image:'assets/devices/lbs2206-product.webp',description:'双电机编程小车。手机编排遥控指令，支持按时间运动、持续运动与五档功率。',
     features:[{id:'files',label:'我的作品',icon:'assets/home-icon-file.png'},
       {id:'remote',label:'遥控',icon:'assets/devices/remote.svg'},{id:'settings',label:'设备设置',icon:'assets/devices/settings.svg',open:()=>Lbs2206UI.settings()}],
     catalog:{combo:{label:'运动',color:'var(--combo)',cards:CardModels.get('xiaobai').catalog.combo.cards.map(card=>{
