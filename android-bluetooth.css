@@ -1,78 +1,89 @@
-.android-bluetooth { background: #f3f6fa; }
-.android-bluetooth .bt-top { position: sticky; top: 0; z-index: 3; height: 52px; padding: 0 18px; border-bottom: 1px solid #dde5ec; background: rgba(255,255,255,.96); }
-.android-bluetooth .bt-top h1 { font-size: 18px; color: #1d3447; }
-.android-bluetooth .bt-back { display: inline-flex; align-items: center; gap: 3px; min-width: 74px; padding: 8px 6px; border-radius: 9px; color: #506b80; font-weight: 650; }
-.android-bluetooth .bt-back span { font: 400 28px/16px Arial,sans-serif; margin-top: -2px; }
-.android-bluetooth .bt-back:active { background: #edf3f7; }
-.bt-native-badge { display: inline-flex; align-items: center; gap: 6px; margin-left: auto; padding: 5px 10px; border-radius: 999px; background: #edf6fc; color: #44718f; font-size: 11px; font-weight: 650; }
-.bt-native-badge i { width: 7px; height: 7px; border-radius: 50%; background: #30a273; box-shadow: 0 0 0 3px #d8f1e6; }
-.bt-mobile-layout { display: grid; grid-template-columns: 250px minmax(0,1fr); gap: 16px; width: min(1080px,100%); margin: auto; padding: 16px; }
-.bt-phone-panel,.bt-device-panel { min-width: 0; padding: 17px; border: 1px solid #dfe7ee; border-radius: 16px; background: #fff; box-shadow: 0 4px 16px rgba(38,64,86,.05); }
-.bt-phone-panel { align-self: start; }
-.bt-phone-heading { display: flex; align-items: center; gap: 11px; }
-.bt-phone-symbol { display: grid; place-items: center; flex: 0 0 42px; width: 42px; height: 42px; border-radius: 12px; background: #e7f4fd; color: #0a8ddd; }
-.bt-phone-symbol svg { width: 25px; height: 25px; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
-.bt-phone-heading h2 { margin: 0 0 3px; font-size: 17px; color: #20394d; }
-.bt-phone-heading p { margin: 0; color: #718496; font-size: 11px; line-height: 1.4; }
-.bt-ready { display: flex; align-items: center; gap: 9px; min-height: 40px; margin-top: 14px; padding: 9px 11px; border: 1px solid #dfe8ef; border-radius: 11px; background: #f7f9fb; color: #5f7385; font-size: 12px; }
-.bt-ready > span { width: 9px; height: 9px; flex: 0 0 9px; border-radius: 50%; background: #9aaab7; }
-.bt-ready.is-ready { border-color: #cce8dc; background: #f0faf6; color: #28775b; }
-.bt-ready.is-ready > span { background: #2da376; box-shadow: 0 0 0 4px #dff3ea; }
-.bt-ready.needs-action { border-color: #efd7ad; background: #fff8eb; color: #8a5b12; }
-.bt-ready.needs-action > span { background: #e89b21; box-shadow: 0 0 0 4px #fae8c9; }
-.bt-settings { margin-top: 9px; border: 1px solid #e2e9ef; border-radius: 11px; overflow: hidden; }
-.bt-settings summary { display: flex; align-items: center; justify-content: space-between; min-height: 38px; padding: 8px 11px; color: #4d6579; font-size: 12px; font-weight: 650; cursor: pointer; list-style: none; }
-.bt-settings summary::-webkit-details-marker { display: none; }
-.bt-settings summary small { color: #8495a3; font-size: 10px; font-weight: 500; }
-.bt-settings[open] summary { border-bottom: 1px solid #e5ebf0; background: #f8fafc; }
-.bt-settings[open] summary small { font-size: 0; }
-.bt-settings[open] summary small::after { content: "收起"; font-size: 10px; }
-.bt-setting-list { display: grid; gap: 0; padding: 3px 10px 8px; }
-.bt-setting-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 0; border-bottom: 1px solid #edf1f4; }
-.bt-setting-row > div { display: grid; gap: 2px; font-size: 11px; color: #687d8e; }
-.bt-setting-row strong { color: #2f6f57; font-size: 11px; font-weight: 650; }
-.bt-setting-row .bt-button { min-height: 30px; padding: 4px 10px; border-radius: 8px; font-size: 10px; }
-.bt-location { padding: 8px 0 2px; }
-.bt-location p { margin: 0 0 7px; color: #7a6a4c; font-size: 10px; line-height: 1.45; }
-.bt-location .bt-button { width: 100%; min-height: 30px; padding: 4px 8px; font-size: 10px; }
-.bt-stage-note { margin: 10px 0 0; padding: 10px 11px; border-radius: 10px; background: #f5f7fa; color: #6d7f8e; font-size: 10px; line-height: 1.45; }
-.bt-stage-note strong { display: block; margin-bottom: 2px; color: #4d6376; font-size: 11px; }
-.bt-device-panel { align-self: start; }
-.android-bluetooth .bt-section-header { display: flex; align-items: center; margin: 0; }
-.android-bluetooth .bt-section-header h2 { margin: 0 0 3px; font-size: 18px; color: #20394d; }
-.bt-scan-description { display: block; color: #7a8c9b; font-size: 11px; }
-.android-bluetooth .bt-button { min-height: 36px; padding: 7px 14px; border-radius: 10px; font-size: 12px; font-weight: 650; }
-.android-bluetooth .bt-button.primary { border-color: #0783d1; background: #078bdd; box-shadow: 0 3px 8px rgba(7,139,221,.18); }
-.android-bluetooth .bt-button.primary:active { background: #087bc3; transform: translateY(1px); }
-.android-bluetooth .bt-message { min-height: 34px; margin: 12px 0; padding: 8px 11px; border-radius: 9px; background: #f3f7fa; color: #647b8e; font-size: 11px; line-height: 1.5; }
-.android-bluetooth .bt-message.error { background: #fff0f0; color: #a83939; }
-.android-bluetooth .bt-list { display: grid; gap: 8px; margin: 0; background: transparent; border-radius: 0; overflow: visible; }
-.android-bluetooth .bt-device { min-height: 68px; padding: 11px 12px; gap: 12px; border: 1px solid #e1e8ee; border-radius: 11px; background: #fbfcfd; }
-.android-bluetooth .bt-device:last-child { border-bottom: 1px solid #e1e8ee; }
-.bt-device-info strong { color: #243d51; font-size: 14px; }
-.bt-device-info small { margin-top: 3px; color: #8192a1; font-size: 10px; }
-.bt-signal { display: flex; align-items: flex-end; gap: 2px; width: 27px; flex-shrink: 0; }
-.bt-signal i { width: 4px; background: #dce5eb; border-radius: 2px; }
-.bt-signal i.lit { background: #078bdd; }
-.bt-device-actions { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
-.android-bluetooth .bt-device-actions .bt-button { width: auto; min-height: 32px; padding: 5px 11px; white-space: nowrap; font-size: 10px; }
-.android-bluetooth .bt-rename { border-color: transparent; background: transparent; color: #61788b; }
-.android-bluetooth .bt-connect { border-color: #b8d9ee; background: #edf7fd; color: #087ebe; }
-.bt-current { display: flex; align-items: center; justify-content: space-between; gap: 15px; margin: 0 0 12px; padding: 12px 14px; border: 1px solid #c8e7d9; border-radius: 12px; background: #eff9f5; }
-.bt-current[hidden] { display: none; }
-.bt-eyebrow { color: #4a856e; font-size: 10px; font-weight: 650; }
-.bt-current h2 { margin: 3px 0; color: #234d3e; font-size: 16px; overflow-wrap: anywhere; }
-.bt-current p { margin: 0; color: #43806a; font-size: 10px; }
-.android-bluetooth .bt-empty { display: grid; place-items: center; min-height: 130px; padding: 18px; border: 1px solid #e2e9ef; border-radius: 12px; background: #fafcfd; text-align: center; color: #8192a1; }
-.android-bluetooth .bt-empty[hidden] { display: none; }
-.android-bluetooth .bt-empty strong { margin: 9px 0 3px; color: #4f6679; font-size: 14px; font-weight: 650; }
-.android-bluetooth .bt-empty > span:last-child { font-size: 10px; }
-.bt-radar { display: block; width: 28px; height: 28px; border: 2px solid #bdd9eb; border-radius: 50%; box-shadow: 0 0 0 7px #edf6fb; }
-.is-scanning .bt-radar { border-top-color: #078bdd; animation: bt-spin 1s linear infinite; }
-@keyframes bt-spin { to { transform: rotate(360deg); } }
-.bt-diagnostics { margin: 10px 0 0; color: #7b8d9c; font-size: 10px; }
-.bt-diagnostics summary { padding: 7px 2px; cursor: pointer; }
-.android-bluetooth .bt-trace { max-height: 110px; margin: 0 0 7px; padding: 8px; border-radius: 8px; user-select: text; -webkit-user-select: text; font-size: 9px; }
+/* Landscape Bluetooth screen shared by every hardware adapter. */
+.bt-landscape { background:#f4f8fc; color:#223b53; display:flex; flex-direction:column; overflow:hidden; font-family:inherit; }
+.bt-landscape * { box-sizing:border-box; }
+.bt-landscape [hidden] { display:none!important; }
+.bt-landscape button { font-family:inherit; cursor:pointer; }
+.bt-landscape button:focus-visible { outline:2px solid #168afa; outline-offset:3px; }
+.bt-landscape .bt-top { flex:none; height:60px; padding:0 max(18px,env(safe-area-inset-right)) 0 max(18px,env(safe-area-inset-left)); gap:12px; border-bottom:1px solid #e1eaf2; background:#fff; }
+.bt-landscape .bt-top h1 { font-size:19px; color:#223b53; }
+.bt-landscape .bt-back { width:42px; height:42px; display:grid; place-items:center; border:0; border-radius:12px; padding:0; background:#edf4fa; color:#28455d; flex:none; }
+.bt-landscape svg { display:block; width:22px; height:22px; }
+.bt-landscape .bt-phone-state { margin-left:auto; display:flex; align-items:center; gap:10px; border:0; background:transparent; color:#57778f; min-height:44px; padding:4px; }
+.bt-landscape .bt-phone-state>svg { width:20px; height:20px; }
+.bt-landscape .bt-ready { display:flex; align-items:center; gap:7px; font-size:12px; }
+.bt-landscape .bt-ready strong { font-weight:500; }
+.bt-landscape .bt-ready>span { width:7px; height:7px; border-radius:50%; background:#9aaebe; flex:none; }
+.bt-landscape .bt-ready.is-ready>span { background:#25a37a; }
+.bt-landscape .bt-ready.needs-action>span { background:#d99527; }
+.bt-landscape .bt-mobile-layout { display:grid; grid-template-columns:minmax(160px,.8fr) minmax(0,1.65fr); gap:clamp(16px,3vw,38px); width:min(1100px,100%); min-height:0; flex:1; margin:0 auto; padding:22px 26px 12px; }
+.bt-landscape .bt-phone-panel { min-width:0; align-self:center; display:flex; flex-direction:column; align-items:center; text-align:center; padding:0 8px; }
+.bt-landscape .bt-product-art { position:relative; width:100%; height:clamp(100px,29dvh,210px); display:grid; place-items:center; overflow:hidden; }
+.bt-landscape .bt-product-art::before { content:""; position:absolute; inset:0; margin:auto; height:100%; aspect-ratio:1; max-width:100%; border-radius:50%; background:#edf5fe; }
+.bt-landscape .bt-product-art img { position:absolute; inset:0; margin:auto; width:100%; height:100%; max-width:240px; object-fit:contain; filter:drop-shadow(0 7px 7px #233f531a); }
+.bt-landscape[data-model-id=xiaobai] .bt-product-art img { transform:scale(1.35); }
+.bt-landscape .bt-model-name { font-size:clamp(17px,2.5vw,25px); margin:12px 0 9px; line-height:1.25; }
+.bt-landscape .bt-hero-state { display:flex; align-items:center; gap:7px; border-radius:30px; background:#eaf0f6; padding:8px 12px; color:#6d8294; font-size:12px; }
+.bt-landscape .bt-hero-state i { width:7px; height:7px; border-radius:50%; background:#9eafbd; }
+.bt-landscape .bt-hero-state.is-connected { color:#208968; background:#e5f5ee; }
+.bt-landscape .bt-hero-state.is-connected i { background:#29a77c; }
+.bt-landscape .bt-hero-state.is-busy i { background:#168afa; }
+.bt-landscape .bt-hero-note { max-width:220px; color:#7b8fa1; font-size:11px; line-height:1.6; margin:9px 0 0; }
+.bt-landscape .bt-device-panel { min-width:0; min-height:0; display:flex; flex-direction:column; }
+.bt-landscape .bt-section-header { flex:none; display:flex; align-items:center; justify-content:space-between; gap:12px; margin:0 0 5px; }
+.bt-landscape .bt-section-header h2 { font-size:17px; margin:0 0 4px; }
+.bt-landscape .bt-device-count { font-size:12px; font-weight:400; color:#7c93a7; margin-left:4px; }
+.bt-landscape .bt-scan-description { font-size:11px; color:#7b8fa1; }
+.bt-landscape .bt-button { min-height:44px; padding:7px 13px; border:1px solid #d4e3f2; border-radius:11px; font-size:12px; background:#fff; color:#2585d1; }
+.bt-landscape .bt-button:disabled { opacity:.45; cursor:default; }
+.bt-landscape .bt-button:active:not(:disabled) { transform:translateY(1px); }
+.bt-landscape .bt-message { flex:none; margin:3px 0 9px; min-height:17px; font-size:11px; line-height:1.5; color:#6b8295; }
+.bt-landscape .bt-message.error { color:#ad503d; background:#fff0eb; border-radius:8px; padding:7px 10px; }
+.bt-landscape .bt-results { min-height:0; overflow-y:auto; overscroll-behavior:contain; padding:2px 4px 8px 2px; scrollbar-width:thin; scrollbar-color:#c7d6e4 transparent; }
+.bt-landscape .bt-list { display:grid; gap:9px; padding:0; margin:0; list-style:none; }
+.bt-landscape .bt-device { display:flex; min-height:68px; padding:9px 11px; gap:11px; border:1px solid #e0e9f2; border-radius:14px; background:#fff; box-shadow:0 3px 8px #1d4b780a; }
+.bt-landscape .bt-device.is-default { border-color:#bdddf8; background:#fafdff; }
+.bt-landscape .bt-device-info { flex:1; min-width:0; align-self:center; }
+.bt-landscape .bt-device-info strong { display:block; font-size:14px; font-weight:650; color:#29435a; overflow-wrap:anywhere; }
+.bt-landscape .bt-default-badge { display:inline-block; vertical-align:middle; font-size:10px; font-weight:500; color:#2587d1; background:#e8f3ff; padding:3px 5px; border-radius:5px; margin-left:7px; }
+.bt-landscape .bt-device-info small { color:#7e92a4; font-size:10px; margin-top:5px; overflow-wrap:anywhere; }
+.bt-landscape .bt-signal { display:flex; align-items:flex-end; align-self:center; gap:2px; width:23px; flex:none; }
+.bt-landscape .bt-signal i { width:3px; background:#dce6ee; border-radius:2px; }
+.bt-landscape .bt-signal i.lit { background:#168afa; }
+.bt-landscape .bt-device-actions { display:flex; align-items:center; gap:6px; flex:none; flex-wrap:nowrap; }
+.bt-landscape .bt-connect { background:#168afa; border-color:#168afa; color:white; min-width:57px; }
+.bt-landscape .bt-rename,.bt-landscape .bt-rename-current { order:2; background:transparent; border-color:transparent; padding:0; width:36px; font-size:23px; color:#8196a8; }
+.bt-landscape .bt-current { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:11px 13px; margin:0 0 9px; border:1px solid #a9ddc8; border-radius:14px; background:#f1fbf6; }
+.bt-landscape .bt-current>div:first-child { min-width:0; }
+.bt-landscape .bt-current.is-pending { background:#f4faff; border-color:#bdddf8; }
+.bt-landscape .bt-eyebrow { font-size:10px; color:#52846d; }
+.bt-landscape .bt-current h2 { font-size:15px; margin:3px 0; overflow-wrap:anywhere; }
+.bt-landscape .bt-current p { font-size:10px; margin:0; color:#628b79; overflow-wrap:anywhere; }
+.bt-landscape #btDisconnect { color:#557180; background:#e7f1ef; border-color:transparent; }
+.bt-landscape .bt-empty { display:grid; place-items:center; align-content:center; gap:9px; min-height:160px; padding:20px; border:1px dashed #cfdeec; border-radius:15px; background:#ffffff80; color:#7b91a5; }
+.bt-landscape .bt-empty strong { font-size:15px; color:#48667e; margin:3px 0 0; }
+.bt-landscape .bt-empty>span:last-child { font-size:11px; line-height:1.6; }
+.bt-landscape .bt-radar { display:block; width:27px; height:27px; border:2px solid #bdd9eb; border-radius:50%; box-shadow:0 0 0 7px #edf6fb; margin:5px; }
+.bt-landscape.is-scanning .bt-radar { border-top-color:#168afa; animation:bt-spin 1s linear infinite; }
+@keyframes bt-spin { to { transform:rotate(360deg); } }
+.bt-landscape .bt-footer { flex:none; display:flex; justify-content:space-between; align-items:center; gap:20px; width:min(1100px,100%); margin:auto; padding:4px 26px max(10px,env(safe-area-inset-bottom)); }
+.bt-landscape .bt-stage-note { margin:0; font-size:11px; color:#7c92a5; line-height:1.5; }
+.bt-landscape .bt-help { flex:none; min-height:44px; background:transparent; border:0; padding:6px 0; font-size:12px; color:#597e9b; }
+.bt-landscape .bt-help span { margin-left:3px; }
+.bt-sheet { width:min(440px,calc(100vw - 32px)); max-height:calc(100dvh - 28px); overflow:auto; margin:auto; padding:20px; border:1px solid #dbe6f0; border-radius:20px; box-shadow:0 20px 70px #17324b40; color:#294359; background:white; }
+.bt-sheet::backdrop { background:#233e5366; }
+.bt-sheet>header { display:flex; align-items:center; justify-content:space-between; gap:20px; margin-bottom:10px; }
+.bt-sheet h2 { margin:0; font-size:18px; }
+.bt-sheet-close { display:grid; place-items:center; width:40px; height:40px; border:0; background:#edf4f9; border-radius:50%; color:#607e93; }
+.bt-sheet .bt-settings>summary { display:none; }
+.bt-sheet .bt-setting-row { display:flex; justify-content:space-between; align-items:center; gap:16px; padding:12px 0; border-bottom:1px solid #e8eff5; }
+.bt-sheet .bt-setting-row>div { display:grid; gap:4px; font-size:14px; }
+.bt-sheet .bt-setting-row strong { font-size:12px; color:#52846e; font-weight:500; }
+.bt-sheet p,.bt-sheet li { font-size:12px; line-height:1.7; color:#6e8597; }
+.bt-sheet ol { padding-left:20px; }
+.bt-sheet li { margin-bottom:8px; }
+.bt-sheet .bt-diagnostics { margin:12px 0; font-size:12px; }
+.bt-sheet .bt-trace { max-height:130px; margin:5px 0; font-size:10px; }
+.bt-sheet .bt-help-settings { margin-top:8px; }
 .bt-rename-dialog { width: min(390px,88vw); border: 0; border-radius: 16px; padding: 0; box-shadow: 0 20px 70px #17324b55; }
 .bt-rename-dialog::backdrop { background: #263a4b66; }
 .bt-rename-dialog form { padding: 22px; }
@@ -82,14 +93,38 @@
 .bt-rename-dialog form>div { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
 .bt-rename-dialog button { min-width: 76px; padding: 8px 13px; border: 0; border-radius: 9px; background: #edf2f6; color: #4c647b; font-weight: 700; }
 .bt-rename-dialog button.primary { background: #087fd8; color: #fff; }
-@media (max-height:460px) and (min-width:701px) {
-  .bt-mobile-layout { grid-template-columns: 238px minmax(0,1fr); gap: 12px; padding: 12px 16px; }
-  .bt-phone-panel,.bt-device-panel { padding: 14px; border-radius: 14px; }
-  .bt-phone-symbol { flex-basis: 38px; width: 38px; height: 38px; }
-  .bt-phone-heading h2 { font-size: 16px; }
-  .bt-ready { min-height: 36px; margin-top: 10px; padding-block: 7px; }
-  .bt-stage-note { padding: 8px 9px; }
-  .android-bluetooth .bt-empty { min-height: 112px; padding: 13px; }
+
+@media (max-height:480px) and (min-width:541px) {
+ .bt-landscape .bt-top { height:54px; }
+ .bt-landscape .bt-mobile-layout { padding:12px 20px 4px; gap:24px; grid-template-columns:minmax(150px,.8fr) minmax(0,1.65fr); }
+ .bt-landscape .bt-model-name { margin:8px 0; font-size:20px; }
+ .bt-landscape .bt-hero-note { margin-top:6px; }
+ .bt-landscape .bt-footer { padding:0 20px max(4px,env(safe-area-inset-bottom)); }
+ .bt-landscape .bt-empty { min-height:132px; }
 }
-@media (max-width:700px) { .bt-mobile-layout { grid-template-columns: 1fr; padding: 12px; } .bt-phone-panel,.bt-device-panel { padding: 14px; } }
-@media (prefers-reduced-motion:reduce) { .is-scanning .bt-radar { animation: none; } }
+@media (max-width:700px) and (min-width:541px) {
+ .bt-landscape .bt-mobile-layout { grid-template-columns:155px minmax(0,1fr); gap:12px; padding-inline:14px; }
+ .bt-landscape .bt-device { padding:7px 8px; gap:7px; }
+ .bt-landscape .bt-signal { width:18px; }
+ .bt-landscape .bt-device-actions { gap:1px; }
+ .bt-landscape .bt-connect { padding-inline:10px; min-width:50px; }
+ .bt-landscape .bt-device-info strong { font-size:13px; }
+ .bt-landscape .bt-stage-note { font-size:10px; }
+}
+@media (max-width:540px) {
+ .bt-landscape { overflow-y:auto; }
+ .bt-landscape .bt-top { min-height:56px; padding:0 12px; gap:9px; }
+ .bt-landscape .bt-top h1 { font-size:17px; }
+ .bt-landscape .bt-ready { font-size:10px; }
+ .bt-landscape .bt-phone-state { gap:5px; }
+ .bt-landscape .bt-mobile-layout { display:flex; flex-direction:column; flex:none; gap:16px; padding:15px; }
+ .bt-landscape .bt-phone-panel { width:100%; display:grid; grid-template-columns:110px 1fr; grid-template-rows:auto auto auto; column-gap:14px; justify-items:start; text-align:left; }
+ .bt-landscape .bt-product-art { height:100px; grid-row:1/4; }
+ .bt-landscape .bt-product-art::before { width:85px; }
+ .bt-landscape .bt-model-name { margin:0 0 5px; font-size:20px; }
+ .bt-landscape .bt-hero-note { margin:5px 0 0; font-size:10px; }
+ .bt-landscape .bt-results { overflow:visible; }
+ .bt-landscape .bt-footer { margin-top:auto; padding-inline:15px; gap:12px; }
+ .bt-landscape .bt-device { gap:7px; padding:8px; }
+}
+@media (prefers-reduced-motion:reduce) { .bt-landscape.is-scanning .bt-radar { animation:none; } }

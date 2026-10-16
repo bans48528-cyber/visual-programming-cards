@@ -8,7 +8,7 @@ try{
  if(!/^assets\/building-models\/[a-zA-Z0-9_./-]+\.(io|ldr|mpd|dat)$/i.test(entry.file)||entry.file.includes('..'))throw Error('搭建图资源路径无效。');
  if(entry.prepared){
   const record=await prepareModel(device,entry);
-  location.replace((record.hasSteps?'instructions.html':'view.html')+'?id='+encodeURIComponent(record.id));
+  location.replace((record.hasSteps?'instructions.html':'view.html')+'?id='+encodeURIComponent(record.id)+'&visit='+encodeURIComponent(params.get('visit')||''));
  }else{
  const {readModel,inspectModel}=await import('./app/importer.js');
  const {loadLibrary}=await import('./app/library.js');
@@ -17,6 +17,6 @@ try{
  const result=inspectModel(record.text,await loadLibrary());if(result.missing.length)throw Error('缺少零件：'+result.missing.join('、'));
  record.id='catalog-'+device+'-'+id;record.modelId=record.id+'.ldr';record.name=entry.name;
  await saveModel(record);
- location.replace((result.hasSteps?'instructions.html':'view.html')+'?id='+encodeURIComponent(record.id));
+ location.replace((result.hasSteps?'instructions.html':'view.html')+'?id='+encodeURIComponent(record.id)+'&visit='+encodeURIComponent(params.get('visit')||''));
  }
-}catch(error){document.getElementById('status').textContent=error.message;}
+}catch(error){document.getElementById('status').textContent=error.message;window.parent.postMessage({source:'building-viewer',type:'error',visit:new URLSearchParams(location.search).get('visit'),message:error.message},location.origin);}

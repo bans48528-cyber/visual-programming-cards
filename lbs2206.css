@@ -1,27 +1,151 @@
 .lbs-page main { padding:24px; color:#324d64; }
 .lbs-connect-layout { display:grid;grid-template-columns:minmax(240px,.85fr) minmax(340px,1.4fr);gap:24px; }
 .lbs-info { padding:20px;border:1px solid #d8e5ee;border-radius:18px;background:#f5faff; }
-.lbs-page p { line-height:1.65;font-size:14px; }.lbs-page h2 { margin:0 0 12px;font-size:20px; }
+.lbs-page p { line-height:1.65;font-size:14px; }
+.lbs-page h2 { margin:0 0 12px;font-size:20px; }
 .lbs-readiness,.lbs-validation { color:#806329;background:#fff7e6;padding:12px 14px;border-radius:12px; }
 .lbs-gatt { white-space:pre-wrap;word-break:break-all;max-height:230px;overflow:auto;font-size:12px; }
-.lbs-page .bt-device { gap:12px; }.lbs-page .bt-device-actions { flex-wrap:wrap;justify-content:flex-end; }
-.lbs-speed { display:flex;align-items:center;gap:10px;padding:10px 24px; }
-.lbs-speed button { min-width:54px;min-height:44px;border:1px solid #d0e1ed;border-radius:14px;background:#f5faff;color:#527086;font:inherit; }
-.lbs-speed button[aria-pressed=true] { background:#218fed;color:white;border-color:#218fed; }
-.lbs-remote-main { display:flex;justify-content:space-evenly;align-items:center;gap:24px;padding:0 24px 20px; }
-.lbs-remote-main small { color:#7b8b98;line-height:1.6; }.lbs-remote-status { max-width:270px;font-size:17px;line-height:1.5; }
-.lbs-remote .remote-dpad { display:grid;grid-template-columns:repeat(3,56px);grid-template-rows:repeat(3,50px);gap:6px; }
-.lbs-remote [data-lbs-direction=forward] { grid-area:1/2; }.lbs-remote [data-lbs-direction=left] { grid-area:2/1; }.lbs-remote [data-lbs-direction=stop] { grid-area:2/2;font-size:20px; }.lbs-remote [data-lbs-direction=right] { grid-area:2/3; }.lbs-remote [data-lbs-direction=backward] { grid-area:3/2; }
-.lbs-remote [data-lbs-direction] { border:1px solid #cae1f1;border-radius:16px;color:#258fdf;background:#edf7ff;touch-action:none; }
-.lbs-remote [data-lbs-direction].is-pressed { color:white;background:#258fdf; }
-.lbs-remote button:disabled { opacity:.45; }
-.lbs-settings-dialog { width:min(760px,calc(100vw - 32px));max-height:calc(100dvh - 32px);padding:24px;border:1px solid #d8e5ee;border-radius:22px;color:#324d64; }
-.lbs-settings-dialog::backdrop { background:#243b5060; }.lbs-settings-dialog header { display:flex;justify-content:space-between;align-items:center;gap:20px; }.lbs-settings-dialog h2 { margin:0;font-size:22px; }.lbs-settings-dialog header p { color:#7890a2;margin:8px 0; }
-.lbs-settings-close { width:44px;height:44px;border:0;border-radius:50%;background:#eef4f8;font-size:18px; }
-.lbs-settings-dialog section { margin-top:20px; }.lbs-settings-dialog h3 { font-size:16px; }.lbs-settings-dialog p { font-size:14px;line-height:1.6; }
-.lbs-read-buttons { display:flex;gap:8px;flex-wrap:wrap; }.lbs-setting-result { display:block;margin-top:12px;min-height:24px;color:#287bb8; }.lbs-profile-detail { white-space:pre-wrap;word-break:break-word;font-size:12px; }
-body[data-device-model=lbs2206] .home-model-entry strong { font-size:12px; }.home-model-entry span { min-width:0; }
-@media(max-width:700px) { .lbs-connect-layout { grid-template-columns:1fr; }.lbs-remote-main { gap:16px;padding-inline:16px; }.lbs-speed { gap:6px;padding-inline:16px; }.lbs-speed button { min-width:44px; } }
-@media(max-height:460px) { .lbs-page main { padding:16px; }.lbs-remote .remote-header { padding-block:10px; }.lbs-speed { padding-block:5px; }.lbs-remote-main { padding-bottom:12px; } }
+.lbs-page .bt-device { gap:12px; }
+.lbs-page .bt-device-actions { flex-wrap:wrap;justify-content:flex-end; }
 
+/* LBS2206 physical controller. Every selector is scoped to this dialog. */
+.lbs-remote { overflow:hidden;background:#f2f4f6;color:#465159; }
+.lbs-remote .lbs-controller-stage { flex:1;min-height:0;display:grid;place-items:center;padding:8px max(14px,env(safe-area-inset-right)) max(8px,env(safe-area-inset-bottom)) max(14px,env(safe-area-inset-left));overflow:hidden; }
+.lbs-remote #lbs-controller-prototype { width:100%;height:100%;display:grid;place-items:center;font-family:"Segoe UI","Microsoft YaHei",sans-serif; }
+.lbs-remote #lbs-controller-prototype * { box-sizing:border-box; }
+.lbs-remote .controller-shell {
+  --lbs-pad:min(28vw,calc(100 * var(--remote-vh) - 138px),252px);
+  position:relative;display:grid;grid-template-columns:var(--lbs-pad) minmax(0,1fr);align-items:center;gap:clamp(30px,7vw,64px);
+  width:min(100%,760px);max-height:100%;padding:10px clamp(24px,5vw,44px) 24px;border-radius:48px;
+  background:linear-gradient(145deg,#eceef0,#dadddf 58%,#cfd4d8);
+  box-shadow:inset 2px 3px 5px #ffffffde,inset -2px -4px 5px #9da5ae70,0 12px 20px #25313b20;
+}
+.lbs-remote .direction-column,.lbs-remote .speed-column { min-width:0; }
+.lbs-remote .direction-column { align-self:end; }
+.lbs-remote .speed-column { justify-self:end; }
+.lbs-remote .hit:focus-visible,.lbs-remote .lbs-gear:focus-visible,.lbs-remote .speed-input:focus-visible { outline:3px solid #277ec3;outline-offset:4px; }
+
+.lbs-remote #lbs-dpad-demo { width:var(--lbs-pad);margin:0;color:#343a3d; }
+.lbs-remote #lbs-dpad-demo .scene { position:relative;width:100%;aspect-ratio:1;perspective:850px;touch-action:none;user-select:none;-webkit-user-select:none;-webkit-tap-highlight-color:transparent; }
+.lbs-remote #lbs-dpad-demo .socket { position:absolute;inset:0;border-radius:50%;background:radial-gradient(ellipse at 45% 35%,#dadcde 5%,#d3d6d9 60%,#c2c5c8 100%);box-shadow:inset 2px 3px 5px #969ca455,inset -2px -3px 4px #ffffffe6,0 1px 0 #fff9;transform:rotateX(8deg); }
+.lbs-remote #lbs-dpad-demo .assembly { position:absolute;inset:13%;transform-style:preserve-3d;transform:rotateX(8deg);pointer-events:none; }
+.lbs-remote #lbs-dpad-demo .cross { position:absolute;inset:0;clip-path:polygon(38% 0,62% 0,65% 1%,66% 4%,66% 31%,67% 33%,69% 34%,96% 34%,99% 35%,100% 38%,100% 62%,99% 65%,96% 66%,69% 66%,67% 67%,66% 69%,66% 96%,65% 99%,62% 100%,38% 100%,35% 99%,34% 96%,34% 69%,33% 67%,31% 66%,4% 66%,1% 65%,0 62%,0 38%,1% 35%,4% 34%,31% 34%,33% 33%,34% 31%,34% 4%,35% 1%); }
+.lbs-remote #lbs-dpad-demo .cast-shadow { position:absolute;inset:13%;filter:blur(7px);transform:translate(1px,9px);opacity:.48;pointer-events:none;transition:transform 40ms ease-out; }
+.lbs-remote #lbs-dpad-demo .cast-shadow .cross { background:#262b2f; }
+.lbs-remote #lbs-dpad-demo .rocker { position:absolute;inset:0;transform-style:preserve-3d;transform-origin:50% 50% 4px;transition:transform 100ms ease-out; }
+.lbs-remote #lbs-dpad-demo .rocker.held { transition:transform 40ms ease-out; }
+.lbs-remote #lbs-dpad-demo .side { background:linear-gradient(130deg,#737b7d,#242b2d 65%,#151b1e); }
+.lbs-remote #lbs-dpad-demo .face { transform:translateZ(13px);background:linear-gradient(140deg,#7e8787 0%,#626b6c 24%,#535d5e 67%,#424d4f 100%); }
+.lbs-remote #lbs-dpad-demo .face-inner { position:absolute;inset:1.3%;background:radial-gradient(ellipse at var(--light-x,32%) var(--light-y,20%),#727c7d 0%,#5b6566 42%,#4c5658 100%); }
+.lbs-remote #lbs-dpad-demo .shine { position:absolute;inset:0;background:linear-gradient(135deg,#ffffff1c,transparent 40%,#00000018); }
+.lbs-remote #lbs-dpad-demo .engraved { position:absolute;width:17%;height:17%;display:grid;place-items:center; }
+.lbs-remote #lbs-dpad-demo .engraved.up { top:7%;left:41.5%; }
+.lbs-remote #lbs-dpad-demo .engraved.down { bottom:7%;left:41.5%;transform:rotate(180deg); }
+.lbs-remote #lbs-dpad-demo .engraved.left { top:41.5%;left:7%;transform:rotate(-90deg); }
+.lbs-remote #lbs-dpad-demo .engraved.right { top:41.5%;right:7%;transform:rotate(90deg); }
+.lbs-remote #lbs-dpad-demo .chevron { width:46%;height:46%;border-top:3px solid #354042;border-left:3px solid #354042;transform:translateY(20%) rotate(45deg);filter:drop-shadow(1px 1px 0 #a2acad65);border-radius:2px; }
+.lbs-remote #lbs-dpad-demo .nub { position:absolute;width:11%;height:11%;left:44.5%;top:44.5%;border-radius:50%;background:radial-gradient(ellipse at 35% 28%,#859091,#5c6768 40%,#455052 85%);box-shadow:1px 2px 3px #242d2e75,inset 0 1px 1px #acb2b329; }
+.lbs-remote #lbs-dpad-demo .hitbox { position:absolute;inset:13%; }
+.lbs-remote #lbs-dpad-demo .hit { position:absolute;display:block;padding:0;border:0;margin:0;background:transparent;color:transparent;touch-action:none;border-radius:12px; }
+.lbs-remote #lbs-dpad-demo .hit[data-dir=up] { top:0;left:34%;width:32%;height:40%; }
+.lbs-remote #lbs-dpad-demo .hit[data-dir=down] { bottom:0;left:34%;width:32%;height:40%; }
+.lbs-remote #lbs-dpad-demo .hit[data-dir=left] { left:0;top:34%;width:40%;height:32%; }
+.lbs-remote #lbs-dpad-demo .hit[data-dir=right] { right:0;top:34%;width:40%;height:32%; }
+
+.lbs-remote #lbs-controller-speed { width:158px; }
+.lbs-remote #lbs-controller-speed .speed-panel { width:100%; }
+.lbs-remote #lbs-controller-speed header { display:flex;align-items:baseline;justify-content:center;gap:12px;height:34px;color:#697680; }
+.lbs-remote #lbs-controller-speed .caption { font-size:13px;font-weight:600;letter-spacing:1px; }
+.lbs-remote #lbs-controller-speed .readout { display:flex;align-items:baseline;gap:3px;color:#36474f; }
+.lbs-remote #lbs-controller-speed .readout strong { min-width:17px;text-align:center;font-size:25px;line-height:1;font-weight:650;font-variant-numeric:tabular-nums; }
+.lbs-remote #lbs-controller-speed .readout span { font-size:12px; }
+.lbs-remote #lbs-controller-speed .slider-area { position:relative;width:154px;height:var(--lbs-pad);min-height:145px;max-height:252px;margin:auto;touch-action:none;user-select:none;-webkit-user-select:none; }
+.lbs-remote #lbs-controller-speed .slider-bed { position:absolute;top:7px;bottom:7px;left:12px;width:70px;border-radius:28px;background:linear-gradient(90deg,#b1b8be,#c9cfd3 38%,#c2c8cd);box-shadow:inset 2px 3px 5px #53616e50,1px 1px 1px #ffffffd0; }
+.lbs-remote #lbs-controller-speed .slider-bed::after { content:"";position:absolute;width:9px;left:30px;top:17px;bottom:17px;border-radius:6px;background:#626e76;box-shadow:inset 2px 1px 3px #2a353c70,1px 0 0 #f2f4f466; }
+.lbs-remote #lbs-controller-speed .travel { position:absolute;top:30px;bottom:30px;left:47px;width:1px; }
+.lbs-remote #lbs-controller-speed .lbs-gear { position:absolute;left:44px;width:63px;height:30px;padding:0;border:0;background:transparent;transform:translateY(-50%);touch-action:manipulation; }
+.lbs-remote #lbs-controller-speed [data-speed="5"] { top:0; }
+.lbs-remote #lbs-controller-speed [data-speed="4"] { top:25%; }
+.lbs-remote #lbs-controller-speed [data-speed="3"] { top:50%; }
+.lbs-remote #lbs-controller-speed [data-speed="2"] { top:75%; }
+.lbs-remote #lbs-controller-speed [data-speed="1"] { top:100%; }
+.lbs-remote #lbs-controller-speed .green { --light:#76ff99;--mid:#24d95a;--rim:#187d3b;--glow:#31f36b99; }
+.lbs-remote #lbs-controller-speed .yellow { --light:#fff69a;--mid:#ffcf32;--rim:#a57b16;--glow:#ffd22a99; }
+.lbs-remote #lbs-controller-speed .red { --light:#ffb7a8;--mid:#ff5540;--rim:#b02d25;--glow:#ff4d4299; }
+.lbs-remote #lbs-controller-speed .lamp { position:absolute;display:block;border-radius:2px;background:linear-gradient(#7a8489,#9da7ac);box-shadow:inset 0 1px 2px #39474e9c,0 1px 0 #f8fafab3;transition:none; }
+.lbs-remote #lbs-controller-speed .bar { width:14px;height:5px;left:0;top:12px; }
+.lbs-remote #lbs-controller-speed .digit { position:absolute;left:25px;top:3px;width:17px;height:24px; }
+.lbs-remote #lbs-controller-speed .digit .a,.lbs-remote #lbs-controller-speed .digit .g,.lbs-remote #lbs-controller-speed .digit .d { width:11px;height:4px;left:3px; }
+.lbs-remote #lbs-controller-speed .digit .a { top:0; }.lbs-remote #lbs-controller-speed .digit .g { top:10px; }.lbs-remote #lbs-controller-speed .digit .d { top:20px; }
+.lbs-remote #lbs-controller-speed .digit .b,.lbs-remote #lbs-controller-speed .digit .c,.lbs-remote #lbs-controller-speed .digit .e,.lbs-remote #lbs-controller-speed .digit .f { width:4px;height:8px; }
+.lbs-remote #lbs-controller-speed .digit .b { top:3px;right:0; }.lbs-remote #lbs-controller-speed .digit .c { top:13px;right:0; }.lbs-remote #lbs-controller-speed .digit .e { top:13px;left:0; }.lbs-remote #lbs-controller-speed .digit .f { top:3px;left:0; }
+.lbs-remote #lbs-controller-speed .lbs-gear.lit .lamp { background:linear-gradient(var(--light),var(--mid));box-shadow:inset 0 1px 0 #ffffffa8,inset 0 -1px 1px var(--rim),0 0 3px var(--mid),0 0 9px var(--glow); }
+.lbs-remote #lbs-controller-speed .lbs-gear.selected::after { content:"";position:absolute;left:-6px;top:5px;width:2px;height:20px;border-radius:2px;background:#68747c; }
+.lbs-remote #lbs-controller-speed .knob { position:absolute;left:0;width:78px;height:50px;top:100%;transform:translate(-50%,-50%);transition:top 100ms ease-out;pointer-events:none; }
+.lbs-remote #lbs-controller-speed .knob-face { width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;border-radius:14px;border:1px solid #b4bdc4;background:linear-gradient(#f3f5f6,#dce1e5 48%,#c7cfd5);box-shadow:inset 1px 2px 2px #ffffffed,inset -1px -2px 2px #a8b2bb55,0 2px 0 #9ba6af,0 4px 0 #929ea7,0 7px 8px #35434e45;transition:transform 40ms ease-out; }
+.lbs-remote #lbs-controller-speed .knob i { width:28px;height:2px;border-radius:2px;background:#a5b0b9;box-shadow:0 1px 0 #ffffffc0; }
+.lbs-remote #lbs-controller-speed[data-dragging="true"] .knob { transition:none; }
+.lbs-remote #lbs-controller-speed[data-dragging="true"] .knob-face { transform:translateY(2px);box-shadow:inset 1px 2px 2px #ffffffed,inset -1px -2px 2px #a8b2bb55,0 1px 0 #929ea7,0 3px 5px #35434e40; }
+.lbs-remote #lbs-controller-speed .speed-input { position:absolute;inset:0 auto 0 0;width:90px;height:100%;margin:0;opacity:0;touch-action:none;cursor:ns-resize;writing-mode:vertical-lr;direction:rtl; }
+.lbs-remote .lbs-remote-status { position:absolute;left:50%;bottom:7px;max-width:56%;transform:translateX(-50%);color:#6f7b84;font-size:11px;line-height:1.2;text-align:center;white-space:nowrap; }
+.lbs-remote .lbs-remote-status::before { content:"";display:inline-block;width:6px;height:6px;margin:0 6px 1px 0;border-radius:50%;background:currentColor; }
+.lbs-remote .lbs-remote-status.is-connected { color:#287c63; }
+.lbs-remote .lbs-remote-status.is-error { color:#a94743; }
+
+.lbs-settings-dialog { width:min(760px,calc(100vw - 32px));max-height:calc(100dvh - 32px);padding:24px;border:1px solid #d8e5ee;border-radius:22px;color:#324d64; }
+.lbs-settings-dialog::backdrop { background:#243b5060; }
+.lbs-settings-dialog header { display:flex;justify-content:space-between;align-items:center;gap:20px; }
+.lbs-settings-dialog h2 { margin:0;font-size:22px; }
+.lbs-settings-dialog header p { color:#7890a2;margin:8px 0; }
+.lbs-settings-close { width:44px;height:44px;border:0;border-radius:50%;background:#eef4f8;font-size:18px; }
+.lbs-settings-dialog section { margin-top:20px; }
+.lbs-settings-dialog h3 { font-size:16px; }
+.lbs-settings-dialog p { font-size:14px;line-height:1.6; }
+.lbs-read-buttons { display:flex;gap:8px;flex-wrap:wrap; }
+.lbs-setting-result { display:block;margin-top:12px;min-height:24px;color:#287bb8; }
+.lbs-profile-detail { white-space:pre-wrap;word-break:break-word;font-size:12px; }
+body[data-device-model=lbs2206] .home-model-entry strong { font-size:12px; }
+.home-model-entry span { min-width:0; }
 .home-demo-robot > img { display:block;width:100%;max-height:190px;object-fit:contain; }
+
+@media(max-width:700px) { .lbs-connect-layout { grid-template-columns:1fr; } }
+@media(max-height:460px) {
+  .lbs-page main { padding:16px; }
+  .lbs-remote .controller-shell { --lbs-pad:min(28vw,calc(100 * var(--remote-vh) - 112px),220px);padding-block:5px 20px;border-radius:38px; }
+}
+@media(max-width:620px) {
+  .lbs-remote .controller-shell { gap:20px;padding-inline:18px; }
+  .lbs-remote #lbs-controller-speed { width:132px; }
+  .lbs-remote #lbs-controller-speed .slider-area { width:128px; }
+  .lbs-remote #lbs-controller-speed .lbs-gear { left:38px; }
+  .lbs-remote .lbs-remote-status { max-width:56%; }
+}
+@media(max-width:520px) {
+  .lbs-remote { overflow:auto; }
+  .lbs-remote .lbs-controller-stage { overflow:auto;align-items:start; }
+  .lbs-remote .controller-shell {
+    --lbs-pad:min(62vw,200px);
+    grid-template-columns:minmax(0,1fr);justify-items:center;gap:8px;
+    width:min(100%,320px);max-height:none;padding:10px 18px 22px;border-radius:34px;
+  }
+  .lbs-remote .direction-column { width:var(--lbs-pad); }
+  .lbs-remote .speed-column { width:158px;justify-self:center; }
+  .lbs-remote #lbs-controller-speed { width:158px; }
+  .lbs-remote #lbs-controller-speed .slider-area { width:154px;height:200px; }
+  .lbs-remote #lbs-controller-speed .lbs-gear { left:44px; }
+  .lbs-remote .lbs-remote-status { position:static;grid-column:1;max-width:100%;transform:none;margin-top:2px; }
+}
+@media(max-height:330px) {
+  .lbs-remote .controller-shell { --lbs-pad:min(27vw,calc(100 * var(--remote-vh) - 135px),175px);border-radius:32px; }
+  .lbs-remote #lbs-controller-speed header { height:28px; }
+  .lbs-remote #lbs-controller-speed .travel { top:25px;bottom:25px; }
+}
+@media(prefers-reduced-motion:reduce) {
+  .lbs-remote #lbs-dpad-demo .rocker,.lbs-remote #lbs-dpad-demo .cast-shadow,.lbs-remote #lbs-controller-speed .knob,.lbs-remote #lbs-controller-speed .knob-face,.lbs-remote #lbs-controller-speed .lamp { transition:none!important; }
+}
+/* Match the compatible tilted face used by the shared physical controller. */
+@supports not (height:100dvh) {
+  .lbs-remote #lbs-dpad-demo .assembly,.lbs-remote #lbs-dpad-demo .rocker { transform-style:flat; }
+  .lbs-remote #lbs-dpad-demo .side { display:none; }
+  .lbs-remote #lbs-dpad-demo .face { transform:none; }
+}

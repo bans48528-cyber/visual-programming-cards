@@ -1,3 +1,10 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="2126.12551 828.35915 260.04000 260.04000" width="260.04000" height="260.04000"><path transform="matrix(1,0,0,-1,2283.5325,955.0973)" d="M0 0H-.09ZM-39.395 58.996 13.038 6.567C18.47 1.135 18.47-7.698 13.038-13.131L-39.395-65.56C-43.022-69.187-48.898-69.187-52.525-65.56-56.152-61.933-56.152-56.057-52.525-52.429L-3.375-3.282-52.525 45.869C-56.152 49.496-56.152 55.372-52.525 58.999-50.711 60.813-48.335 61.721-45.961 61.721-43.588 61.721-41.205 60.813-39.395 58.996" fill="#333333" />
-<path transform="matrix(1,0,0,-1,2256.1456,1088.3792)" d="M0 0C71.796 0 130 58.204 130 130 130 201.796 71.796 260 0 260-71.796 260-130 201.796-130 130-130 58.204-71.796 0 0 0M0 18.571C-61.442 18.571-111.428 68.558-111.428 130-111.428 191.442-61.442 241.429 0 241.429 61.442 241.429 111.428 191.442 111.428 130 111.428 68.558 61.442 18.571 0 18.571" fill="#333333" />
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128" role="img" aria-labelledby="label">
+  <title id="label">大号下一步</title>
+  <defs>
+    <radialGradient id="face" cx="42%" cy="30%" r="85%"><stop offset="0" stop-color="#FFFFFF"/><stop offset=".72" stop-color="#FFFFFF"/><stop offset="1" stop-color="#EAF5FF"/></radialGradient>
+    <linearGradient id="rim" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#A9DCFF"/><stop offset="1" stop-color="#73C5FF"/></linearGradient>
+    <filter id="shadow" x="-30%" y="-30%" width="160%" height="170%" color-interpolation-filters="sRGB"><feDropShadow dx="0" dy="3" stdDeviation="3.2" flood-color="#329FEC" flood-opacity=".28"/></filter>
+  </defs>
+  <circle cx="64" cy="62" r="51" fill="url(#face)" stroke="url(#rim)" stroke-width="3" filter="url(#shadow)"/>
+  <g transform="translate(0 -2)"><path d="m55 40 25 24-25 24" fill="none" stroke="#168BFA" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/></g>
 </svg>

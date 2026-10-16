@@ -1,0 +1,78 @@
+const {chromium}=require('playwright'),assert=require('node:assert/strict');
+(async()=>{const browser=await chromium.launch({channel:'msedge'});try{
+ const context=await browser.newContext({viewport:{width:844,height:390},hasTouch:true});
+ await context.addInitScript(()=>localStorage.setItem('cardDefaultModelV1','xiaobai'));
+ await context.addInitScript(require('./mock-android.cjs'));
+ const p=await context.newPage(),errors=[];p.on('pageerror',e=>errors.push(e.message));
+ await p.goto('http://127.0.0.1:4173/dist/#bluetooth');
+ await p.waitForFunction(()=>window.CardModelSession&&window.CardRemote&&!document.querySelector('.bt-search').disabled);
+ await p.evaluate(()=>{mockBle.devices=[{name:'Xiaobai',deviceId:'AA:BB:CC:DD:EE:01',rssi:-42}];});
+ await p.locator('.bt-search').click();await p.locator('.bt-device .bt-connect').click();
+ await p.waitForFunction(()=>CardBluetooth.connected);
+ await p.locator('.bt-back').click();await p.evaluate(()=>CardRemote.open());
+ await p.waitForFunction(()=>!CardPageTransition.busy&&document.querySelector('#remoteControl .remote-connection').classList.contains('is-connected'));
+ const keys=p.locator('#remoteControl [data-remote-key]');assert.equal(await keys.count(),10);
+ for(const viewport of [{width:844,height:390},{width:667,height:375},{width:568,height:280},{width:960,height:540},{width:1366,height:768},{width:1920,height:1080},{width:390,height:844},{width:320,height:568}]){
+  await p.setViewportSize(viewport);
+  const bounds=await keys.evaluateAll(es=>es.map(e=>{const r=e.getBoundingClientRect();return {key:e.dataset.remoteKey,x:r.x,y:r.y,w:r.width,h:r.height};}));
+  for(const r of bounds){assert(r.x>=0&&r.y>=0&&r.x+r.w<=viewport.width+.5&&r.y+r.h<=viewport.height+.5,JSON.stringify({viewport,r}));assert(r.w>=43.5&&r.h>=43.5,JSON.stringify(r));}
+  assert.equal(await p.locator('#remoteControl').evaluate(e=>e.scrollHeight<=e.clientHeight+1),true,'no vertical scroll');
+  const shell=await p.locator('#xb-controller .controller-shell').boundingBox();
+  for(const edge of [shell.x,shell.y,viewport.width-shell.x-shell.width,viewport.height-shell.y-shell.height])assert(Math.abs(edge-16)<1,'shell keeps a 16px viewport inset: '+JSON.stringify({viewport,shell}));
+  const hits=await p.locator('#remoteControl [data-remote-key],#remoteControl .remote-back,#remoteControl .remote-connect').evaluateAll(es=>es.map(e=>{const r=e.getBoundingClientRect();return {key:e.dataset.remoteKey||e.className,hit:e.contains(document.elementFromPoint(r.x+r.width/2,r.y+r.height/2))};}));
+  assert(hits.every(h=>h.hit),'all controls remain reachable: '+JSON.stringify({viewport,hits}));
+  const innerEdges=await p.locator('#xb-dpad-demo .hit').evaluateAll(es=>es.map(e=>{const r=e.getBoundingClientRect(),dir=e.dataset.dir;let x=r.x+r.width/2,y=r.y+r.height/2;if(dir==='up')y=r.bottom-3;if(dir==='down')y=r.top+3;if(dir==='left')x=r.right-3;if(dir==='right')x=r.left+3;return [dir,document.elementFromPoint(x,y)?.dataset.dir];}));
+  // In compact portrait, minimum-size buttons can overlap near the neutral center;
+  // the scene owns direction selection (covered by the touch-slide regression).
+  if(viewport.width>viewport.height)for(const [expected,hit]of innerEdges)assert.equal(hit,expected,'direction inner edge '+JSON.stringify(viewport));
+  const shoulder=bounds.find(b=>b.key==='L'),pad=await p.locator('#xb-dpad-demo').boundingBox();
+  assert(Math.abs(shoulder.x+shoulder.w/2-pad.x-pad.width/2)<1,'shoulder centered over its pad');
+  assert(Math.abs(shoulder.w/Math.min(pad.width,281.23)-.5073)<.015,'shortened shoulder ratio');
+ }
+ await p.setViewportSize({width:844,height:390});
+ const colors=await p.locator('#xb-color-pad .key').evaluateAll(es=>es.map(e=>[e.dataset.remoteKey,e.className]));
+ for(const [key,color] of [['Y','yellow'],['X','red'],['B','green'],['A','blue']])assert(colors.some(([k,c])=>k===key&&c.includes(color)));
+ const cdp=await context.newCDPSession(p);
+ const point=async(key,id)=>{const r=await p.locator(`[data-remote-key=${key}]`).boundingBox();return {id,x:r.x+r.width/2,y:r.y+r.height/2};};
+ const up=await point('up',1),yellow=await point('Y',2);
+ const expectFrame=async selected=>p.waitForFunction(wanted=>{const c=mockBle.calls.filter(c=>c.method==='write'&&atob(c.data).charCodeAt(4)===0xc1).at(-1);if(!c)return false;const d=atob(c.data);return CardRemoteControl.keys.every((k,i)=>d.charCodeAt(5+i)===Number(wanted.includes(k)));},selected);
+ await cdp.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[up]});
+ await cdp.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[up,yellow]});await expectFrame(['up','Y']);
+ assert.match(await p.locator('#xb-dpad-demo .rocker').getAttribute('style'),/rotateX\(14deg\)/);
+ const pressMotion=await p.locator('#xb-dpad-demo .rocker,#xb-color-pad .yellow .key-face').evaluateAll(es=>es.map(e=>getComputedStyle(e).transitionDuration.split(',').map(parseFloat)));
+ assert(pressMotion.every(durations=>durations.every(seconds=>seconds<=.05)),'press feedback finishes within 50ms');
+ await p.waitForTimeout(100);
+ const depth=await p.locator('#xb-color-pad .yellow .key-face').evaluate(e=>new DOMMatrix(getComputedStyle(e).transform).m42);
+ assert(Math.abs(depth-4)<.1,'color key depresses to 4px');
+ await p.screenshot({path:'artifacts/xiaobai-controller-pressed.png'});
+ await cdp.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[yellow]});await expectFrame(['up']);
+ assert.equal(await p.locator('[data-remote-key=Y]').getAttribute('aria-pressed'),'false');
+ assert.equal(await p.locator('[data-remote-key=up]').getAttribute('aria-pressed'),'true','other finger stays held');
+ await cdp.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});await expectFrame([]);
+ assert.equal(await p.locator('#xb-dpad-demo .rocker.held').count(),0);
+ await p.waitForTimeout(240);await p.screenshot({path:'artifacts/xiaobai-controller-idle.png'});
+ await cdp.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[yellow]});await expectFrame(['Y']);
+ await cdp.send('Input.dispatchTouchEvent',{type:'touchCancel',touchPoints:[]});await expectFrame([]);
+ // Reopening and model switching reuse the same ten event-bound buttons.
+ await p.evaluate(()=>window.originalRemoteButtons=[...document.querySelectorAll('#remoteControl [data-remote-key]')]);
+ await p.locator('#remoteControl .remote-back').click();await p.waitForFunction(()=>!CardPageTransition.busy);
+ await p.evaluate(()=>CardModelSession.select('spark-ai'));
+ await p.evaluate(()=>CardRemote.open());await p.waitForFunction(()=>!CardPageTransition.busy);
+ assert.equal(await p.locator('#remoteControl').evaluate(e=>e.classList.contains('xiaobai-remote')),true);
+ assert.equal(await p.locator('#xb-controller').isVisible(),true);
+ assert.equal(await p.locator('#xb-controller').getAttribute('aria-label'),'Spark AI遥控器');
+ const sparkShell=await p.locator('#xb-controller .controller-shell').boundingBox();
+ assert.deepEqual([sparkShell.x,sparkShell.y,sparkShell.width,sparkShell.height],[16,16,812,358],'Spark shares the viewport-fitted shell');
+ assert.equal(await p.locator('#xb-color-pad [data-remote-key=Y]').getAttribute('aria-label'),'Y');
+ assert.equal(await p.locator('#xb-shoulders [data-remote-key=L] .letter').textContent(),'L');
+ assert.equal(await p.evaluate(()=>originalRemoteButtons.every(b=>b.isConnected&&document.getElementById('remoteControl').contains(b))),true);
+ await p.locator('#remoteControl .remote-back').click();await p.waitForFunction(()=>!CardPageTransition.busy);
+ await p.evaluate(()=>CardModelSession.select('xiaobai'));
+ await p.evaluate(()=>CardRemote.open());await p.waitForFunction(()=>!CardPageTransition.busy);
+ assert.equal(await p.locator('#xb-color-pad .key-face').count(),4);
+ assert.equal(await p.locator('#xb-shoulders .letter').allTextContents().then(x=>x.join('')),'LR');
+ assert.equal(await keys.count(),10);
+ await p.emulateMedia({reducedMotion:'reduce'});
+ assert.equal(await p.locator('#xb-dpad-demo .rocker').evaluate(e=>getComputedStyle(e).transitionDuration),'0s');
+ assert.deepEqual(errors,[]);console.log('PASS shared Xiaobai/Spark physical skin: eight viewport sizes with four 16px insets, ten touch targets, color mapping, tilt/deep press, independent touch release/cancel, model roundtrip, reduced motion.');
+}finally{await browser.close();}})().catch(e=>{console.error(e);process.exitCode=1;});

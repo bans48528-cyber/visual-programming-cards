@@ -1,0 +1,12 @@
+/* Translate the real page so canvases, fixed controls and the sidebar travel together. */
+.page-transition-surface{visibility:visible!important;will-change:transform;backface-visibility:hidden;pointer-events:none}
+.home-screen.page-transition-surface{display:grid!important}
+.app.page-transition-surface{position:fixed;inset:0;width:100%;height:100%;z-index:1201}
+.page-transition-in #homeBtn,.page-transition-in .remote-back,.page-transition-in .building-loading-back{pointer-events:auto}
+.page-dialog::backdrop{background:transparent}
+.building-loading{position:absolute;inset:0;display:grid;place-content:center;text-align:center;gap:12px;padding:24px;background:#f7f9fc;color:#56718a;font:16px system-ui}
+.building-loading[hidden]{display:none}
+.building-loading-back{position:absolute;left:16px;top:16px;border:0;border-radius:12px;background:white;color:#25405a;font:inherit;padding:10px 16px;cursor:pointer}
+.building-loading-spinner{width:28px;height:28px;justify-self:center;border:3px solid #dce8f3;border-top-color:#168beb;border-radius:50%;animation:building-spinner .8s linear infinite}
+@keyframes building-spinner{to{transform:rotate(360deg)}}
+@media(prefers-reduced-motion:reduce){.building-loading-spinner{animation:none}}

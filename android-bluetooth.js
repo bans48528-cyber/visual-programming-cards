@@ -19,28 +19,7 @@ window.createXiaobaiBluetooth = ({model=CardModels.get('xiaobai')}={}) => {
     disconnect(){return native.disconnect({connectionId:this.connectionId}).catch(error=>trace('断开失败',null,error.message));}
     notification(data){if(this.receive)this.receive(Uint8Array.from(atob(data),c=>c.charCodeAt(0)));}
   }
-  const page=document.createElement('section');page.className='bluetooth-page android-bluetooth';page.hidden=true;
-  page.innerHTML=`<header class="bt-top"><button class="bt-back" type="button" aria-label="返回编程"><span aria-hidden="true">‹</span>返回</button><h1>连接${model.name}</h1><span class="bt-native-badge"><i aria-hidden="true"></i>手机蓝牙</span></header>
-    <main class="bt-mobile-layout"><aside class="bt-phone-panel">
-      <div class="bt-phone-heading"><div class="bt-phone-symbol" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m7 7 10 10-5 5V2l5 5L7 17"/></svg></div><div><h2>连接准备</h2><p>确保${model.name}已开机</p></div></div>
-      <div class="bt-ready"><span aria-hidden="true"></span><strong id="btReadySummary">正在检查手机状态</strong></div>
-      <details class="bt-settings"><summary><span>手机连接设置</span><small>查看</small></summary><div class="bt-setting-list">
-        <div class="bt-setting-row"><div><span>手机蓝牙</span><strong id="btRadioState">检查中</strong></div><button class="bt-button" id="btSystemSettings" type="button">设置</button></div>
-        <div class="bt-setting-row"><div><span>扫描权限</span><strong id="btPermissionState">检查中</strong></div><button class="bt-button" id="btAccess" type="button">授权</button></div>
-        <div class="bt-location" hidden><p>旧版 Android 扫描需要开启系统定位，APP 不读取地理位置。</p><button class="bt-button" id="btLocationSettings" type="button">定位设置</button></div>
-      </div></details>
-      <p class="bt-stage-note"><strong>连接提示</strong>手机与实体遥控器不能同时连接${model.name}。</p>
-    </aside><section class="bt-device-panel" aria-label="蓝牙设备">
-      <section class="bt-current" hidden aria-label="当前连接"><div><span class="bt-eyebrow">当前设备</span><h2></h2><p role="status"></p></div><div class="bt-device-actions"><button class="bt-button bt-rename-current" type="button">重命名</button><button class="bt-button" id="btDisconnect" type="button">断开</button></div></section>
-      <div class="bt-section-header"><div><h2>选择${model.name}设备</h2><span class="bt-scan-description">扫描附近的${model.name}</span></div><button class="bt-button primary bt-search" type="button">开始扫描</button></div>
-      <p class="bt-message" role="status" aria-live="polite">有默认设备时，APP 会优先自动连接。</p><ul class="bt-list" aria-label="扫描结果"></ul>
-      <div class="bt-empty"><span class="bt-radar" aria-hidden="true"></span><strong>准备扫描</strong><span>打开${model.name}电源，然后点击“开始扫描”</span></div>
-      <details class="bt-diagnostics"><summary>遇到连接问题？</summary><pre class="bt-trace" tabindex="0"></pre><button class="bt-button bt-copy" type="button">复制诊断信息</button></details>
-    </section></main>
-    <dialog class="bt-rename-dialog"><form method="dialog"><h2>设备名称</h2><p>名称只保存在这台手机，不会修改设备广播名称。</p><input maxlength="24" autocomplete="off" aria-label="自定义设备名称"><div><button value="cancel" type="submit">取消</button><button value="confirm" type="submit" class="primary">保存</button></div></form></dialog>`;
-  if(model.bluetooth.connectionHint)page.querySelector('.bt-stage-note').textContent=model.bluetooth.connectionHint;
-  const configuration=model.bluetooth.configurationNotice?.();
-  if(configuration)page.querySelector('.bt-stage-note').textContent=configuration+'。确认后可连接；暂可编辑程序。';
+  const page=CardBluetoothPage.create(model,{diagnostics:true});
   document.body.append(page);
   const $=selector=>page.querySelector(selector),trigger=document.getElementById('bluetoothBtn'),statusOutput=document.getElementById('deviceStatus');
   const rows=new Map(),renderedRows=new Map(),logs=[];
@@ -52,7 +31,7 @@ window.createXiaobaiBluetooth = ({model=CardModels.get('xiaobai')}={}) => {
   function failure(error){if(disposed)return;trace('错误',null,error.message);notify(error.message||'蓝牙操作失败，请重试。');}
   const nameOf=device=>prefs.displayName(device),valid=ticket=>!disposed&&ticket===version&&!document.hidden;
   function status(){if(connecting)return{id:'connecting',text:`正在连接 ${nameOf(connecting)}`};if(!current||!link||link.closed)return{id:scanning?'connecting':'disconnected',text:scanning?'正在搜索设备':'设备未连接'};return link.status ? {id:link.status.id,text:`${nameOf(current)} · ${link.status.text}`} : {id:'stop',text:`${nameOf(current)} 已连接`};}
-  function renderStatus(){if(disposed)return;const value=status();statusOutput.dataset.state=value.id;statusOutput.textContent=value.text;$('.bt-current p').textContent=value.text;}
+  function renderStatus(){if(disposed)return;const value=status();statusOutput.dataset.state=value.id;statusOutput.textContent=value.text;$('.bt-current p').textContent=value.text;CardBluetoothPage.status(page,{connected:Boolean(current&&link&&!link.closed),connecting:Boolean(connecting),scanning,count:rows.size});}
   function render(){
     if(disposed)return;
     renderStatus();$('#btRadioState').textContent=!state?'检查中':!state.available?'不可用':(!state.requiresLocation&&!state.permissionsGranted)?'待授权':state.bluetoothEnabled?'已开启':'已关闭';
@@ -71,9 +50,8 @@ window.createXiaobaiBluetooth = ({model=CardModels.get('xiaobai')}={}) => {
     rows.forEach(device=>{
       if(device.deviceId===current?.deviceId)return;let row=renderedRows.get(device.deviceId);
       if(!row){row=document.createElement('li');row.className='bt-device';row.dataset.deviceId=device.deviceId;row.innerHTML='<span class="bt-signal"></span><div class="bt-device-info"><strong></strong><small></small></div><div class="bt-device-actions"><button type="button" class="bt-button bt-rename">重命名</button><button type="button" class="bt-button bt-connect">连接</button></div>';for(let i=1;i<=4;i++){const bar=document.createElement('i');bar.style.height=`${6+i*5}px`;row.querySelector('.bt-signal').append(bar);}row.querySelector('.bt-connect').onclick=()=>manualConnect(rows.get(device.deviceId));row.querySelector('.bt-rename').onclick=()=>renameDevice(rows.get(device.deviceId));renderedRows.set(device.deviceId,row);list.append(row);}
-      const signal=row.querySelector('.bt-signal'),level=device.rssi>=-60?4:device.rssi>=-75?3:device.rssi>=-90?2:1;signal.setAttribute('aria-label',`信号${['','较弱','一般','良好','很强'][level]}，${device.rssi} dBm`);[...signal.children].forEach((bar,i)=>bar.classList.toggle('lit',i<level));
-      row.querySelector('strong').textContent=nameOf(device)+(device.deviceId===defaultId?' · 默认':'');row.querySelector('small').textContent=`${device.name} · ${device.deviceId.slice(-8)} · ${device.rssi} dBm`;
-      const button=row.querySelector('.bt-connect');button.textContent=connecting?.deviceId===device.deviceId?'连接中…':'连接';button.disabled=Boolean(connecting?.manual);
+      CardBluetoothPage.device(row,device,{name:nameOf(device),isDefault:device.deviceId===defaultId});
+      const button=row.querySelector('.bt-connect');button.textContent=connecting?.deviceId===device.deviceId?'连接中…':'连接';button.disabled=Boolean(current||connecting?.manual);
     });
     $('.bt-empty').hidden=Boolean(list.childElementCount||current||connecting);$('.bt-empty strong').textContent=scanning?'正在扫描…':hasScanned?'暂未发现主机':'尚未扫描';$('.bt-empty > span:last-child').textContent=scanning?'请保持主机在手机附近':hasScanned?'请重试或手动选择设备':'打开主机电源后开始扫描';
     trigger.classList.toggle('is-connected',Boolean(current&&link&&!link.closed));trigger.classList.toggle('is-connecting',Boolean(connecting||scanning||requesting));trigger.title=trigger.ariaLabel=current?`蓝牙已连接：${nameOf(current)}`:connecting?`正在连接：${nameOf(connecting)}`:scanning?'正在搜索设备':'蓝牙未连接';
@@ -127,7 +105,7 @@ window.createXiaobaiBluetooth = ({model=CardModels.get('xiaobai')}={}) => {
   async function ensureConnected(){if(disposed||!CardModelSession.selected||CardModelSession.switching)return false;if(current&&link&&!link.closed)return true;if(autoPromise||flow||connecting||scanning||requesting)return autoPromise||false;autoPromise=(async()=>{const id=prefs.getDefault();await beginScan(id?'auto-default':'auto-first',id?timing.defaultScanMs:timing.firstScanMs,id);})().finally(()=>{autoPromise=null;});return autoPromise;}
   function clearConnection(){if(current)window.dispatchEvent(new Event('xiaobai-disconnected'));link?.close();transport?.close();link=null;transport=null;current=null;connecting=null;render();}
   async function disconnect(){await cancelFlow('用户断开');const connectionId=transport?.connectionId;clearConnection();if(connectionId)await native.disconnect({connectionId});tell('已断开连接。');}
-  function renameDevice(device){if(!device)return;const dialog=$('.bt-rename-dialog'),input=dialog.querySelector('input');dialog.dataset.deviceId=device.deviceId;input.value=prefs.customName(device.deviceId)||'';dialog.showModal();setTimeout(()=>{input.focus();input.select();},0);}
+  function renameDevice(device){if(!device)return;const dialog=$('.bt-rename-dialog'),input=dialog.querySelector('input');dialog.returnValue='';dialog.dataset.deviceId=device.deviceId;input.value=prefs.customName(device.deviceId)||'';dialog.showModal();setTimeout(()=>{input.focus();input.select();},0);}
   $('.bt-rename-dialog').addEventListener('close',event=>{const dialog=event.currentTarget;if(dialog.returnValue!=='confirm')return;try{prefs.rename(dialog.dataset.deviceId,dialog.querySelector('input').value);render();tell('设备名称已保存在本机。');}catch(error){failure(error);}});
   const ready=(async()=>{
     await listen('scanResult',device=>{if(!scanning||device.scanId!==scanId||!model.bluetooth.accepts(device))return;rows.set(device.deviceId,device);scheduleRender();if(flow?.kind==='auto-default'&&device.deviceId===flow.targetId){const active=flow;active.kind='auto-connecting';clearTimer(active);establish(device,active.ticket,false).then(()=>{if(valid(active.ticket)){flow=null;render();}}).catch(error=>{if(valid(active.ticket)){flow=null;failure(new Error(`默认设备连接失败：${error.message}`));}});}});
@@ -139,8 +117,8 @@ window.createXiaobaiBluetooth = ({model=CardModels.get('xiaobai')}={}) => {
   $('.bt-search').onclick=()=>{if(scanning||connecting)cancelFlow('用户停止').then(()=>tell('已停止搜索或连接。'));else manualScan().catch(failure);};$('#btDisconnect').onclick=()=>disconnect().catch(failure);$('.bt-rename-current').onclick=()=>renameDevice(current);
   $('#btAccess').onclick=async()=>{try{if(state?.permissionsGranted||state?.permissionState==='denied')await native.openSettings({target:'app'});else{state=await native.requestAccess();render();}}catch(error){failure(error);}};$('#btSystemSettings').onclick=()=>native.openSettings({target:'bluetooth'}).catch(failure);$('#btLocationSettings').onclick=()=>native.openSettings({target:'location'}).catch(failure);
   $('.bt-copy').onclick=async()=>{try{await navigator.clipboard.writeText('Xiaobai Android BLE diagnostics\n'+logs.join('\n'));tell('诊断已复制。');}catch{tell('复制失败，可展开诊断并长按选中文字。',true);}};
-  function route(){if(disposed)return;const show=location.hash==='#bluetooth';page.hidden=!show;document.body.classList.toggle('bluetooth-open',show);if(show){closeParamEditor();document.title='手机蓝牙 · 小白编程';ready.then(refresh).catch(failure);}else{if(flow?.kind==='manual-scan')cancelFlow('离开蓝牙界面').catch(()=>{});if(location.hash==='#editor'){document.title=document.querySelector('.brand-title').textContent+' · 小白编程';updateProgramAnchor();if(!document.getElementById('remoteControl')?.open)enterProgram().catch(failure);ready.then(ensureConnected).catch(failure);}}if(location.hash!=='#editor'&&!document.getElementById('remoteControl')?.open){desiredMode=null;link?.stopHeartbeat();}}
-  trigger.onclick=()=>{window.CardBluetoothReturnHash='#editor';location.hash='bluetooth';};$('.bt-back').onclick=()=>window.CardBluetoothBack();window.addEventListener('hashchange',route,{signal:lifecycle.signal});window.addEventListener('card-bluetooth-route',route,{signal:lifecycle.signal});
+  function route(){if(disposed)return;const show=location.hash==='#bluetooth';page.hidden=!show;document.body.classList.toggle('bluetooth-open',show);if(show){closeParamEditor();document.title='手机蓝牙 · 小白编程';ready.then(refresh).catch(failure);}else{CardBluetoothPage.closePanels(page);if(flow?.kind==='manual-scan')cancelFlow('离开蓝牙界面').catch(()=>{});if(location.hash==='#editor'){document.title=document.querySelector('.brand-title').textContent+' · 小白编程';updateProgramAnchor();if(!document.getElementById('remoteControl')?.open)enterProgram().catch(failure);ready.then(ensureConnected).catch(failure);}}if(location.hash!=='#editor'&&!document.getElementById('remoteControl')?.open){desiredMode=null;link?.stopHeartbeat();}}
+  trigger.onclick=()=>window.CardOpenBluetooth('#editor');$('.bt-back').onclick=()=>window.CardBluetoothBack();window.addEventListener('hashchange',route,{signal:lifecycle.signal});window.addEventListener('card-bluetooth-route',route,{signal:lifecycle.signal});
   document.addEventListener('visibilitychange',()=>{if(document.hidden){const connectionId=transport?.connectionId;cancelFlow('应用进入后台').catch(()=>{});clearConnection();if(connectionId)native.disconnect({connectionId}).catch(()=>{});}else ready.then(refresh).catch(failure);},{signal:lifecycle.signal});const statusTimer=setInterval(renderStatus,250);
   async function enterProgram(){if(disposed)return;desiredMode=protocol.MODE.PROGRAM;if(link&&!link.closed)await link.enterProgram();}
   async function enterRemote(){if(disposed)return;desiredMode=protocol.MODE.REMOTE;if(link&&!link.closed)await link.enterRemote();}

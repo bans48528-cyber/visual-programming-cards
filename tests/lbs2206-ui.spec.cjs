@@ -12,7 +12,7 @@ const verified={serviceUuid:'11111111-1111-1111-1111-111111111111',writeUuid:'22
   }
   {
    const {page,context,errors}=await setup({});assert.equal(await page.locator('.home-model-entry strong').textContent(),'LBS2206 V1.02');
-   await page.evaluate(()=>Lbs2206UI.open());await page.locator('#lbsRemoteControl .remote-connect').click();await page.locator('.lbs-page .bt-back').click();assert.equal(await page.evaluate(()=>location.hash),'#home');
+   await page.evaluate(()=>Lbs2206UI.open());await page.locator('#lbsRemoteControl .remote-connect').click();await page.locator('.lbs-page .bt-back').click();await page.waitForFunction(()=>document.getElementById('lbsRemoteControl').open&&!CardPageTransition.busy);assert.equal(await page.evaluate(()=>location.hash),'#home');await page.locator('#lbsRemoteControl .remote-back').click();await page.waitForFunction(()=>!CardPageTransition.busy);
    await page.locator('#newProject').click();assert.equal(await page.locator('#palette [data-card-id]').count(),9);assert.equal(await page.locator('#tab-dynamic').count(),0);
    await page.locator('#palette [data-card-id=combo-forward]').click();assert.equal(await page.locator('#chain .param-bubble').textContent(),'1秒');
    assert.equal(await page.locator('#tab-logic').count(),0);assert.equal(await page.locator('#tab-combo').count(),0);assert.equal(await page.locator('#palette [data-card-id=wait-time]').count(),1);assert.equal(await page.locator('#palette [data-card-id=loop-count]').count(),1);
@@ -34,9 +34,9 @@ const verified={serviceUuid:'11111111-1111-1111-1111-111111111111',writeUuid:'22
    await page.locator('#pauseProgramBtn').click();await page.waitForFunction(()=>!CardProgram.running);await page.waitForFunction(()=>mockBle.lbsWrites.some(b=>b[1]===0x35));
    assert.equal(await page.evaluate(()=>mockBle.lbsWrites.some(b=>b[1]===123)),false,'remote programs must never upload or send program-mode stop');
    await page.evaluate(()=>{program=[{id:'lbs-forward',params:{steps:1}}];});await page.locator('#runProgramBtn').click();await page.waitForFunction(()=>document.getElementById('executionNotice').textContent.includes('旧版步数'));
-   await page.evaluate(()=>Lbs2206UI.open());await page.locator('#lbsRemoteControl').waitFor();assert.equal(await page.locator('[data-speed]').count(),5);await page.locator('[data-speed="5"]').click();
+   await page.evaluate(()=>Lbs2206UI.open());await page.locator('#lbsRemoteControl').waitFor();await page.waitForFunction(()=>!CardPageTransition.busy);assert.equal(await page.locator('[data-speed]').count(),5);await page.locator('[data-speed="5"]').click();
    const f=await page.locator('[data-lbs-direction=forward]').boundingBox();await page.mouse.move(f.x+20,f.y+20);await page.mouse.down();await page.waitForFunction(()=>mockBle.lbsWrites.some(b=>b.length===4&&b[1]===0x15));await page.mouse.up();await page.waitForFunction(()=>mockBle.lbsWrites.some(b=>b.length===4&&b[1]===0x35));
-   await page.screenshot({path:'artifacts/lbs2206-remote.png'});await page.locator('#lbsRemoteControl .remote-back').click();
+   await page.screenshot({path:'artifacts/lbs2206-remote.png'});await page.locator('#lbsRemoteControl .remote-back').click();await page.waitForFunction(()=>!CardPageTransition.busy);
    await page.evaluate(()=>Lbs2206UI.settings());await page.locator('[data-read=version]').click();await page.waitForFunction(()=>document.querySelector('.lbs-setting-result').textContent==='Ver=1.02');
    assert.equal(await page.evaluate(()=>mockBle.calls.some(c=>c.method==='compile'||c.method==='prepareUpload')),false);
    assert.deepEqual(errors,[]);await context.close();

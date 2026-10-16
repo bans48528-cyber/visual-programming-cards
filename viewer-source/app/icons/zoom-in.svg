@@ -1,4 +1,10 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="1345.07497 1008.70687 80.04012 80.04006" width="80.04012" height="80.04006"><path transform="matrix(1,0,0,-1,1350.343,1053.9749)" d="M0 0C-2.897 0-5.248 2.351-5.248 5.248V40C-5.248 42.897-2.897 45.248 0 45.248 2.897 45.248 5.248 42.897 5.248 40V5.248C5.248 2.351 2.897 0 0 0" />
-<path transform="matrix(1,0,0,-1,1419.847,1088.7269)" d="M0 0H-34.752C-37.649 0-40 2.351-40 5.248-40 8.145-37.649 10.496-34.752 10.496H0C2.897 10.496 5.248 8.145 5.248 5.248 5.248 2.351 2.897 0 0 0M-34.752 69.504H-69.504C-72.401 69.504-74.752 71.855-74.752 74.752-74.752 77.649-72.401 80-69.504 80H-34.752C-31.855 80-29.504 77.649-29.504 74.752-29.504 71.855-31.855 69.504-34.752 69.504" />
-<path transform="matrix(1,0,0,-1,1419.847,1088.7269)" d="M0 0C-2.897 0-5.248 2.351-5.248 5.248V40C-5.248 42.897-2.897 45.248 0 45.248 2.897 45.248 5.248 42.897 5.248 40V5.248C5.248 2.351 2.897 0 0 0" />
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128" role="img" aria-labelledby="label">
+  <title id="label">放大模型</title>
+  <defs>
+    <radialGradient id="face" cx="42%" cy="30%" r="85%"><stop offset="0" stop-color="#FFFFFF"/><stop offset=".72" stop-color="#FFFFFF"/><stop offset="1" stop-color="#EAF5FF"/></radialGradient>
+    <linearGradient id="rim" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#A9DCFF"/><stop offset="1" stop-color="#73C5FF"/></linearGradient>
+    <filter id="shadow" x="-30%" y="-30%" width="160%" height="170%" color-interpolation-filters="sRGB"><feDropShadow dx="0" dy="3" stdDeviation="3.2" flood-color="#329FEC" flood-opacity=".28"/></filter>
+  </defs>
+  <rect x="13" y="11" width="102" height="102" rx="24" fill="url(#face)" stroke="url(#rim)" stroke-width="3" filter="url(#shadow)"/>
+  <g transform="translate(0 -2)"><circle cx="58" cy="58" r="22" fill="none" stroke="#168BFA" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/><path d="m75 75 17 17M48 58h20M58 48v20" fill="none" stroke="#168BFA" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/></g>
 </svg>

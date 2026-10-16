@@ -59,9 +59,10 @@ async function stopNative(page){await page.evaluate(async()=>{if(CardBluetooth.c
     {
       const {context,page,errors}=await makePage(browser,'home');
       await setDevices(page,[{name:'Auto',deviceId:'AUTO',rssi:-30},{name:'Manual',deviceId:'MANUAL',rssi:-60}]);
-      await page.evaluate(()=>{mockBle.connectionDelay=250;location.hash='editor';});
+      // Leave time for navigation/layout to settle before the auto-connection completes.
+      await page.evaluate(()=>{mockBle.connectionDelay=1000;location.hash='editor';});
       await page.waitForFunction(()=>mockBle.calls.some(c=>c.method==='connect'&&c.deviceId==='AUTO'));
-      await page.evaluate(()=>location.hash='bluetooth');await page.locator('[data-device-id=MANUAL] .bt-connect').click();
+      await page.evaluate(()=>location.hash='bluetooth');await page.waitForFunction(()=>!CardPageTransition.busy);await page.locator('[data-device-id=MANUAL] .bt-connect').click();
       await page.waitForFunction(()=>CardBluetooth.connected,null,{timeout:3000});
       await page.waitForFunction(()=>CardBluetooth.defaultDeviceId==='MANUAL');
       assert.equal(await page.evaluate(()=>CardBluetooth.defaultDeviceId),'MANUAL');

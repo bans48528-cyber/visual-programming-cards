@@ -2,12 +2,58 @@
 (() => {
   const isAndroid = window.Capacitor?.getPlatform() === 'android';
   window.CardPlatform = Object.freeze({isAndroid, hardwareAvailable: !isAndroid});
-  // Reveal the destination synchronously before dismissing the remote dialog.
-  window.CardOpenBluetoothFromRemote = (returnHash, close) => {
-    window.CardBluetoothReturnHash = returnHash;
-    location.hash = 'bluetooth';
-    window.dispatchEvent(new Event('card-bluetooth-route'));
-    Promise.resolve(close()).catch(error => window.showExecutionNotice?.(error.message));
+  // Remote entries share the editor's icon and transport state, across all models.
+  const bluetoothSource=document.getElementById('bluetoothBtn'),bluetoothButtons=new Set();
+  function syncBluetoothButton(button){
+    for(const state of ['is-connected','is-connecting'])button.classList.toggle(state,bluetoothSource.classList.contains(state));
+    const label=bluetoothSource.getAttribute('aria-label')||bluetoothSource.title||'蓝牙未连接';
+    button.title=label;button.setAttribute('aria-label',label);
+  }
+  window.CardBindBluetoothButton=button=>{
+    button.classList.add('bluetooth-button');
+    button.replaceChildren(bluetoothSource.querySelector('.bluetooth-icon').cloneNode(true));
+    bluetoothButtons.add(button);syncBluetoothButton(button);
+  };
+  new MutationObserver(()=>bluetoothButtons.forEach(syncBluetoothButton)).observe(bluetoothSource,{attributes:true,attributeFilter:['class','title','aria-label']});
+  let remoteReturn=null,navigationVersion=0;
+  function routeBluetooth(){window.dispatchEvent(new Event('card-bluetooth-route'));}
+  window.CardOpenBluetooth=(returnHash='#editor')=>{
+    remoteReturn=null;navigationVersion++;
+    window.CardBluetoothReturnHash=returnHash;
+    location.hash='bluetooth';routeBluetooth();
+    document.querySelectorAll('.bt-back').forEach(button=>button.setAttribute('aria-label',returnHash==='#home'?'返回主页':'返回编程'));
+  };
+  // Remember the remote page separately from the home/editor underneath it.
+  window.CardOpenBluetoothFromRemote=(returnHash,close,reopen)=>{
+    window.CardOpenBluetooth(returnHash);
+    const entry={returnHash,reopen,scope:window.CardModelSession?.capture(),version:navigationVersion,returning:false};
+    remoteReturn=entry;
+    document.querySelectorAll('.bt-back').forEach(button=>button.setAttribute('aria-label','返回遥控'));
+    entry.stopped=Promise.resolve(close()).catch(error=>window.showExecutionNotice?.(error.message));
+  };
+  window.CardBluetoothBack=async()=>{
+    if(location.hash!=='#bluetooth')return;
+    const entry=remoteReturn;
+    if(!entry||!entry.scope?.isCurrent()){
+      remoteReturn=null;navigationVersion++;
+      const target=window.CardBluetoothReturnHash||'#editor';window.CardBluetoothReturnHash=null;
+      location.hash=target;routeBluetooth();return;
+    }
+    if(entry.returning)return;
+    entry.returning=true;
+    const isCurrent=()=>remoteReturn===entry&&entry.version===navigationVersion&&entry.scope.isCurrent()&&location.hash==='#bluetooth'&&!document.hidden;
+    try{
+      await entry.stopped;
+      if(isCurrent())await entry.reopen({returnHash:entry.returnHash,fromBluetooth:true,isCurrent});
+    }catch(error){window.showExecutionNotice?.(error.message);}
+    finally{entry.returning=false;}
+  };
+  window.CardShowRemoteDialog=(dialog,options,returnHash)=>{
+    if(!options.fromBluetooth){dialog.showModal();return;}
+    // Show the restored remote before hiding Bluetooth, so home never flashes.
+    HTMLDialogElement.prototype.showModal.call(dialog);
+    remoteReturn=null;window.CardBluetoothReturnHash=null;
+    location.hash=returnHash;routeBluetooth();
   };
   if (!isAndroid) return;
   document.documentElement.classList.add('android-app');

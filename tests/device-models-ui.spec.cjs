@@ -60,7 +60,7 @@ function fixture(){
   await android.evaluate(()=>{mockBle.emit('scanResult',{scanId:'retired-scan',deviceId:'GHOST',name:'旧设备',rssi:-10});});
   assert.equal(await android.locator('[data-device-id=GHOST]').count(),0);
   await android.evaluate(()=>{mockBle.connectionDelay=10;mockBle.devices=[{name:'小白',deviceId:'LIVE',rssi:-40}];location.hash='editor';});
-  await android.waitForFunction(()=>CardBluetooth.connected);
+  await android.waitForFunction(()=>CardBluetooth.connected&&!CardPageTransition.busy);
   await android.evaluate(()=>{program=[{id:'combo-continuous',params:{direction:'advance'}},{id:'wait-time',params:{duration:30}}];renderProgram();commitHistory();document.getElementById('runProgramBtn').click();});
   await android.waitForFunction(()=>mockBle.calls.some(c=>c.method==='write'&&atob(c.data).charCodeAt(6)===0x21));
   const liveId=await android.evaluate(()=>CardBluetooth.remoteConnection().id);

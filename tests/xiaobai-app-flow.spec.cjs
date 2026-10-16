@@ -12,7 +12,7 @@ const BASE='http://127.0.0.1:4173/dist/';
     const page=await context.newPage(),errors=[];page.on('pageerror',error=>errors.push(error.message));
     await page.goto(`${BASE}#home`);
     await page.evaluate(()=>{mockBle.devices=[{name:'Spark_AI',deviceId:'ROBOT',rssi:-40}];location.hash='editor';});
-    await page.waitForFunction(()=>CardBluetooth.connected);
+    await page.waitForFunction(()=>CardBluetooth.connected&&!CardPageTransition.busy);
     await page.waitForFunction(()=>mockBle.calls.some(call=>call.method==='write'&&atob(call.data).charCodeAt(6)===1));
     const initial=await page.evaluate(()=>mockBle.calls.filter(call=>call.method==='write').map(call=>Array.from(atob(call.data),c=>c.charCodeAt(0))));
     assert.deepEqual(initial.slice(0,2).map(frame=>frame[6]),[4,1],'probe then enter programming');

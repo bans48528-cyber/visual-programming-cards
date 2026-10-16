@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en-us">
+<html lang="en-us" class="viewer-instructions">
   <head>
     <meta charset="utf-8" />
     <title>Sample Building Instructions</title>
@@ -131,14 +131,11 @@
         <div id="color_picker_background" class="background" onclick="$('#color_picker').hide();"></div>
         <div id="color_picker_holder" class="holder"></div>
     </div>
-    <div id="green">
-      <div id="editor"></div>
-    </div>
     <div id="options" /></div>
     <script>
       var model = 'models/corvette_full.mpd';
 
-      const baseURL = '/instructions.html?id=' + encodeURIComponent(new URLSearchParams(location.search).get('id') || '') + '&step='; // Change this line so it fits the page that renders instructions for you (probably not 'sample_instructions.htm')
+      const baseURL = '/instructions.html?id=' + encodeURIComponent(new URLSearchParams(location.search).get('id') || '') + '&visit=' + encodeURIComponent(new URLSearchParams(location.search).get('visit') || '') + '&step='; // Change this line so it fits the page that renders instructions for you (probably not 'sample_instructions.htm')
       var manager;
 
       function main() {

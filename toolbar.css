@@ -11,7 +11,7 @@
 .device-status[data-state="connecting"] { color: #0874bd; }
 .topbar .brand { gap: 8px; }
 .topbar .brand-title { font-size: 13.6px; }
-.topbar .btn {
+.topbar .btn, .bluetooth-button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -29,7 +29,7 @@
 }
 .topbar .btn img { width: 25.6px; height: 25.6px; object-fit: contain; pointer-events: none; }
 .topbar .redo-icon { transform: scaleX(-1); }
-.topbar #bluetoothBtn { color: #7a838d; }
+.topbar #bluetoothBtn, .bluetooth-button { color: #7a838d; }
 .bluetooth-icon {
   width: 25.6px;
   height: 25.6px;
@@ -39,19 +39,19 @@
   pointer-events: none;
 }
 .topbar .btn:disabled { opacity: .3; }
-.topbar .btn:hover:not(:disabled) { background: #f0f4f8; }
-.topbar .btn:active:not(:disabled) { background: #eaf0f8; }
-.topbar .btn:focus-visible { outline: 2px solid #0090f5; outline-offset: -2px; }
-.topbar #bluetoothBtn.is-connected { color: #138056; background: #e8f7ef; }
-.topbar #bluetoothBtn.is-connecting { color: #0090f5; background: #e8f4ff; }
-.topbar #bluetoothBtn.is-connecting .bluetooth-icon { animation: bluetooth-search-pulse .9s ease-in-out infinite alternate; }
+.topbar .btn:hover:not(:disabled), .bluetooth-button:hover:not(:disabled) { background: #f0f4f8; }
+.topbar .btn:active:not(:disabled), .bluetooth-button:active:not(:disabled) { background: #eaf0f8; }
+.topbar .btn:focus-visible, .bluetooth-button:focus-visible { outline: 2px solid #0090f5; outline-offset: -2px; }
+.topbar #bluetoothBtn.is-connected, .remote-header .bluetooth-button.is-connected { color: #138056; background: #e8f7ef; }
+.topbar #bluetoothBtn.is-connecting, .remote-header .bluetooth-button.is-connecting { color: #0090f5; background: #e8f4ff; }
+.topbar #bluetoothBtn.is-connecting .bluetooth-icon, .bluetooth-button.is-connecting .bluetooth-icon { animation: bluetooth-search-pulse .9s ease-in-out infinite alternate; }
 @keyframes bluetooth-search-pulse { from { opacity: .35; transform: scale(.82); } to { opacity: 1; transform: scale(1.08); } }
-@media (prefers-reduced-motion: reduce) { .topbar #bluetoothBtn.is-connecting .bluetooth-icon { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .topbar #bluetoothBtn.is-connecting .bluetooth-icon, .bluetooth-button.is-connecting .bluetooth-icon { animation: none; } }
 @media(max-width: 420px) {
   .device-status { min-width: 0; }
   .topbar { gap: 3.2px; padding-inline: 3.2px; }
   .topbar .toolbar { gap: 1.6px; }
-  .topbar .btn { width: 32px; min-width: 32px; }
+  .topbar .btn, .bluetooth-button { width: 32px; min-width: 32px; }
   .topbar .btn img { width: 22.4px; height: 22.4px; }
   .bluetooth-icon { width: 22.4px; height: 22.4px; }
 }
@@ -60,9 +60,10 @@
 .app { grid-template-rows: minmax(0, 1fr); }
 .topbar {
   position: absolute; left: 14px; top: 14px; z-index: 12;
-  width: auto; height: auto; padding: 0; border: 0; gap: 7px;
+  width: auto; height: auto; padding: 4px; border: 1px solid rgba(170,197,223,.4); gap: 2px;
   display: flex; align-items: center; justify-content: flex-start;
-  background: transparent; pointer-events: none;
+  background: rgba(255,255,255,.97); border-radius: 16px;
+  box-shadow: 0 3px 14px rgba(44,83,123,.08); pointer-events: none;
 }
 .topbar .brand { display: contents; }
 .topbar .brand-title,
@@ -71,10 +72,41 @@
 .topbar #undoBtn,
 .topbar #redoBtn,
 .topbar #clearBtn { display: none !important; }
-.topbar .toolbar { display: flex; gap: 7px; pointer-events: none; }
-.topbar .btn { pointer-events: auto; background: rgba(255,255,255,.94); border-radius: 8px; box-shadow: 0 2px 6px rgba(17,24,32,.12); }
+.topbar .toolbar { display: flex; gap: 2px; pointer-events: none; }
+.topbar .btn, .bluetooth-button { pointer-events: auto; background: rgba(255,255,255,.94); border-radius: 8px; box-shadow: 0 2px 6px rgba(17,24,32,.12); }
+.topbar .btn {
+  position: relative; width: 44px; height: 44px; min-width: 44px; min-height: 44px;
+  padding: 10px; border-radius: 11px; background: transparent; box-shadow: none;
+  color: #38566f; transition: transform 130ms ease, background-color 130ms ease;
+}
+.topbar .btn img, .topbar .bluetooth-icon { width: 24px; height: 24px; }
+.topbar #homeBtn { --editor-tool-icon: url("assets/toolbar/home.svg"); }
+.topbar #saveBtn { --editor-tool-icon: url("assets/toolbar/save.svg"); }
+.topbar #homeBtn img, .topbar #saveBtn img { opacity: 0; }
+.topbar #homeBtn::before, .topbar #saveBtn::before {
+  content: ""; position: absolute; inset: 10px; background: currentColor;
+  mask: var(--editor-tool-icon) center / contain no-repeat;
+  -webkit-mask: var(--editor-tool-icon) center / contain no-repeat; pointer-events: none;
+}
+.topbar #saveBtn::before { mask-size: 32px 32px; -webkit-mask-size: 32px 32px; }
+.topbar #bluetoothBtn:not(.is-connected):not(.is-connecting) { color: #70869a; }
+.topbar .btn:hover:not(:disabled) { background: #f0f6fc; }
+.topbar .btn:active:not(:disabled) { background: #e5eff9; transform: translateY(1px) scale(.94); }
+.topbar .btn:focus-visible { outline-offset: -2px; }
+@media (prefers-reduced-motion: reduce) {
+  .topbar .btn { transition: none; }
+  .topbar .btn:active:not(:disabled) { transform: none; }
+}
 .topbar #saveBtn { order: 1; }
 .topbar #bluetoothBtn { order: 2; }
+.topbar #canvasBackgroundBtn { order: 3; }
+.topbar .canvas-background-icon {
+  width: 22px; height: 22px; border: 1.5px solid #70869a; border-radius: 50%;
+  background: linear-gradient(90deg, #f5f8fc 50%, #1b2736 50%);
+  pointer-events: none;
+}
+.topbar #canvasBackgroundBtn[aria-pressed="true"] { background: #e5eff9; }
+.topbar #canvasBackgroundBtn[aria-pressed="true"] .canvas-background-icon { transform: rotate(180deg); }
 
 .execution-controls { top: 14px; right: 14px; bottom: auto; gap: 8px; }
 .execution-button { width: 59.2px; height: 59.2px; }
@@ -83,7 +115,7 @@
 
 @media (max-width: 600px), (max-height: 500px) {
   .app { grid-template-rows: minmax(0, 1fr); }
-  .topbar { left: 10px; top: 10px; padding: 0; }
+  .topbar { left: 10px; top: 10px; padding: 4px; }
   .execution-controls { top: 10px; right: 10px; bottom: auto; gap: 7px; }
   .execution-button { width: 46.4px; height: 46.4px; }
 }

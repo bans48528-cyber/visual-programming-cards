@@ -101,6 +101,6 @@
     },
     execution:{kind:'stream',validate:program=>XiaobaiRunner.validate(program),
       createRunner:(connection,options)=>new XiaobaiRunner.Runner(connection,options)},
-    remote:{open:()=>window.CardRemote?.open(),close:()=>window.CardRemote?.close(),reset:()=>window.CardRemote?.reset()}
+    remote:{layout:'physical-ten-key',open:()=>window.CardRemote?.open(),close:()=>window.CardRemote?.close(),reset:()=>window.CardRemote?.reset()}
   });
 })();

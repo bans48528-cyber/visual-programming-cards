@@ -99,7 +99,7 @@ const BlockLayout = (() => {
     const m = {advance: x || 56, anchor, height: anchor+below};
     container.style.width = `${m.advance}px`;
     container.style.height = `${m.height}px`;
-    const note = direct(container, ".loop-empty-note, .empty-note")[0];
+    const note = direct(container, ".loop-empty-note")[0];
     if (note) {
       note.style.display = nodes.length ? "none" : "grid";
       box(note, 12, 18, 32, 36);
@@ -151,6 +151,17 @@ const BlockLayout = (() => {
     const occupied = [];
     const bounds = clientRect(container);
     let right = m.advance+plug+72, bottom = m.height+y+48;
+    // The start block belongs to the layout, but does not make a program nonempty.
+    const emptyNote = direct(container, ".empty-note")[0];
+    if (emptyNote) {
+      const empty = !container.querySelector(".program-block, .drop-projection");
+      emptyNote.style.display = empty ? "grid" : "none";
+      if (empty) {
+        const left = 24+m.advance+plug+20;
+        box(emptyNote, left, y+m.anchor-18, 176, 36);
+        right = Math.max(right, left+176+24);
+      }
+    }
     container.querySelectorAll(".param-bubble").forEach(bubble => {
       if (bubble.closest(".drag-source-placeholder, .drop-projection")) return;
       const rect = clientRect(bubble);

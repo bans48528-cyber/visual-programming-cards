@@ -15,6 +15,20 @@
     programCanvas.style.overflowAnchor = "none";
     const appElement = document.querySelector(".app");
     const topbar = document.querySelector(".topbar");
+    const canvasBackgroundBtn = document.getElementById("canvasBackgroundBtn");
+    function setCanvasBackground(dark) {
+      document.documentElement.dataset.editorBackground = dark ? "dark" : "light";
+      canvasBackgroundBtn.setAttribute("aria-pressed", String(dark));
+      canvasBackgroundBtn.title = dark ? "切换为浅色背景" : "切换为深色背景";
+    }
+    setCanvasBackground(document.documentElement.dataset.editorBackground === "dark");
+    canvasBackgroundBtn.addEventListener("click", () => {
+      const dark = document.documentElement.dataset.editorBackground !== "dark";
+      setCanvasBackground(dark);
+      try {
+        localStorage.setItem("cardEditorBackgroundV1", dark ? "dark" : "light");
+      } catch (_) { /* Keep switching available even without persistent storage. */ }
+    });
     const libraryArea = document.querySelector(".library-area");
     const tabs = document.querySelector(".tabs");
     const startBlock = document.getElementById("startBlock");

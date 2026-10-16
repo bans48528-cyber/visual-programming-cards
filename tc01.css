@@ -1,7 +1,88 @@
-.tc01-controls{display:flex;align-items:center;justify-content:center;gap:clamp(18px,5vw,72px);flex:1;padding:16px 24px}.tc01-controls section{display:grid;grid-template-columns:repeat(2,minmax(80px,130px));gap:14px}.tc01-controls h2{grid-column:1/-1;margin:0 0 6px;font-size:18px;color:#385b55}.tc01-controls h2 small{color:#85a59d;margin-left:5px}.tc01-controls [data-tc-key]{height:clamp(90px,28vh,150px);border:1px solid #bedfd3;border-radius:22px;background:white;color:#29866b;box-shadow:0 5px 0 #d3e8e0;font-size:40px;touch-action:none;user-select:none}.tc01-controls [data-tc-key] span{display:block;font-size:17px;font-weight:700;margin-top:3px}.tc01-controls [data-tc-key].is-pressed{background:#279c77;color:white;box-shadow:none;transform:translateY(4px)}.tc01-controls button:disabled{opacity:.45}.tc01-center{max-width:170px;text-align:center;font-size:13px;color:#6b827b}.tc01-center img{width:68px;height:68px}.tc01-status{min-height:36px;line-height:1.5}.tc01-stop{border:0;border-radius:16px;background:#e8eff0;color:#466368;font-weight:700;padding:14px 24px}.tc01-remote .remote-connect{background:#279c77}.tc01-remote .remote-header h1{font-size:20px}@media(max-height:450px){.tc01-controls{padding:12px 20px;gap:24px}.tc01-controls section{gap:10px;grid-template-columns:repeat(2,90px)}.tc01-controls h2{font-size:16px}.tc01-controls [data-tc-key]{height:110px}.tc01-center img{width:55px;height:55px}}@media(max-width:600px){.tc01-controls{flex-wrap:wrap;gap:20px}.tc01-center{order:3;max-width:none;width:100%}.tc01-controls section{grid-template-columns:repeat(2,70px)}.tc01-center img{display:none}}
 
-/* TC-01 all-stop belongs to the blue motor family. */
-body[data-device-model="tc01"] [data-card-id="combo-stop"] {
-  --block-secondary: #0078CC;
-  --block-edge: #0062A6;
+#tc01-twin-stick { font-family:"Segoe UI","Microsoft YaHei",sans-serif; color:#48555d; }
+#tc01-twin-stick * { box-sizing:border-box; }
+#tc01-twin-stick .prototype-space { padding:28px 10px; }
+#tc01-twin-stick .controller { width:100%; max-width:560px; margin:auto; padding:28px 30px 22px; border-radius:52px; background:linear-gradient(145deg,#eceef0,#dadddf 58%,#cfd4d8); box-shadow:inset 2px 3px 5px #ffffffde,inset -2px -4px 5px #9da5ae70,0 12px 20px #25313b20; }
+#tc01-twin-stick .sticks { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:56px; }
+#tc01-twin-stick .motor { min-width:0; text-align:center; }
+#tc01-twin-stick header { display:flex; align-items:baseline; justify-content:center; gap:9px; margin-bottom:16px; }
+#tc01-twin-stick header strong { font-size:22px; font-weight:600; color:#56636c; text-shadow:0 1px 0 #ffffffc9; }
+#tc01-twin-stick header span { font-size:13px; color:#6b7882; }
+#tc01-twin-stick .well { position:relative; height:260px; width:100%; max-width:180px; margin:auto; border-radius:65px; background:linear-gradient(120deg,#c2c9cf,#d8dde1 55%,#e0e4e7); box-shadow:inset 2px 3px 6px #727e8b42,inset -2px -2px 4px #ffffffb0,0 1px 1px #ffffffa0; touch-action:none; user-select:none; }
+#tc01-twin-stick .direction-lamp { position:absolute; left:calc(50% - 13px); width:26px; height:26px; filter:drop-shadow(0 1px 0 #f7f9fac2); pointer-events:none; }
+#tc01-twin-stick .direction-lamp svg { position:absolute; inset:0; width:26px!important; height:26px!important; fill:none; }
+#tc01-twin-stick .direction-lamp .rim { stroke:#718078; stroke-width:4.8px; }
+#tc01-twin-stick .direction-lamp .lens { stroke:#a8b6ad; stroke-width:2.8px; filter:drop-shadow(0 -0.5px 0 #dbe4de); }
+#tc01-twin-stick .forward { top:8px; }
+#tc01-twin-stick .reverse { bottom:8px; }
+#tc01-twin-stick .slot { position:absolute; left:50%; top:51px; bottom:51px; width:28px; transform:translateX(-50%); border-radius:20px; background:linear-gradient(90deg,#6a757d,#89949d 60%,#75808a); box-shadow:inset 2px 2px 4px #28343b70,1px 1px 1px #ffffffa3; }
+#tc01-twin-stick .center-mark { position:absolute; top:50%; left:18px; right:18px; height:1px; background:#9aa6b170; box-shadow:0 1px 0 #ffffff88; }
+#tc01-twin-stick .lever { position:absolute; inset:0; pointer-events:none; perspective:500px; }
+#tc01-twin-stick .stem { position:absolute; top:50%; left:calc(50% - 9px); width:18px; height:0; background:linear-gradient(90deg,#7e8a93,#bbc4ca 40%,#909ca6); border-radius:9px; box-shadow:2px 2px 3px #35434d45; transition:height 100ms ease-out,top 100ms ease-out; }
+#tc01-twin-stick .thumb { position:absolute; top:calc(50% - 42px); left:calc(50% - 42px); width:84px; height:84px; border-radius:50%; transform:translateY(0) rotateX(0deg); background:#6d7981; box-shadow:0 3px 0 #637079,0 8px 9px #2d3b4655; transition:transform 100ms ease-out; }
+#tc01-twin-stick .thumb-top { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:5px; border-radius:50%; border:1px solid #8a959d; background:radial-gradient(ellipse at 40% 25%,#bec6cc,#a5afb7 55%,#86939d); box-shadow:inset 1px 2px 2px #ffffffa0,inset -1px -2px 3px #53636f55; }
+#tc01-twin-stick .thumb-top::after { content:""; position:absolute; inset:12px; border-radius:50%; border:1px solid #78879160; box-shadow:0 1px 0 #ffffff50,inset 0 1px 0 #ffffff25; }
+#tc01-twin-stick .thumb i { width:24px; height:2px; background:#7c8a94; border-radius:2px; box-shadow:0 1px 0 #dce2e6bb; }
+#tc01-twin-stick .stick-input { position:absolute; inset:0; width:100%; height:100%; padding:0; border:0; border-radius:65px; background:transparent; touch-action:none; -webkit-tap-highlight-color:transparent; }
+#tc01-twin-stick .stick-input:focus-visible { outline:2px solid #377ea8; outline-offset:5px; }
+#tc01-twin-stick .motor[data-held=true] .thumb,#tc01-twin-stick .motor[data-held=true] .stem { transition:none; }
+#tc01-twin-stick .motor[data-held=true] .thumb-top { filter:brightness(.97); }
+#tc01-twin-stick .motor[data-direction=forward] .forward { filter:drop-shadow(0 0 3px #2ee46f) drop-shadow(0 0 7px #31e77580); }
+#tc01-twin-stick .motor[data-direction=forward] .forward .rim { stroke:#39865a; }
+#tc01-twin-stick .motor[data-direction=forward] .forward .lens { stroke:#8affb0; filter:drop-shadow(0 -0.5px 0 #d0ffdf); }
+#tc01-twin-stick .motor[data-direction=reverse] .reverse { filter:drop-shadow(0 0 3px #ff9d32) drop-shadow(0 0 7px #ff9d3280); }
+#tc01-twin-stick .motor[data-direction=reverse] .reverse .rim { stroke:#a76a24; }
+#tc01-twin-stick .motor[data-direction=reverse] .reverse .lens { stroke:#ffd18a; filter:drop-shadow(0 -0.5px 0 #fff0cd); }
+#tc01-twin-stick .motor-status { display:block; min-height:20px; margin-top:17px; font-size:13px; color:#75818a; }
+#tc01-twin-stick .motor:not([data-direction=stop]) .motor-status { color:#304f63; }
+@media(max-width:420px) {
+ #tc01-twin-stick .controller { padding:24px 18px 20px; border-radius:36px; }
+ #tc01-twin-stick .sticks { gap:24px; }
+ #tc01-twin-stick .well { height:244px; }
+ #tc01-twin-stick .center-mark { left:10px; right:10px; }
 }
+@media(prefers-reduced-motion:reduce) { #tc01-twin-stick .thumb,#tc01-twin-stick .stem { transition:none; } }
+
+/* App integration: only TC-01 owns this physical control surface. */
+.tc01-remote { overflow:hidden; background:#f4f5f7; }
+.tc01-remote > .tc01-controls { display:grid; place-items:center; flex:1; min-height:0; padding:6px max(16px,env(safe-area-inset-right)) 6px max(16px,env(safe-area-inset-left)); }
+.tc01-remote > footer { flex-shrink:0; padding:4px 20px max(4px,env(safe-area-inset-bottom)); line-height:16px; }
+#tc01-twin-stick { --tc-well:clamp(112px,calc(100 * var(--remote-vh) - 148px),244px); --tc-gap:clamp(84px,20vw,140px); --tc-thumb:clamp(48px,18vh,76px); width:min(100%,620px); }
+#tc01-twin-stick .controller { position:relative; width:100%; max-width:none; padding:8px 18px; border-radius:38px; }
+#tc01-twin-stick .sticks { gap:var(--tc-gap); }
+#tc01-twin-stick .motor > header { margin-bottom:4px; gap:7px; height:22px; align-items:center; }
+#tc01-twin-stick .motor > header strong { font-size:18px; line-height:22px; }
+#tc01-twin-stick .motor > header span { font-size:12px; white-space:nowrap; }
+#tc01-twin-stick .well { width:100%; max-width:160px; height:var(--tc-well); }
+#tc01-twin-stick .thumb { width:var(--tc-thumb); height:var(--tc-thumb); left:calc(50% - var(--tc-thumb)/2); top:calc(50% - var(--tc-thumb)/2); }
+#tc01-twin-stick .thumb-top::after { inset:14%; }
+#tc01-twin-stick .motor-status { min-height:18px; height:18px; line-height:18px; margin-top:4px; font-size:12px; }
+#tc01-twin-stick .stick-input { height:50%; border-radius:0; z-index:2; user-select:none; -webkit-user-select:none; }
+#tc01-twin-stick .forward-input { top:0; bottom:auto; border-radius:65px 65px 0 0; }
+#tc01-twin-stick .reverse-input { top:50%; bottom:0; border-radius:0 0 65px 65px; }
+#tc01-twin-stick .stick-input.is-pressed { background:transparent; box-shadow:none; transform:none; }
+#tc01-twin-stick .tc01-toolbar { position:absolute; width:var(--tc-gap); top:50%; left:50%; transform:translate(-50%,-35%); display:flex; flex-direction:column; align-items:center; gap:12px; }
+#tc01-twin-stick .tc01-status { width:100%; margin:0; padding:0 5px; min-height:32px; color:#71808b; font-size:11px; line-height:16px; text-align:center; overflow-wrap:anywhere; }
+#tc01-twin-stick .tc01-stop { min-height:44px; width:calc(100% - 14px); max-width:112px; border:1px solid #b6c0c8; border-radius:14px; padding:8px 4px; background:linear-gradient(#e9edf0,#d2d9df); color:#536775; font-size:13px; font-weight:700; box-shadow:inset 0 1px 1px #fff,0 3px 0 #a5b1bb,0 5px 5px #40505e20; touch-action:manipulation; }
+#tc01-twin-stick .tc01-stop:active { transform:translateY(2px); box-shadow:inset 0 1px 2px #9ba8b54a,0 1px 0 #a5b1bb; }
+#tc01-twin-stick .tc01-stop:focus-visible { outline:3px solid #377ea8; outline-offset:4px; }
+#tc01-twin-stick .stick-input:disabled { opacity:1; }
+@media(max-height:340px) {
+ .tc01-remote > footer { display:none; }
+ #tc01-twin-stick { --tc-thumb:48px; }
+ #tc01-twin-stick .direction-lamp,#tc01-twin-stick .direction-lamp svg { width:20px!important; height:20px!important; }
+ #tc01-twin-stick .direction-lamp { left:calc(50% - 10px); }
+ #tc01-twin-stick .forward { top:5px; }
+ #tc01-twin-stick .reverse { bottom:5px; }
+ #tc01-twin-stick .slot { top:32px; bottom:32px; width:22px; }
+ #tc01-twin-stick .thumb-top { gap:4px; }
+ #tc01-twin-stick .thumb i { width:18px; }
+}
+@media(max-width:420px) {
+ #tc01-twin-stick .controller { padding:12px 10px; border-radius:28px; }
+ #tc01-twin-stick .sticks { gap:var(--tc-gap); }
+ #tc01-twin-stick .motor > header { flex-direction:column; height:38px; gap:0; }
+ #tc01-twin-stick .center-mark { left:5px; right:5px; }
+}
+/* TC-01 all-stop remains in the editor's blue motor family. */
+body[data-device-model="tc01"] [data-card-id="combo-stop"] { --block-secondary:#0078CC; --block-edge:#0062A6; }

@@ -1,5 +1,6 @@
+window.viewerVisit=new URLSearchParams(location.search).get('visit');
 window.viewerBase=new URL('./',location.href).href;
-window.viewerExit=function(type='close'){if(parent!==window)parent.postMessage({source:'building-viewer',type},location.origin);};
+window.viewerExit=function(type='close'){if(parent!==window)parent.postMessage({source:'building-viewer',type,visit:window.viewerVisit},location.origin);};
 window.addEventListener('message',event=>{if(event.source!==parent||event.origin!==location.origin)return;if(event.data?.source==='building-host'&&event.data.type==='back'){
  if(window.viewerSettingsBack){window.viewerSettingsBack();return;}
  if(location.pathname.endsWith('/settings.html'))document.getElementById('settings-back')?.click();

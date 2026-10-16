@@ -1,3 +1,4 @@
+const {openBuildingBook,openBuilding}=require('./building-helpers.cjs');
 const {chromium}=require('playwright'),assert=require('node:assert/strict'),fs=require('node:fs');
 const catalog=JSON.parse(fs.readFileSync('dist/building-catalog.json','utf8')),entry=catalog.xiaobai[0];
 assert.ok(entry.prepared);assert.ok(!fs.existsSync('dist/'+entry.file));
@@ -19,16 +20,19 @@ assert.equal(bundle.format,1);assert.equal(bundle.hasSteps,true);assert.ok(Objec
  assert.equal(requests.filter(u=>u.includes('/viewer/js/')).length,0,'preload must not load 3D scripts');
  assert.equal(requests.filter(u=>u.includes('/assets/building-models/')).length,1,'preload exactly one model');
  
- const start=Date.now();await page.getByRole('button',{name:/机器鸭 v2/}).click();
+ await openBuildingBook(page);
+ assert.equal(requests.filter(u=>u.includes('/viewer/js/')).length,0,'opening an album must not create a renderer');
+ const start=Date.now();await openBuilding(page,/机器鸭 v2/);
  const frame=page.frameLocator('.building-viewer iframe');await frame.locator('body[data-ready=true]').waitFor({timeout:60000});
  const elapsed=Date.now()-start;const model=page.frames().find(f=>f.url().includes('instructions.html'));
  assert.equal(await model.evaluate(()=>manager.stepHandler.totalNumberOfSteps),42);
  assert.equal(await model.evaluate(()=>viewerDiagnostics.lastRender.triangles),2920);
  assert.equal(requests.filter(u=>/\.io(?:\?|$)|\/zip-full|\.dat(?:\?|$)/.test(u)).length,0,'no runtime unzip or individual part requests');
  await page.evaluate(()=>CardBuildings.close());await go();await page.getByRole('tab',{name:'搭建图',exact:true}).click();
- await page.getByRole('button',{name:/机器鸭 v2/}).click();await frame.locator('body[data-ready=true]').waitFor({timeout:60000});
+ await openBuilding(page,/机器鸭 v2/);await frame.locator('body[data-ready=true]').waitFor({timeout:60000});
  assert.equal(requests.filter(u=>u.endsWith(entry.prepared.file)).length,1,'reuse persistent prepared data after reload');
  await page.evaluate(()=>CardBuildings.close());
+ await page.locator('.building-viewer').waitFor({state:'hidden'});await page.locator('#buildingBooksReader').waitFor({state:'hidden'});
  await page.locator('.home-model-entry').click();await page.locator('[data-model-id=tc01]').click();await page.getByRole('tab',{name:'搭建图',exact:true}).click();
  await page.getByText('暂无搭建图',{exact:true}).waitFor();assert.equal(await page.locator('.building-viewer iframe').getAttribute('src'),null);
  assert.deepEqual(errors,[]);
@@ -47,7 +51,7 @@ assert.equal(bundle.format,1);assert.equal(bundle.hasSteps,true);assert.ok(Objec
  const updated={...entry,prepared:{...entry.prepared,version:'f'.repeat(64)}};
  await page.route('**/building-catalog.json',r=>r.fulfill({json:{...catalog,xiaobai:[updated]}}));
  await page.evaluate(()=>localStorage.setItem('cardDefaultModelV1','xiaobai'));await page.reload();
- await page.getByRole('tab',{name:'搭建图',exact:true}).click();await page.getByRole('button',{name:/机器鸭 v2/}).click();
+ await page.getByRole('tab',{name:'搭建图',exact:true}).click();await openBuilding(page,/机器鸭 v2/);
  await frame.locator('body[data-ready=true]').waitFor({timeout:60000});
  assert.ok(page.frames().some(f=>f.url().includes('f'.repeat(64))));
  assert.equal(requests.filter(u=>u.endsWith(entry.prepared.file)).length,2,'changed model invalidates cache');

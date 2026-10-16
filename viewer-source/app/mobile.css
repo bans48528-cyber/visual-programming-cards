@@ -1,34 +1,33 @@
 html,body{margin:0;overscroll-behavior:none}canvas{touch-action:none}#main_canvas{display:block}#viewer-message{position:fixed;inset:0;z-index:10000;display:flex;align-items:center;justify-content:center;background:#fff;color:#222;font:16px system-ui;padding:24px;white-space:pre-wrap;overflow-wrap:anywhere}#viewer-message[hidden]{display:none}#viewer-message a{color:#254f7d}.viewer-failure{max-width:560px}button,input{font-size:16px}
 
-/* Original AI artwork, with a touch-sized toolbar at every viewport width. */
-:root{--toolbar-height:clamp(32px,12.52vmin,75px);--toolbar-button:clamp(24px,10.43vmin,60px)}
-#top_buttons{box-sizing:border-box;display:flex;align-items:center;justify-content:center;gap:clamp(1px,.52vmin,6px);height:calc(var(--toolbar-height) + env(safe-area-inset-top));padding:env(safe-area-inset-top) max(8px,env(safe-area-inset-right)) 0 max(8px,env(safe-area-inset-left));color:#333;font:700 clamp(12px,6.26vmin,39px)/1 sans-serif}
-#top_buttons .top_button{display:flex;align-items:center;justify-content:center;flex:0 0 var(--toolbar-button);width:var(--toolbar-button);height:var(--toolbar-button);border-radius:6px;touch-action:manipulation}
-#top_buttons #optionsButton a{display:flex;align-items:center;justify-content:center;width:100%;height:100%;border-radius:6px}
-#top_buttons .toolbar-icon{display:block;width:auto;height:clamp(15px,7.3vmin,40.5px);max-width:90%;object-fit:contain;pointer-events:none;user-select:none}
-#stepToContainer,#numberOfSteps{top:auto;display:block;font:inherit;width:auto;white-space:nowrap}
-#stepToContainer{flex:0 1 3ch;min-width:2ch}
-#stepToContainer input{box-sizing:border-box;display:block;font:inherit;color:inherit;width:100%;min-width:0;height:var(--toolbar-button);padding:0;text-align:right;border-radius:4px}
-#top_buttons :focus-visible{outline:3px solid #5a8dcc;outline-offset:1px}
+/* Instructions occupy one viewport. Settings keep their own scrollable document. */
+html.viewer-instructions{position:fixed;inset:0;width:100%;height:100%;overflow:hidden}
+.viewer-instructions body,.viewer-instructions #main_canvas_holder{width:100%;height:100%;overflow:hidden}
+
+/* Blue-and-white supplied artwork. Size against the short screen edge. */
+:root{--viewer-left-inset:max(6px,env(safe-area-inset-left));--toolbar-button:clamp(40px,11vmin,64px);--toolbar-height:calc(var(--toolbar-button) + 10px);--camera-button:var(--toolbar-button);--next-button:clamp(60px,22vmin,132px);--toolbar-gap:clamp(3px,1vmin,8px)}
+#top_buttons{box-sizing:border-box;position:absolute;left:0;right:0;display:flex;align-items:center;justify-content:center;gap:var(--toolbar-gap);height:calc(var(--toolbar-height) + env(safe-area-inset-top));padding:env(safe-area-inset-top) calc(var(--toolbar-button) + 12px) 0;color:#168bfa;font:700 clamp(18px,5vmin,30px)/1 sans-serif}
+#top_buttons .top_button{display:flex;align-items:center;justify-content:center;flex:0 0 var(--toolbar-button);width:var(--toolbar-button);height:var(--toolbar-button);border-radius:20%;touch-action:none}
+#top_buttons #optionsButton a{display:flex;width:100%;height:100%;border-radius:20%}
+#top_buttons .toolbar-icon,#camera_buttons .toolbar-icon,#pli_drag_horizontal .toolbar-icon,#pli_drag_vertical .toolbar-icon{display:block;width:100%;height:100%;object-fit:contain;pointer-events:none;user-select:none}
+#top_buttons #home_button{position:absolute;left:var(--viewer-left-inset);top:calc(env(safe-area-inset-top) + (var(--toolbar-height) - var(--toolbar-button))/2);margin:0}
+.step-badge{box-sizing:border-box;display:flex;align-items:center;justify-content:center;flex:none;gap:.3em;height:calc(var(--toolbar-button)*.8);padding:0 .55em;background:linear-gradient(145deg,#fff 65%,#f3faff);border:1.5px solid #96d4ff;border-radius:calc(var(--toolbar-button)*.19);box-shadow:0 2px 6px #329fec36;white-space:nowrap;font-variant-numeric:tabular-nums;user-select:none}
+#stepToContainer,#numberOfSteps{position:static;top:auto;display:block;flex:none;min-width:0;width:auto;margin:0;font:inherit;white-space:nowrap}
+#stepToContainer input{box-sizing:border-box;display:block;width:100%;min-width:0;height:auto;padding:0;border:0;background:transparent;color:#087cf0;font:inherit;font-weight:800;text-align:right;cursor:text;user-select:text}
+.step-badge{cursor:text;touch-action:manipulation}
+.step-badge:focus-within{border-color:#168bfa;box-shadow:0 0 0 2px #168bfa26}
+#numberOfSteps{color:#589bdc;font-weight:600}
+#top_buttons :focus-visible,#camera_buttons :focus-visible,#next_button_large:focus-visible,#done_button:focus-visible{outline:2px solid #168bfa;outline-offset:1px}
 #instructions_decorations{top:calc(var(--toolbar-height) + env(safe-area-inset-top))}
-
-/* Bottom artwork: inward corners, 1:1 reset, outward corners and round next. */
-:root{--camera-button:clamp(24px,10.43vmin,75px);--camera-icon:clamp(16px,6.26vmin,45px);--next-button:clamp(36px,22.95vmin,150px)}
-#camera_buttons{display:flex;align-items:center;justify-content:center;gap:4px;min-width:0;height:var(--camera-button);bottom:calc(8px + env(safe-area-inset-bottom))}
-#camera_buttons>div{position:relative;flex:0 0 var(--camera-button);box-sizing:border-box;width:var(--camera-button);height:var(--camera-button);bottom:auto;left:auto;border-radius:6px;touch-action:manipulation}
+#camera_buttons{display:flex;align-items:center;justify-content:center;gap:var(--toolbar-gap);min-width:0;height:var(--camera-button);bottom:calc(6px + env(safe-area-inset-bottom))}
+#camera_buttons>div{position:relative;flex:0 0 var(--camera-button);box-sizing:border-box;width:var(--camera-button);height:var(--camera-button);bottom:auto;left:auto;border-radius:20%;touch-action:none}
 #zoom_out_button{order:-1}
-#camera_buttons .toolbar-icon{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);display:block;width:auto;height:var(--camera-icon);max-width:85%;object-fit:contain;pointer-events:none;user-select:none}
-#zoom_in_button .toolbar-icon,#zoom_in_button_large .toolbar-icon{height:calc(var(--camera-icon)*0.8)}
-#next_button_large,#done_button{width:var(--next-button);height:var(--next-button);right:calc(8px + env(safe-area-inset-right));bottom:calc(8px + env(safe-area-inset-bottom));touch-action:manipulation;border-radius:50%}
-#next_button_large .toolbar-icon,#done_button svg{display:block;width:100%;height:100%;pointer-events:none;user-select:none}
-#camera_buttons :focus-visible,#next_button_large:focus-visible{outline:3px solid #5a8dcc;outline-offset:1px}
+#next_button_large,#done_button{width:var(--next-button);height:var(--next-button);right:calc(6px + env(safe-area-inset-right));bottom:calc(6px + env(safe-area-inset-bottom));touch-action:none;border-radius:50%}
+#next_button_large .toolbar-icon,#done_button .toolbar-icon{display:block;width:100%;height:100%;pointer-events:none;user-select:none}
+#pli_drag_horizontal>div,#pli_drag_vertical>div{width:var(--toolbar-button);height:var(--toolbar-button);touch-action:none}
+/* Collapsed parts controls share the return button's safe-area inset. */
+#pli_icon_right,#pli_icon_down{position:absolute;left:var(--viewer-left-inset);top:0}
+#pli_icon_right .toolbar-icon{transform:rotate(180deg)}
+#pli_icon_up .toolbar-icon{transform:rotate(90deg)}
+#pli_icon_down .toolbar-icon{transform:rotate(-90deg)}
 @media(pointer:coarse){#camera_buttons,#next_button_large{opacity:1!important}}
-
-/* Scale controls by the shorter viewport side, including landscape and older WebViews. */
-#camera_buttons{gap:2px}
-
-/* Separate the list return action from the centered step controls. */
-#top_buttons{position:absolute;left:0;right:0;padding-left:calc(var(--toolbar-button) + 16px);padding-right:calc(var(--toolbar-button) + 16px);gap:clamp(4px,1.4vmin,10px)}
-#top_buttons #home_button{position:absolute;left:max(8px,env(safe-area-inset-left));top:calc(env(safe-area-inset-top) + (var(--toolbar-height) - var(--toolbar-button))/2);margin:0}
-#top_buttons #home_button .toolbar-icon{height:calc(var(--toolbar-button)*.72);max-width:80%}
-#numberOfSteps{margin-right:clamp(6px,2vmin,14px)}

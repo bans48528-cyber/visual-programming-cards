@@ -1,0 +1,123 @@
+/* Materials and key travel from the supplied controller prototype. */
+
+#xb-shoulders { font-family:"Segoe UI","Microsoft YaHei",sans-serif; color:#505a62; }
+#xb-shoulders * { box-sizing:border-box; }
+#xb-shoulders .keys { display:flex; justify-content:space-between; gap:clamp(28px,12%,92px); align-items:center; padding:6px 0; }
+#xb-shoulders .key { position:relative; width:42%; height:clamp(52px,10vw,76px); max-width:214px; padding:0; border:0; background:transparent; border-radius:22px 34px 34px 22px; touch-action:none; user-select:none; -webkit-user-select:none; -webkit-tap-highlight-color:transparent; }
+#xb-shoulders .key.right { border-radius:34px 22px 22px 34px; }
+#xb-shoulders .key::before { content:""; position:absolute; inset:-2px; border-radius:inherit; background:#a6acb2; box-shadow:inset 0 2px 3px #69707870,0 1px 1px #fff; }
+#xb-shoulders .key-face { position:absolute; inset:0; border-radius:inherit; display:flex; align-items:center; justify-content:center; background:linear-gradient(175deg,#e2e5e8 0%,#d5d9dd 38%,#ccd1d6 100%); border:1px solid #c3c9cf; box-shadow:inset 1px 2px 2px #fffffff0,inset -1px -1px 2px #aeb5bd70,0 1px 0 #aeb4bb,0 2px 0 #969ea7,0 3px 0 #89939d,0 5px 5px #39434d35; transform:translateY(-2px); transition:transform 90ms ease-out; pointer-events:none; }
+#xb-shoulders .letter { font-size:clamp(23px,4.5vw,31px); font-weight:500; color:#9aa4ae; text-shadow:0 1px 0 #f8fafce6,0 -1px 1px #818c9545; }
+#xb-shoulders .key[aria-pressed=true] .key-face { transform:translateY(1px); filter:brightness(.97); box-shadow:inset 0 1px 3px #87939d38,inset -1px -1px 2px #aeb5bd40,0 1px 0 #89939d,0 2px 2px #39434d24; transition:transform 40ms ease-out; }
+#xb-shoulders .key:focus-visible { outline:3px solid #247dba; outline-offset:7px; }
+@media(prefers-reduced-motion:reduce) { #xb-shoulders .key-face { transition:none!important; } }
+
+#xb-dpad-demo { font-family: "Segoe UI", "Microsoft YaHei", sans-serif; color: #343a3d; }
+#xb-dpad-demo * { box-sizing: border-box; }
+#xb-dpad-demo .scene { position:relative; width: 100%; max-width: 350px; margin: auto; aspect-ratio: 1; perspective: 850px; touch-action: none; user-select: none; -webkit-user-select: none; -webkit-tap-highlight-color: transparent; }
+#xb-dpad-demo .socket { position: absolute; inset: 0; border-radius: 50%; background: radial-gradient(ellipse at 45% 35%,#dadcde 5%,#d3d6d9 60%,#c2c5c8 100%); box-shadow: inset 2px 3px 5px #969ca455, inset -2px -3px 4px #ffffffe6, 0 1px 0 #fff9; transform: rotateX(8deg); }
+#xb-dpad-demo .assembly { position: absolute; inset: 13%; transform-style: preserve-3d; transform: rotateX(8deg); pointer-events: none; }
+#xb-dpad-demo .cross { position:absolute; inset:0; clip-path: polygon(38% 0,62% 0,65% 1%,66% 4%,66% 31%,67% 33%,69% 34%,96% 34%,99% 35%,100% 38%,100% 62%,99% 65%,96% 66%,69% 66%,67% 67%,66% 69%,66% 96%,65% 99%,62% 100%,38% 100%,35% 99%,34% 96%,34% 69%,33% 67%,31% 66%,4% 66%,1% 65%,0 62%,0 38%,1% 35%,4% 34%,31% 34%,33% 33%,34% 31%,34% 4%,35% 1%); }
+#xb-dpad-demo .cast-shadow { position:absolute; inset:13%; filter:blur(7px); transform:translate(1px,9px); opacity:.48; pointer-events:none; transition:transform 40ms ease-out; }
+#xb-dpad-demo .cast-shadow .cross { background:#262b2f; }
+#xb-dpad-demo .rocker { position:absolute; inset:0; transform-style:preserve-3d; transform-origin:50% 50% 4px; transform:rotateX(0deg) rotateY(0deg) translateZ(0); transition:transform 100ms ease-out; }
+#xb-dpad-demo .rocker.held { transition:transform 40ms ease-out; }
+#xb-dpad-demo .side { background:linear-gradient(130deg,#737b7d,#242b2d 65%,#151b1e); }
+#xb-dpad-demo .face { transform:translateZ(13px); background:linear-gradient(140deg,#7e8787 0%,#626b6c 24%,#535d5e 67%,#424d4f 100%); }
+#xb-dpad-demo .face-inner { position:absolute; inset:1.3%; background:radial-gradient(ellipse at var(--light-x,32%) var(--light-y,20%),#727c7d 0%,#5b6566 42%,#4c5658 100%); }
+#xb-dpad-demo .shine { position:absolute; inset:0; background:linear-gradient(135deg,#ffffff1c,transparent 40%,#00000018); }
+#xb-dpad-demo .engraved { position:absolute; width:17%; height:17%; display:grid; place-items:center; }
+#xb-dpad-demo .engraved.up { top:7%; left:41.5%; }
+#xb-dpad-demo .engraved.down { bottom:7%; left:41.5%; transform:rotate(180deg); }
+#xb-dpad-demo .engraved.left { top:41.5%; left:7%; transform:rotate(-90deg); }
+#xb-dpad-demo .engraved.right { top:41.5%; right:7%; transform:rotate(90deg); }
+#xb-dpad-demo .chevron { width:46%; height:46%; border-top:3px solid #354042; border-left:3px solid #354042; transform:translateY(20%) rotate(45deg); filter:drop-shadow(1px 1px 0 #a2acad65); border-radius:2px; }
+#xb-dpad-demo .nub { position:absolute; width:11%; height:11%; left:44.5%; top:44.5%; border-radius:50%; background:radial-gradient(ellipse at 35% 28%,#859091,#5c6768 40%,#455052 85%); box-shadow:1px 2px 3px #242d2e75,inset 0 1px 1px #acb2b329; }
+#xb-dpad-demo .hitbox { position:absolute; inset:13%; }
+#xb-dpad-demo .hit { position:absolute; display:block; padding:0; border:0; margin:0; background:transparent; color:transparent; touch-action:none; border-radius:12px; }
+#xb-dpad-demo .hit:focus-visible { outline:3px solid #277ec3; outline-offset:5px; }
+#xb-dpad-demo .hit[data-dir=up] { top:0; left:34%; width:32%; height:40%; }
+#xb-dpad-demo .hit[data-dir=down] { bottom:0; left:34%; width:32%; height:40%; }
+#xb-dpad-demo .hit[data-dir=left] { left:0; top:34%; width:40%; height:32%; }
+#xb-dpad-demo .hit[data-dir=right] { right:0; top:34%; width:40%; height:32%; }
+@media (prefers-reduced-motion:reduce) { #xb-dpad-demo .rocker,#xb-dpad-demo .rocker.held,#xb-dpad-demo .cast-shadow { transition:none; } }
+
+#xb-color-pad { font-family:"Segoe UI","Microsoft YaHei",sans-serif; color:#40494f; }
+#xb-color-pad * { box-sizing:border-box; }
+#xb-color-pad .pad { position:relative; width:100%; max-width:350px; margin:auto; aspect-ratio:1; border-radius:50%; background:linear-gradient(145deg,#e3e4e6,#d0d3d6); box-shadow:inset 1px 2px 3px #a9aeb4a6,inset -2px -2px 3px #fff,0 1px 0 #fff; touch-action:none; user-select:none; -webkit-user-select:none; -webkit-tap-highlight-color:transparent; }
+#xb-color-pad .pad::before { content:""; position:absolute; inset:3%; border-radius:50%; border:1px solid #c1c5ca; box-shadow:0 1px 0 #ffffffc7,inset 0 1px 0 #f6f6f6; pointer-events:none; }
+#xb-color-pad .channel { position:absolute; width:65%; height:29%; border-radius:999px; background:linear-gradient(180deg,#cdd0d4,#e3e5e7); box-shadow:inset 1px 2px 3px #a0a6ac9c,inset -1px -2px 2px #fff,0 1px 1px #ffffffc9; transform:translate(-50%,-50%) rotate(-45deg); pointer-events:none; }
+#xb-color-pad .channel.a { left:36.5%; top:36.5%; }
+#xb-color-pad .channel.b { left:63.5%; top:63.5%; }
+#xb-color-pad .key { position:absolute; width:23%; height:23%; padding:0; margin:0; border:0; border-radius:50%; background:transparent; transform:translate(-50%,-50%); touch-action:none; -webkit-tap-highlight-color:transparent; isolation:isolate; }
+#xb-color-pad .key:focus-visible { outline:3px solid #247dba; outline-offset:8px; }
+#xb-color-pad .key::before { content:""; position:absolute; left:-5%; top:0; width:110%; height:102%; border-radius:50%; background:linear-gradient(145deg,#a0a6aa,#f3f4f4 65%); box-shadow:0 1px 1px #fff; pointer-events:none; }
+#xb-color-pad .key-face { position:absolute; z-index:1; left:0; top:0; width:100%; height:96%; display:block; border-radius:50%; background:radial-gradient(ellipse at 44% 35%,var(--highlight) 0%,var(--color) 68%,var(--rim) 100%); border:1px solid var(--rim); box-shadow:inset 0 1px 1px #ffffff75,inset 0 -1px 1px #00000015,0 1px 0 var(--edge),0 2px 0 var(--edge),0 3px 0 var(--bottom),0 4px 3px #28323c30; transform:translateY(-1px); transition:transform 90ms ease-out; pointer-events:none; }
+#xb-color-pad .key-face::before { content:""; position:absolute; width:55%; height:9%; left:18%; top:22%; border-radius:50%; background:linear-gradient(90deg,#ffffff00,#ffffff60 30%,#ffffff45 70%,#ffffff00); filter:blur(2px); transform:rotate(5deg); transition:none; }
+#xb-color-pad .key-face::after { content:""; position:absolute; inset:3%; border-radius:50%; border-top:1px solid #ffffff38; }
+#xb-color-pad .key[aria-pressed=true] .key-face { transform:translateY(4px) scale(.97); filter:brightness(.93); box-shadow:inset 0 3px 5px #17212c55,inset 0 -1px 1px #ffffff30,0 1px 1px #28323c20; transition:transform 40ms ease-out; }
+#xb-color-pad .key[aria-pressed=true] .key-face::before { opacity:.5; }
+#xb-color-pad .yellow { left:50%; top:23%; --light:#ffe76b; --color:#f5cb08; --edge:#d69c00; --bottom:#ac8007; }
+#xb-color-pad .red { left:23%; top:50%; --light:#fa6977; --color:#df2343; --edge:#a91430; --bottom:#7b1526; }
+#xb-color-pad .green { left:77%; top:50%; --light:#5ed48b; --color:#19a65a; --edge:#087540; --bottom:#07502e; }
+#xb-color-pad .blue { left:50%; top:77%; --light:#676cd5; --color:#2737ad; --edge:#151b72; --bottom:#11144f; }
+@media(prefers-reduced-motion:reduce) { #xb-color-pad .key-face,#xb-color-pad .key-face::before,#xb-color-pad .key::after { transition:none!important; } }
+
+/* Only the Xiaobai adapter creates these nodes; shared remote styles stay intact. */
+.xiaobai-remote { overflow:hidden; background:#f4f5f7; }
+.xiaobai-remote > .remote-shoulders,
+.xiaobai-remote > .remote-controls,
+.xiaobai-remote > footer { display:none; }
+#xb-controller[hidden] { display:none; }
+#xb-controller {
+  --xb-pad:min(29vw,calc(100 * var(--remote-vh) - 150px),330px);
+  position:absolute; inset:0; min-height:0;
+  padding:max(16px,env(safe-area-inset-top)) max(16px,env(safe-area-inset-right)) max(16px,env(safe-area-inset-bottom)) max(16px,env(safe-area-inset-left));
+  font-family:"Segoe UI","Microsoft YaHei",sans-serif;
+}
+#xb-controller .controller-shell {
+  position:relative; width:100%; height:100%; padding:10px clamp(18px,4vw,42px);
+  display:grid; grid-template-rows:48px auto; align-content:center;
+  border-radius:52px 52px 64px 64px;
+  background:linear-gradient(155deg,#eceef0,#d9dcdf 55%,#d0d4d8);
+  box-shadow:inset 2px 3px 5px #ffffffeb,inset -2px -4px 6px #9da5ae80,0 8px 16px #25313b1c;
+}
+#xb-controller .controller-body,
+#xb-controller #xb-shoulders .keys { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:16%; padding:0; align-items:center; justify-items:center; }
+#xb-controller .controller-body { min-height:0; align-self:center; margin-top:8px; }
+#xb-controller #xb-dpad-demo,
+#xb-controller #xb-color-pad { width:var(--xb-pad); }
+#xb-controller #xb-dpad-demo .scene,
+#xb-controller #xb-color-pad .pad { width:var(--xb-pad); height:var(--xb-pad); }
+#xb-controller #xb-shoulders .key { width:calc(var(--xb-pad) * .5073); max-width:142.67px; height:48px; }
+#xb-controller #xb-shoulders .letter { font-size:clamp(20px,5vh,24px); }
+#xb-controller .remote-connection { position:absolute; width:28%; max-width:240px; margin:0; top:calc(50% - var(--xb-pad) / 2 - 12px); left:50%; transform:translateX(-50%); font-size:11px; line-height:1.4; color:#6c7780; }
+#xb-controller .remote-connection.is-connected { color:#228a6a; }
+#xb-controller .remote-connection.is-error { color:#b34444; }
+#xb-controller .remote-connection::before { width:6px; height:6px; margin-right:5px; }
+#xb-controller [data-remote-key]:disabled { opacity:1; cursor:default; }
+#xb-controller .key.is-pressed { background:transparent; color:inherit; box-shadow:none; }
+#xb-shoulders .key.is-pressed { transform:none; }
+#xb-color-pad .key.is-pressed { transform:translate(-50%,-50%); }
+#xb-dpad-demo .hit.is-pressed { background:transparent; box-shadow:none; transform:none; }
+#xb-dpad-demo .hit { min-width:44px; min-height:44px; }
+#xb-dpad-demo .hit[data-dir=up],#xb-dpad-demo .hit[data-dir=down] { left:50%; transform:translateX(-50%); }
+#xb-dpad-demo .hit[data-dir=left],#xb-dpad-demo .hit[data-dir=right] { top:50%; transform:translateY(-50%); }
+#xb-color-pad .key { min-width:44px; min-height:44px; }
+#xb-color-pad .yellow { --highlight:#f7d32d; --rim:#e9b905; }
+#xb-color-pad .red { --highlight:#e4445f; --rim:#ca1d3c; }
+#xb-color-pad .green { --highlight:#3cb373; --rim:#13934f; }
+#xb-color-pad .blue { --highlight:#4755b9; --rim:#202c97; }
+@media (orientation:portrait) {
+  #xb-controller { --xb-pad:min(37vw,260px); }
+  #xb-controller .controller-shell { padding:56px 12px 22px; border-radius:36px; }
+  #xb-controller .controller-body,#xb-controller #xb-shoulders .keys { gap:8%; }
+  #xb-controller .remote-connection { top:calc(50% - var(--xb-pad) / 2 + 5px); font-size:10px; }
+}
+/* Older Android compositors lose the outline on the extruded Z layers.
+   Keep the tilting rocker and its shadow, with a clipped flat face. */
+@supports not (height:100dvh) {
+  #xb-dpad-demo .assembly,#xb-dpad-demo .rocker { transform-style:flat; }
+  #xb-dpad-demo .side { display:none; }
+  #xb-dpad-demo .face { transform:none; }
+}

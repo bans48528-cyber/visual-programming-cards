@@ -278,7 +278,7 @@
       },
       sendProgram:(result,context)=>context.connection.uploadProgram(result.bytecode,context),
       stop:context=>context.connection.stopProgram()},
-    remote:{open:()=>window.CardRemote?.open(),close:()=>window.CardRemote?.close(),reset:()=>window.CardRemote?.reset(),
+    remote:{layout:'physical-ten-key',open:()=>window.CardRemote?.open(),close:()=>window.CardRemote?.close(),reset:()=>window.CardRemote?.reset(),
       encode:pressed=>SparkAIAdapter.remoteFrame(pressed),pairs:[['A','B'],['X','Y'],['L','R']],shoulderPulse:false,
       labels:{Y:'Y',A:'A',X:'X',B:'B',L:'L',R:'R'},hint:'十键遥控 · 功能由主机程序决定',footer:'按键 Y / A / X / B / L / R'}
   });

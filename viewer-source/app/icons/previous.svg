@@ -1,2 +1,10 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="601.78499 54.85359 59.94100 120.40500" width="59.94100" height="120.40500"><path transform="matrix(1,0,0,-1,661.706,175.23859)" d="M0 0V32.223L-27.829 60.182 0 88.142V120.365L-59.901 60.182Z" fill="#333333" />
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128" role="img" aria-labelledby="label">
+  <title id="label">上一步</title>
+  <defs>
+    <radialGradient id="face" cx="42%" cy="30%" r="85%"><stop offset="0" stop-color="#FFFFFF"/><stop offset=".72" stop-color="#FFFFFF"/><stop offset="1" stop-color="#EAF5FF"/></radialGradient>
+    <linearGradient id="rim" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#A9DCFF"/><stop offset="1" stop-color="#73C5FF"/></linearGradient>
+    <filter id="shadow" x="-30%" y="-30%" width="160%" height="170%" color-interpolation-filters="sRGB"><feDropShadow dx="0" dy="3" stdDeviation="3.2" flood-color="#329FEC" flood-opacity=".28"/></filter>
+  </defs>
+  <rect x="13" y="11" width="102" height="102" rx="24" fill="url(#face)" stroke="url(#rim)" stroke-width="3" filter="url(#shadow)"/>
+  <g transform="translate(0 -2)"><path d="m74 41-23 23 23 23" fill="none" stroke="#168BFA" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/></g>
 </svg>

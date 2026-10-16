@@ -8,7 +8,7 @@ import {applyToolbarIcons} from './toolbar.js';
 disableStudLogos();
 const overlay=document.createElement('div');overlay.id='viewer-message';overlay.textContent='正在读取本地模型…';document.body.append(overlay);
 window.viewerDiagnostics={ready:false,errors:[],warnings:[],loads:0};
-function failure(message){overlay.hidden=false;overlay.replaceChildren();const box=document.createElement('div');box.className='viewer-failure';const p=document.createElement('p');p.textContent=message;const back=document.createElement('a');back.href='/';back.textContent='返回选择模型';box.append(p,back);overlay.append(box);window.viewerDiagnostics.errors.push(String(message));}
+function failure(message){window.parent.postMessage({source:'building-viewer',type:'error',visit:window.viewerVisit,message},location.origin);overlay.hidden=false;overlay.replaceChildren();const box=document.createElement('div');box.className='viewer-failure';const p=document.createElement('p');p.textContent=message;const back=document.createElement('a');back.href='/';back.textContent='返回选择模型';box.append(p,back);overlay.append(box);window.viewerDiagnostics.errors.push(String(message));}
 try{
   const params=new URLSearchParams(location.search),record=await getModel(params.get('id'));
   if(!record)throw new Error('模型不在本浏览器中，请返回首页重新选择文件。');
@@ -27,7 +27,7 @@ try{
     },idToTextureUrl:id=>'/library/textures/'+normalize(id).split('/').map(encodeURIComponent).join('/'),
     onError:error=>failure('模型加载失败：'+(error.subModel||'')+' '+(error.message||'')),
     onWarning:warning=>window.viewerDiagnostics.warnings.push(warning.message||String(warning))};
-    RealLoader.call(this,()=>{if(window.viewerDiagnostics.errors.length)return;onLoad();window.viewerDiagnostics.ready=true;overlay.hidden=true;document.body.dataset.ready='true';},null,config);
+    RealLoader.call(this,()=>{if(window.viewerDiagnostics.errors.length)return;onLoad();window.viewerDiagnostics.ready=true;overlay.hidden=true;document.body.dataset.ready='true';window.parent.postMessage({source:'building-viewer',type:'ready',visit:window.viewerVisit},location.origin);},null,config);
   }
   LocalLoader.prototype=Object.create(RealLoader.prototype);LocalLoader.prototype.constructor=LocalLoader;Object.assign(LocalLoader,RealLoader);
   LocalLoader.prototype.load=function(id){

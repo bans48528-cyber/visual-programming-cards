@@ -28,10 +28,10 @@ const {chromium}=require('playwright');const assert=require('node:assert/strict'
   }
   await page.locator('#tab-logic').click();await page.waitForTimeout(220);
   await page.screenshot({path:'artifacts/spark-ai-editor.png'});
-  await page.evaluate(()=>CardModelSession.current.remote.open());await page.waitForFunction(()=>!document.querySelector('[data-remote-key=A]').disabled);
+  await page.evaluate(()=>CardModelSession.current.remote.open());await page.waitForFunction(()=>!CardPageTransition.busy&&!document.querySelector('[data-remote-key=A]').disabled);
   const aButton=await page.locator('[data-remote-key=A]').boundingBox();await page.mouse.move(aButton.x+aButton.width/2,aButton.y+aButton.height/2);await page.mouse.down();await page.waitForTimeout(60);
   const c1=await page.evaluate(()=>mockBle.calls.filter(c=>c.method==='write').map(c=>Array.from(atob(c.data),x=>x.charCodeAt(0))).filter(b=>b[4]===0xc1&&b[9]===1));assert.ok(c1.length>0);assert.equal(c1.at(-1)[10],0);
-  await page.mouse.up();await page.locator('#remoteControl .remote-back').click();
+  await page.mouse.up();await page.locator('#remoteControl .remote-back').click();await page.waitForFunction(()=>!CardPageTransition.busy);
 
   // Stale native compiler result must not send after a model switch.
   await page.evaluate(()=>{const original=Capacitor.nativePromise;window.compilerOriginal=original;Capacitor.nativePromise=async function(plugin,method,options){if(plugin==='CardCompiler'&&method==='compile')return new Promise(r=>window.finishLateCompiler=()=>r({bytecode:btoa('\x0fpyo'+'\0'.repeat(12)),bytes:16}));return original.call(this,plugin,method,options);};});

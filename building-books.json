@@ -1,0 +1,50 @@
+{
+  "xiaobai": [
+    {
+      "id": "test",
+      "title": "测试一册",
+      "description": "机器鸭 · 重复造型测试",
+      "cover": "assets/building-books/duck-cover.webp",
+      "entries": ["duck-v2-test", "duck-v2-test", "duck-v2-test", "duck-v2-test", "duck-v2-test", "duck-v2-test", "duck-v2-test", "duck-v2-test"]
+    },
+    {
+      "id": "test-02",
+      "title": "测试二册",
+      "description": "机器鸭 · 重复造型测试",
+      "cover": "assets/building-books/duck-cover.webp",
+      "entries": ["duck-v2-test", "duck-v2-test", "duck-v2-test", "duck-v2-test", "duck-v2-test", "duck-v2-test", "duck-v2-test", "duck-v2-test"]
+    },
+    {
+      "id": "test-03",
+      "title": "测试三册",
+      "description": "机器鸭 · 重复造型测试",
+      "cover": "assets/building-books/duck-cover.webp",
+      "entries": ["duck-v2-test", "duck-v2-test", "duck-v2-test", "duck-v2-test", "duck-v2-test", "duck-v2-test", "duck-v2-test", "duck-v2-test"]
+    },
+    {
+      "id": "test-04",
+      "title": "测试四册",
+      "description": "机器鸭 · 重复造型测试",
+      "cover": "assets/building-books/duck-cover.webp",
+      "entries": ["duck-v2-test", "duck-v2-test", "duck-v2-test", "duck-v2-test", "duck-v2-test", "duck-v2-test", "duck-v2-test", "duck-v2-test"]
+    },
+    {
+      "id": "test-05",
+      "title": "测试五册",
+      "description": "机器鸭 · 重复造型测试",
+      "cover": "assets/building-books/duck-cover.webp",
+      "entries": ["duck-v2-test", "duck-v2-test", "duck-v2-test", "duck-v2-test", "duck-v2-test", "duck-v2-test", "duck-v2-test", "duck-v2-test"]
+    },
+    {
+      "id": "test-06",
+      "title": "测试六册",
+      "description": "机器鸭 · 重复造型测试",
+      "cover": "assets/building-books/duck-cover.webp",
+      "entries": ["duck-v2-test", "duck-v2-test", "duck-v2-test", "duck-v2-test", "duck-v2-test", "duck-v2-test", "duck-v2-test", "duck-v2-test"]
+    }
+  ],
+  "lbs2206": [],
+  "spark-ai": [],
+  "tc01": [],
+  "receiver2226": []
+}

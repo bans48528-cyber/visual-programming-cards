@@ -25,16 +25,22 @@ const server = http.createServer((req, res) => {
     const errors = [], requests = [];
     page.on('pageerror', e => errors.push(e.message));
     page.on('request', r => requests.push(r.url()));
-    const back = () => page.evaluate(() => window.nativeListeners.backButton({canGoBack:true}));
+    const idle = () => page.waitForFunction(() => !CardPageTransition.busy);
+    const back = async () => {
+      await page.evaluate(() => window.nativeListeners.backButton({canGoBack:true}));
+      await idle();
+    };
     await page.goto(`http://127.0.0.1:${server.address().port}`);
     await page.waitForFunction(() => Boolean(window.nativeListeners.pause));
     await page.locator('#newProject').tap();
+    await idle();
     assert.equal(await page.locator('dialog[open]').count(), 0);
     assert.equal(await page.locator('.home-screen').isVisible(), false);
     await back();
     assert.equal(await page.locator('dialog[open]').count(), 0);
     assert.equal(await page.locator('.home-screen').isVisible(), true);
     await page.locator('#newProject').tap();
+    await idle();
     await page.locator('#palette [data-card-id=motor-forward]').tap();
     await page.locator('#saveBtn').tap();
     await page.locator('.home-dialog input').fill('安卓触摸测试');
@@ -103,6 +109,7 @@ const server = http.createServer((req, res) => {
     assert.equal(await page.evaluate(() => window.minimized), true);
     await page.getByRole('button', {name:'打开：安卓触摸测试', exact:true}).tap();
     await page.waitForURL('**/#editor');
+    await idle();
     assert.equal(await page.evaluate(() => getProgramSnapshot()), snapshot);
     // Backgrounding past the rest delay returns the app to the home screen,
     // so a later launch opens on home instead of the last file.
@@ -115,6 +122,7 @@ const server = http.createServer((req, res) => {
     await page.evaluate(() => Object.defineProperty(document, 'hidden', {configurable:true, get:() => false}));
     await page.getByRole('button', {name:'打开：安卓触摸测试', exact:true}).tap();
     await page.waitForURL('**/#editor');
+    await idle();
     assert.equal(await page.evaluate(() => getProgramSnapshot()), snapshot);
     fs.mkdirSync(path.resolve(__dirname, '../artifacts'), {recursive:true});
     await page.screenshot({path:path.resolve(__dirname, '../artifacts/android-ui-browser.png')});

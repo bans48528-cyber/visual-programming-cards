@@ -12,7 +12,7 @@ const profile={transport:'ble',serviceUuid:'11111111-1111-1111-1111-111111111111
  assert.match(await p.locator('#palette [data-card-id=combo-stop] img').getAttribute('src'),/tc01-stop\.svg$/);
  await p.locator('#palette [data-card-id=motor-forward]').click();await p.evaluate(()=>{program[0].params.duration=.1;renderProgram();});await p.locator('#runProgramBtn').click();await p.waitForFunction(()=>document.querySelector('#executionNotice').textContent.includes('程序指令发送完成'));
  const writes=await p.evaluate(()=>mockBle.calls.filter(c=>c.method==='write').map(c=>atob(c.data)));assert.ok(writes.includes('KEY_DATA=1000'));assert.equal(writes.at(-1),'KEY_DATA=0000');assert.ok(writes.every(s=>/^KEY_DATA=[01]{4}$/.test(s)));assert.equal(await p.evaluate(()=>window.mockCompilerSource),undefined);
- await p.evaluate(()=>TC01UI.open());await p.waitForFunction(()=>!document.querySelector('[data-tc-key=leftForward]').disabled);
+ await p.evaluate(()=>TC01UI.open());await p.waitForFunction(()=>!CardPageTransition.busy&&!document.querySelector('[data-tc-key=leftForward]').disabled);
  await p.screenshot({path:'artifacts/tc01-remote.png'});
  const cdp=await ctx.newCDPSession(p);const point=async(key,id)=>{const b=await p.locator(`[data-tc-key=${key}]`).boundingBox();return {id,x:b.x+b.width/2,y:b.y+b.height/2};};const left=await point('leftForward',1),right=await point('rightReverse',2);
  await cdp.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[left]});await cdp.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[left,right]});await p.waitForFunction(()=>mockBle.calls.some(c=>c.method==='write'&&atob(c.data)==='KEY_DATA=1001'));

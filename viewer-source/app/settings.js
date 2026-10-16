@@ -1,4 +1,5 @@
 import {disableStudLogos} from './viewer-policy.js';
+import {mountSettingsIllustrations} from './settings-illustrations.js';
 disableStudLogos();
 const form=document.getElementById('settings-form');
 const status=document.getElementById('save-status');
@@ -37,18 +38,7 @@ form.addEventListener('change',event=>{
 });
 document.body.dataset.ready='true';
 
-// Reuse the upstream option illustrations, including the animated rotation previews.
-for(const input of form.querySelectorAll('input')){
- const options=Object.assign(Object.create(LDR.Options),{listeners:[],topOptionsGroup:null});
- window.options=options; // Upstream stud preview reads this legacy global.
- const holder=document.createElement('div');let index=0;
- if(input.name==='lineContrast'){options.lineContrast=Number(input.value);options.appendContrastOptions(holder);}
- else if(input.name==='studHighContrast'){options.appendStudHighContrastOptions(holder);}
- else if(input.name==='showOldColors'){options.appendOldBrickColorOptions(holder);index=Number(input.value);}
- else {options.appendAnimationOptions(holder);index=Number(input.value);}
- const svg=holder.querySelectorAll('td.option>svg,td.option_selected>svg')[index];
- if(svg){svg.classList.add('choice-preview');svg.setAttribute('aria-hidden','true');input.closest('label').insertBefore(svg,input.nextSibling);}
-}
+mountSettingsIllustrations(form);
 function selected(){for(const label of form.querySelectorAll('label'))label.classList.toggle('is-selected',label.querySelector('input').checked);}
 selected();form.addEventListener('change',()=>{
  selected();if(params.get('embedded')==='1')parent.postMessage({source:'viewer-settings',type:'change',values:Object.fromEntries(Object.keys(choices).map(k=>[k,LDR.Options[k]]))},location.origin);

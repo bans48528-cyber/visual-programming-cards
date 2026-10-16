@@ -4,17 +4,28 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>小白编程</title>
-  <link rel="stylesheet" href="styles.css?v=palette-slider-9">
+  <script>
+    // Restore the canvas color before its first paint.
+    try {
+      if (localStorage.getItem("cardEditorBackgroundV1") === "dark") {
+        document.documentElement.dataset.editorBackground = "dark";
+      }
+    } catch (_) { /* Storage may be unavailable; the light background still works. */ }
+  </script>
+  <link rel="stylesheet" href="styles.css?v=editor-background-2">
   <link rel="stylesheet" href="blocks.css?v=palette-follow-20">
   <link rel="stylesheet" href="home.css">
   <link rel="stylesheet" href="buildings.css">
+  <link rel="stylesheet" href="building-books.css">
   <link rel="stylesheet" href="bluetooth.css">
   <link rel="stylesheet" href="android-bluetooth.css?v=bluetooth-redesign-16">
-  <link rel="stylesheet" href="toolbar.css?v=editor-controls-13">
+  <link rel="stylesheet" href="toolbar.css?v=editor-background-2">
   <link rel="stylesheet" href="remote.css">
+  <link rel="stylesheet" href="xiaobai-remote-skin.css">
   <link rel="stylesheet" href="device-models.css">
   <link rel="stylesheet" href="lbs2206.css">
   <link rel="stylesheet" href="tc01.css">
+  <link rel="stylesheet" href="page-transitions.css">
 </head>
 <!-- Keep editor measurable but hidden until home.js selects the initial route. -->
 <body class="home-open">
@@ -30,6 +41,7 @@
         <button class="btn" id="undoBtn" type="button" title="撤销" aria-label="撤销" disabled><img src="assets/toolbar/undo.svg" alt="" draggable="false"></button>
         <button class="btn" id="redoBtn" type="button" title="前进" aria-label="前进" disabled><img class="redo-icon" src="assets/toolbar/undo.svg" alt="" draggable="false"></button>
         <button class="btn" id="saveBtn" type="button" title="保存" aria-label="保存"><img src="assets/toolbar/save.svg" alt="" draggable="false"></button>
+        <button class="btn" id="canvasBackgroundBtn" type="button" title="切换为深色背景" aria-label="深色编程背景" aria-pressed="false"><span class="canvas-background-icon" aria-hidden="true"></span></button>
         <button class="btn danger" id="clearBtn" type="button" title="清空" aria-label="清空"><img src="assets/toolbar/clear.svg" alt="" draggable="false"></button>
       </div>
     </header>
@@ -39,7 +51,7 @@
         <div class="program-canvas">
           <div class="chain sequence-zone" id="chain" data-sequence-path="">
             <div class="block start" id="startBlock" role="listitem" aria-label="程序开始"><img class="start-art-icon" src="assets/blocks/start.svg" alt="" draggable="false"></div>
-            <div class="empty-note" id="emptyNote">放入卡片</div>
+            <div class="empty-note" id="emptyNote">从下方拖入积木</div>
           </div>
         </div>
         <div class="execution-controls" role="group" aria-label="程序运行控制">
@@ -66,6 +78,7 @@
   <div class="rotate-note">请将手机横屏使用</div>
   <div class="param-popover" id="paramEditor" hidden aria-live="polite"></div>
 
+  <script src="page-transitions.js"></script>
   <script src="platform.js?v=deferred-name-14"></script>
   <script src="device-models.js"></script>
   <script src="xiaobai-model.js"></script>
@@ -83,17 +96,19 @@
   <script src="receiver2226-runner.js"></script>
   <script src="receiver2226-model.js"></script>
   <script src="device-context.js"></script>
-  <script src="block-layout.js?v=program-scale-11"></script>
-  <script src="app.js?v=palette-follow-20"></script>
-  <script src="buildings.js"></script>
+  <script src="block-layout.js?v=editor-workbench-1"></script>
+  <script src="app.js?v=editor-background-2"></script>
+  <script src="building-books-touch.js"></script><script src="building-books.js"></script><script src="buildings.js"></script>
   <script src="home.js?v=skip-blank-save-15"></script>
   <script src="spark-protocol.js"></script>
   <script src="xiaobai-protocol.js"></script>
   <script src="xiaobai-device-preferences.js"></script>
+  <script src="bluetooth-page.js"></script>
   <script src="device-preview.js"></script>
   <script src="android-bluetooth.js?v=bluetooth-redesign-16"></script>
   <script src="bluetooth.js"></script>
   <script src="remote-control.js"></script>
+  <script src="xiaobai-remote-skin.js"></script>
   <script src="remote-ui.js"></script>
   <script src="xiaobai-runner.js"></script>
   <script src="xiaobai-ui.js"></script>

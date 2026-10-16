@@ -4,7 +4,9 @@
       --muted: #62707c;
       --line: #111820;
       --paper: #f3f3f3;
-      --program: #eeeeee;
+      --program: #f5f8fc;
+      --program-dot: rgba(92, 128, 166, .18);
+      --program-hint: #6b8098;
       --library: #fff59c;
       --panel: #ffffff;
       --motor: #0090F5;
@@ -224,10 +226,19 @@
       .execution-button { width: 58px; height: 58px; }
     }
 
+    html[data-editor-background="dark"] .program-area {
+      --program: #1b2736;
+      --program-dot: #304050;
+      --program-hint: #a0b2c5;
+    }
+
     .program-canvas {
       height: 100%;
       overflow: auto;
       padding: 20px 24px;
+      background-image: radial-gradient(circle, var(--program-dot) .85px, transparent 1px);
+      background-size: 28px 28px;
+      background-attachment: local;
       overscroll-behavior: contain;
       overflow-anchor: none;
       scrollbar-width: none;
@@ -317,13 +328,19 @@
     }
 
     .empty-note {
+      position: absolute;
       display: grid;
-      place-items: center;
-      min-width: 170px;
-      min-height: 74px;
-      margin-left: 14px;
-      color: var(--muted);
-      font-size: 14px;
+      align-items: center;
+      justify-items: start;
+      min-width: 0;
+      min-height: 0;
+      margin: 0;
+      color: var(--program-hint);
+      font-size: 15px;
+      font-weight: 400;
+      letter-spacing: .4px;
+      white-space: nowrap;
+      pointer-events: none;
     }
 
     .block {

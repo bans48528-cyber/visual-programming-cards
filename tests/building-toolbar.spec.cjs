@@ -1,0 +1,62 @@
+const {openBuilding}=require('./building-helpers.cjs');
+const {chromium}=require('playwright'),assert=require('node:assert/strict');
+(async()=>{const b=await chromium.launch({channel:'msedge',headless:true});try{
+ const p=await b.newPage({viewport:{width:844,height:390}}),errors=[],bad=[];
+ p.on('pageerror',e=>errors.push(e.message));p.on('response',r=>{if(r.status()>=400)bad.push(r.url())});
+ await p.addInitScript(()=>localStorage.setItem('cardDefaultModelV1','xiaobai'));
+ await p.goto('http://127.0.0.1:4173/dist/#home');await p.getByRole('tab',{name:'搭建图',exact:true}).click();await openBuilding(p,/机器鸭 v2/);
+ const f=p.frameLocator('.building-viewer iframe');await f.locator('body[data-ready=true]').waitFor({timeout:60000});
+ const model=p.frames().find(f=>f.url().includes('instructions.html'));
+ const revision=new URL(model.url()).searchParams.get('v');assert.match(revision,/^[a-f0-9]{12}$/);
+ assert.ok((await f.locator('.toolbar-icon').evaluateAll(es=>es.map(e=>new URL(e.src).searchParams.get('v')))).every(v=>v===revision),'all icons invalidate old cache together');
+ assert.equal(new URL(await f.locator('link[href*="mobile.css"]').getAttribute('href'),'http://localhost').searchParams.get('v'),revision);
+ await model.evaluate(()=>{LDR.Options.showStepRotationAnimations=2});
+ const pageInput=f.locator('#pageNumber');
+ assert.equal(await pageInput.getAttribute('readonly'),null);
+ assert.equal(await pageInput.getAttribute('inputmode'),'numeric');
+ await f.locator('#numberOfSteps').click();
+ assert.equal(await pageInput.evaluate(e=>e===document.activeElement),true,'the entire badge focuses the page input');
+ await pageInput.fill('16');await pageInput.press('Enter');
+ assert.equal(await f.locator('#pageNumber').inputValue(),'16');assert.equal(await f.locator('#numberOfSteps').textContent(),'/ 42');
+ await pageInput.click();await pageInput.press('ArrowLeft');await pageInput.press('ArrowRight');
+ assert.equal(await model.evaluate(()=>manager.currentStep),16,'caret keys do not turn pages');
+ for(const invalid of ['', 'abc', '1.5']){
+  await pageInput.fill(invalid);await pageInput.press('Enter');
+  assert.equal(await pageInput.inputValue(),'16','invalid input restores the current step');
+ }
+ await pageInput.fill('0');await pageInput.press('Enter');assert.equal(await pageInput.inputValue(),'1');
+ await pageInput.fill('999');await pageInput.press('Enter');assert.equal(await pageInput.inputValue(),'42');
+ await pageInput.fill('7');await pageInput.press('Escape');assert.equal(await pageInput.inputValue(),'42');
+ await pageInput.fill('16');await pageInput.press('Tab');
+ assert.equal(await model.evaluate(()=>manager.currentStep),16,'blur commits on mobile keyboards without Enter');
+ await f.locator('#next_button').click();await model.waitForFunction(()=>manager.currentStep===17);
+ assert.equal(await f.locator('#pageNumber').inputValue(),'17');
+ await f.locator('#prev_button').click();await model.waitForFunction(()=>manager.currentStep===16);
+ await f.locator('#pli_icon_left').click();await model.waitForFunction(()=>manager.pliW===0);
+ await f.locator('#pli_icon_right').click();await model.waitForFunction(()=>manager.pliW>0);
+ const zoom=await model.evaluate(()=>manager.camera.zoom);await f.locator('#zoom_in_button:visible, #zoom_in_button_large:visible').click();assert.notEqual(await model.evaluate(()=>manager.camera.zoom),zoom);
+ await f.locator('#reset_camera_button').click();
+ await f.getByRole('link',{name:'查看设置',exact:true}).click();await f.frameLocator('#viewer-settings-panel').locator('#settings-back').click();
+ assert.equal(await f.locator('#pageNumber').inputValue(),'16');
+ for(const [width,height]of [[844,390],[568,280],[390,844],[320,568]]){
+  await p.setViewportSize({width,height});await p.waitForTimeout(150);
+  const info=await model.evaluate(()=>({rects:['#home_button','#prev_button','.step-badge','#optionsButton','#next_button','#camera_buttons','#next_button_large'].map(s=>({id:s,...document.querySelector(s).getBoundingClientRect().toJSON()})),images:[...document.querySelectorAll('.toolbar-icon')].every(i=>i.complete&&i.naturalWidth>0)}));
+  assert.ok(info.images,'all supplied SVGs load');
+  assert.ok(info.rects.every(r=>r.x>=0&&r.y>=0&&r.right<=width+1&&r.bottom<=height+1),JSON.stringify(info.rects));
+  const [home,prev,badge,settings,next]=info.rects;
+  assert.ok(home.right<=prev.left&&prev.right<=badge.left&&badge.right<=settings.left&&settings.right<=next.left,'no toolbar overlap');
+  assert.ok(Math.abs((badge.top+badge.height/2)-(next.top+next.height/2))<1,'badge is vertically centered');
+  if(width===844||width===390)await p.screenshot({path:`artifacts/building-blue-toolbar-${width}.png`});
+ }
+ const albumPage=await p.locator('#bb-page-range').inputValue();
+ await model.evaluate(()=>manager.goToStep(42));
+ const done=f.getByRole('button',{name:'完成搭建，返回上一页',exact:true});
+ await done.waitFor({state:'visible'});
+ assert.match(await done.locator('img').getAttribute('src'),/\/complete\.svg\?v=/);
+ await model.evaluate(()=>manager.nextStep());
+ assert.equal(await f.locator('#pageNumber').inputValue(),'42','the last step does not exit automatically');
+ await done.click();await p.locator('.building-viewer').waitFor({state:'hidden'});
+ assert.equal(await p.locator('#buildingBooksReader').isVisible(),true,'completion returns to the album');
+ assert.equal(await p.locator('#bb-page-range').inputValue(),albumPage,'completion preserves the album page');
+ assert.deepEqual(errors,[]);assert.deepEqual(bad,[]);console.log('PASS editable page jump, numeric keyboard, validation, caret keys, next/back, parts collapse/expand, zoom/reset, settings return, SVG loading, four phone viewport layouts and completion return.');
+}finally{await b.close()}})().catch(e=>{console.error(e);process.exitCode=1});

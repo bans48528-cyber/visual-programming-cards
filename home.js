@@ -58,6 +58,11 @@
       </div>
     </section>
     <div class="home-section-heading"><h2></h2><span></span></div>
+    <section class="building-books-intro" aria-labelledby="buildingBooksIntroTitle" hidden>
+      <p class="building-books-eyebrow">每一次翻阅，都是新发现</p>
+      <h1 id="buildingBooksIntroTitle">把想象，<span>搭成模样。</span></h1>
+      <p class="building-books-invitation">选一本喜欢的图册，开启你的搭建之旅。</p>
+    </section>
     <div class="home-grid"></div><div class="home-empty" hidden><img src="assets/home-icon-file.png" alt=""><p>还没有保存的作品</p></div>
     <p class="home-error" role="alert" hidden></p>
   </main>`;
@@ -170,7 +175,8 @@
     if (project.modelId !== model.id) {setStatus("作品所属型号不匹配。");return;}
     activeId = project.id;
     try { store.setActive(activeId); } catch { /* Saving reports storage failures. */ }
-    home.hidden = true;document.body.classList.remove("home-open");
+    const showEditor=()=>{home.hidden=true;document.body.classList.remove("home-open");};
+    if(navigate&&!home.hidden)CardPageTransition.run(home,document.querySelector(".app"),showEditor);else showEditor();
     applyWorkspaceState(clone(project.state));
     historySnapshots = [];historyIndex = -1;
     renderProgram();renderPalette();commitHistory();
@@ -236,6 +242,8 @@
   }
   function render() {
     home.querySelector('.home-start').hidden = view === 'buildings';
+    home.classList.toggle('building-library-open', view === 'buildings');
+    home.querySelector('.building-books-intro').hidden = view !== 'buildings';
     const art=home.querySelector('.home-demo-robot');
     if(model.homeAnimation) art.innerHTML=animatedHomeArt;
     else {const img=document.createElement('img');img.src=model.image;img.alt='';art.replaceChildren(img);}
@@ -260,7 +268,9 @@
       activeId = null;
       try { store.setActive(null); } catch { /* No saved blank project remains. */ }
     }
-    closeParamEditor();home.hidden=false;document.body.classList.add("home-open");
+    closeParamEditor();
+    const reveal=()=>{home.hidden=false;document.body.classList.add("home-open");};
+    if(home.hidden&&location.hash!=="#bluetooth"&&!CardModelSession.switching)CardPageTransition.run(document.querySelector(".app"),home,reveal,()=>{},-1);else reveal();
     document.title="小白编程";render();
   }
   home.querySelector("#newProject").onclick = () => create(`我的作品 ${projects.length+1}`);
