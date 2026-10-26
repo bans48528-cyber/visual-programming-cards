@@ -17,11 +17,11 @@
         <div id="xb-color-pad"><div class="pad" role="group" aria-label="电机控制"><div class="channel a" aria-hidden="true"></div><div class="channel b" aria-hidden="true"></div></div></div>
       </div></div>`;
     dialog.querySelector('.remote-controls').before(root);
-    const rocker=root.querySelector('.rocker'),face=root.querySelector('.face-inner'),shadow=root.querySelector('.cast-shadow');
+    const rocker=root.querySelector('.rocker');
     for(let z=0;z<13;z++){const layer=document.createElement('div');layer.className='cross side';layer.style.transform=`translateZ(${z}px)`;rocker.prepend(layer);}
     // Position preserves the existing Y/A/X/B protocol mapping, irrespective of color.
     const colors={Y:'yellow',X:'red',B:'green',A:'blue'};
-    const tilt={up:[14,0,50,85,0,14],down:[-14,0,50,10,0,-2],left:[0,-14,85,30,12,8],right:[0,14,10,30,-10,8]};
+    const tilt={up:[14,0],down:[-14,0],left:[0,-14],right:[0,14]};
     let enabled=false,active='';
     function update(pressed){
       if(!enabled)return;
@@ -29,8 +29,6 @@
       if(direction===active)return;
       active=direction;const s=tilt[direction];rocker.classList.toggle('held',!!s);
       rocker.style.transform=s?`rotateX(${s[0]}deg) rotateY(${s[1]}deg) translateZ(-1px)`:'rotateX(0deg) rotateY(0deg) translateZ(0)';
-      face.style.setProperty('--light-x',`${s?s[2]:32}%`);face.style.setProperty('--light-y',`${s?s[3]:20}%`);
-      shadow.style.transform=`translate(${s?s[4]:1}px,${s?s[5]:9}px)`;
     }
     function activate(value,model){
       root.setAttribute('aria-label',`${model?.name||'小白'}遥控器`);
