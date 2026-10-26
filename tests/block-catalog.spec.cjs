@@ -13,6 +13,31 @@ const server = http.createServer((req, res) => {
   fs.createReadStream(file).pipe(res);
 });
 
+// Measure painted pixels, not the SVG artboard: transparent padding previously
+// made icons look small even though their <img> element had the expected size.
+async function checkArtworkSize(page, selector, minRatio, maxRatio) {
+  const ratio = await page.locator(selector).evaluate(async image => {
+    await image.decode();
+    const canvas = document.createElement('canvas');
+    canvas.width = image.naturalWidth; canvas.height = image.naturalHeight;
+    const context = canvas.getContext('2d');
+    context.drawImage(image, 0, 0);
+    const pixels = context.getImageData(0, 0, canvas.width, canvas.height).data;
+    let left = canvas.width, top = canvas.height, right = -1, bottom = -1;
+    for (let y = 0; y < canvas.height; y++) for (let x = 0; x < canvas.width; x++) {
+      if (pixels[(y * canvas.width + x) * 4 + 3] <= 16) continue;
+      left = Math.min(left, x); right = Math.max(right, x);
+      top = Math.min(top, y); bottom = Math.max(bottom, y);
+    }
+    const block = image.closest('[data-card-id]');
+    const zoom = block.getBoundingClientRect().width / (Number(block.dataset.advance) + 8);
+    const rect = image.getBoundingClientRect();
+    return Math.max((right-left+1) / canvas.width * rect.width,
+      (bottom-top+1) / canvas.height * rect.height) / (Number(block.dataset.bodyHeight) * zoom);
+  });
+  assert.ok(ratio >= minRatio && ratio <= maxRatio, `${selector}: visible artwork/body ratio ${ratio}`);
+}
+
 (async () => {
   await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
   const browser = await chromium.launch({ channel: 'msedge', headless: true });
@@ -40,7 +65,7 @@ const server = http.createServer((req, res) => {
       motor: ['motor-forward', 'motor-reverse', 'motor-forward-continuous', 'motor-reverse-continuous', 'motor-stop', 'motor-power'],
       combo: ['combo-forward', 'combo-backward', 'combo-turn-left', 'combo-turn-right', 'combo-continuous', 'combo-stop', 'combo-power'],
       logic: ['wait-time', 'tilt-wait', 'loop-count', 'loop', 'infrared-wait'],
-      dynamic: ['eye-expression', 'eye-matrix', 'display-number', 'display-off', 'speech-play', 'speech-wait']
+      dynamic: ['eye-expression', 'eye-matrix', 'display-number', 'display-off', 'speech-play', 'speech-wait', 'self-learned-wait']
     };
     for (const [category, ids] of Object.entries(expected)) {
       await page.locator(`#tab-${category}`).click();
@@ -55,6 +80,7 @@ const server = http.createServer((req, res) => {
 
     await page.locator('#tab-motor').click();
     await page.waitForTimeout(340);
+    await checkArtworkSize(page, '#palette [data-card-id=motor-forward] img', .65, .8);
     const paletteGeometry = await page.locator('#palette').evaluate(palette => {
       const outer = palette.getBoundingClientRect();
       const boxes = [...palette.children].filter(node => node.matches('[data-card-id]')).map(node => node.getBoundingClientRect());
@@ -68,8 +94,8 @@ const server = http.createServer((req, res) => {
     assert.ok(Math.max(...paletteGeometry.tops) - Math.min(...paletteGeometry.tops) < .2, 'palette blocks should align at the top');
     assert.ok(Math.max(...paletteGeometry.gaps) - Math.min(...paletteGeometry.gaps) < .2, 'palette gaps should be equal');
 
-    assert.equal(await page.locator('#palette [data-card-id=motor-forward-continuous] .param-bubble').textContent(), '持续正转');
-    assert.equal(await page.locator('#palette [data-card-id=motor-reverse-continuous] .param-bubble').textContent(), '持续反转');
+    assert.equal(await page.locator('#palette [data-card-id=motor-forward-continuous] .param-bubble').textContent(), 'L持续正转');
+    assert.equal(await page.locator('#palette [data-card-id=motor-reverse-continuous] .param-bubble').textContent(), 'L持续反转');
 
     await page.locator('#tab-combo').click();
     assert.equal(await page.locator('#palette').getAttribute('data-slide-direction'), 'forward');
@@ -114,8 +140,7 @@ const server = http.createServer((req, res) => {
     assert.equal(await page.locator('#palette [data-card-id=display-number] img').getAttribute('src'), 'assets/blocks/xiaobai-20261016/display-number.svg');
     assert.equal(await page.locator('#palette [data-card-id=display-number] .model-art-icon').count(), 1);
     assert.match(await page.locator('#palette [data-card-id=display-off] img').getAttribute('src'), /assets\/blocks\/xiaobai-20261016\/display-off\.svg$/);
-    const scale = await page.locator('#palette [data-card-id=speech-play] img').evaluate(img => getComputedStyle(img).transform);
-    assert.equal(scale, 'none');
+    await checkArtworkSize(page, '#palette [data-card-id=speech-play] img', .55, .7);
     const offset = await page.locator('#palette [data-card-id=speech-play] .ai-art-icon').evaluate(icon => getComputedStyle(icon).transform);
     assert.equal(offset, 'none');
 
@@ -150,8 +175,8 @@ const server = http.createServer((req, res) => {
     assert.equal(await page.locator('#chain [data-card-id=speech-wait] .param-bubble').textContent(), '再来一次');
     assert.equal(await page.locator('#paramEditor').isVisible(), false);
     await page.locator('#tab-logic').click();
-    const loopScale = await page.locator('#palette [data-card-id=loop] img').evaluate(img => getComputedStyle(img).transform);
-    assert.equal(loopScale, 'none');
+    await checkArtworkSize(page, '#palette [data-card-id=loop] img', .4, .55);
+    await checkArtworkSize(page, '#palette [data-card-id=wait-time] img', .5, .7);
     const waitOffset = await page.locator('#palette [data-card-id=wait-time] .ai-art-icon').evaluate(icon => getComputedStyle(icon).transform);
     assert.equal(waitOffset, 'none');
 

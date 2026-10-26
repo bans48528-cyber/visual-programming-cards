@@ -57,7 +57,9 @@
 .block.has-param-bubble > .ai-art-icon { transform: translate(0, -7%); }
 .block > .model-art-icon, .loop-tail > .model-art-icon,
 .block.has-param-bubble > .model-art-icon { transform: none !important; }
-.model-art-icon img, .start-art-icon.model-art-icon { transform: none !important; }
+/* Model artwork is centered, but its 500px SVG canvas still has padding.
+   Keep the image scale above (and the smaller loop scale below). */
+.start-art-icon.model-art-icon { transform: scale(1.08); }
 [data-card-id="loop"] .ai-art-icon img,
 [data-card-id="loop-count"] .ai-art-icon img { transform: scale(1.1466); }
 .block.has-param-bubble[data-card-id="wait-time"] > .ai-art-icon,

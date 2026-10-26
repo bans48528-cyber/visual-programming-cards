@@ -12,6 +12,20 @@
   font-family: "Microsoft YaHei", "PingFang SC", system-ui, sans-serif;
   letter-spacing: 0;
 }
+.building-books-shelf .book-item[data-theme="mint"],
+.building-books-reader[data-theme="mint"] {
+  --cover: #d3e9dc;
+  --cover-dark: #3d6d5c;
+  --cover-ink: #204b3e;
+  --accent: #237969;
+  --accent-deep: #185b4d;
+  --accent-light: #edf7f0;
+}
+.building-books-shelf .book-item[data-theme="mint"] .book-caption h2 { color: var(--cover-ink); }
+.building-books-shelf .book-item[data-theme="mint"] .book-caption p { color: var(--cover-dark); }
+.building-books-reader[data-theme="mint"] .story-page h2 { color: var(--cover-ink); }
+.building-books-reader[data-theme="mint"] .story-tags span { border-color: #d1e7dc; background: var(--accent-light); }
+.building-books-reader[data-theme="mint"] .page-arrow { border-color: #d1e7dc; color: var(--accent); }
 @supports (height: 100dvh) {
   .building-books-shelf,
   .building-books-reader { --bb-vh: 1dvh; }
@@ -27,7 +41,7 @@
 .building-books-reader input:focus-visible,
 .building-books-reader a:focus-visible { outline: 3px solid #168bfa; outline-offset: 4px; }
 .building-books-reader button svg,
-.building-books-reader .build-cta svg { fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.building-books-reader :is(.build-cta,.program-cta) svg { fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 
 /* Keep the introduction above the scrollable rows of books. */
 .building-books-intro {
@@ -195,9 +209,9 @@ dialog.building-books-reader {
 .building-books-reader .drawing-stage img { position: absolute; z-index: 1; width: 100%; height: 100%; object-fit: contain; -webkit-user-drag: none; user-select: none; }
 .building-books-reader .visual-footer { display: flex; flex-shrink: 0; flex-direction: column; align-items: center; gap: 8px; width: 100%; }
 .building-books-reader .visual-caption { font-size: 10px; line-height: 1.4; color: #7f97ac; }
-.building-books-reader .build-cta { display: inline-flex; flex-shrink: 0; align-items: center; justify-content: center; gap: 14px; min-width: 120px; min-height: 44px; padding: 8px 18px; border: 1px solid #ffffff30; border-radius: 12px; color: #fff; background: var(--accent); box-shadow: 0 5px 12px #168bfa25,inset 0 1px 0 #ffffff30; font-size: 13px; font-weight: 700; text-decoration: none; transition: transform 80ms ease; }
-.building-books-reader .build-cta svg { width: 17px; height: 17px; }
-.building-books-reader .build-cta:active { transform: translateY(1px); }
+.building-books-reader :is(.build-cta,.program-cta) { display: inline-flex; flex-shrink: 0; align-items: center; justify-content: center; gap: 14px; min-width: 120px; min-height: 44px; padding: 8px 18px; border: 1px solid #ffffff30; border-radius: 12px; color: #fff; background: var(--accent); box-shadow: 0 5px 12px #168bfa25,inset 0 1px 0 #ffffff30; font-size: 13px; font-weight: 700; text-decoration: none; transition: transform 80ms ease; }
+.building-books-reader :is(.build-cta,.program-cta) svg { width: 17px; height: 17px; }
+.building-books-reader :is(.build-cta,.program-cta):active { transform: translateY(1px); }
 .building-books-reader .story-page { display: flex; flex-direction: column; padding: clamp(16px,3vw,42px) clamp(16px,3vw,42px); overflow-y: auto; overscroll-behavior: contain; touch-action: pan-y; background: linear-gradient(90deg,#d8e7f380,transparent 9%),#fff; scrollbar-width: thin; scrollbar-color: #c1d9ec transparent; }
 .building-books-reader .story-page > * { flex-shrink: 0; }
 .building-books-reader .story-page::-webkit-scrollbar { width: 3px; }
@@ -239,7 +253,7 @@ dialog.building-books-reader {
 .building-books-reader .sheet-face { position: absolute; inset: 0; overflow: hidden; background: #fff; backface-visibility: hidden; -webkit-backface-visibility: hidden; }
 .building-books-reader .sheet-face.back { transform: rotateY(180deg); }
 .building-books-reader .sheet-face .paper { width: 100%; }
-.building-books-reader .sheet-face .build-cta { pointer-events: none; }
+.building-books-reader .sheet-face :is(.build-cta,.program-cta) { pointer-events: none; }
 .building-books-reader .sheet-face::after { content: ""; position: absolute; inset: 0; pointer-events: none; background: linear-gradient(90deg,#25405a06,transparent 40%,#25405a12); }
 .building-books-reader .cover-flight { position: fixed; z-index: 20; pointer-events: none; transform-origin: 0 0; perspective: 1600px; }
 .building-books-reader .cover-flight .cover-art { width: 100%; height: 100%; }
@@ -266,9 +280,9 @@ dialog.building-books-reader {
   .building-books-reader .reader-controls { gap: 12px; }
   .building-books-reader .visual-page { padding: 10px 14px; }
   .building-books-reader .page-topline { font-size: 9px; }
-  .building-books-reader .visual-footer { gap: 0; }
+  .building-books-reader .visual-footer { gap: 6px; }
   .building-books-reader .visual-caption { display: none; }
-  .building-books-reader .build-cta { min-width: 110px; padding: 6px 14px; font-size: 12px; border-radius: 10px; }
+  .building-books-reader :is(.build-cta,.program-cta) { min-width: 110px; padding: 6px 14px; font-size: 12px; border-radius: 10px; }
   .building-books-reader .story-page { padding: 14px clamp(14px,2.4vw,28px); }
   .building-books-reader .story-index { margin-bottom: 6px; font-size: 10px; }
   .building-books-reader .story-page h2 { margin-bottom: 7px; font-size: clamp(20px,3vw,27px); }
@@ -305,7 +319,7 @@ dialog.building-books-reader {
   .building-books-reader .story-index { font-size: 9px; }
   .building-books-reader .story-description { font-size: 12px; }
   .building-books-reader .page-topline { font-size: 8px; }
-  .building-books-reader .build-cta { min-width: 98px; padding-inline: 10px; gap: 8px; font-size: 12px; }
+  .building-books-reader :is(.build-cta,.program-cta) { min-width: 98px; padding-inline: 10px; gap: 8px; font-size: 12px; }
   .building-books-reader .visual-caption { display: none; }
   .building-books-reader .reader-series { font-size: 11px; }
   .building-books-reader .close-reader { gap: 6px; padding-inline: 10px; font-size: 11px; }
@@ -316,3 +330,8 @@ dialog.building-books-reader {
   :is(.building-books-shelf,.building-books-reader) *::after { transition-duration: .01ms !important; animation-duration: .01ms !important; animation-delay: 0ms !important; scroll-behavior: auto !important; }
   .building-books-reader::backdrop { animation-duration: .01ms !important; animation-delay: 0ms !important; }
 }
+
+/* A second, quieter entry opens only a configured companion program. */
+.building-books-reader .program-cta { color: var(--accent-deep); background: #fff; border-color: var(--accent); box-shadow: 0 3px 8px #25405a0d; }
+.building-books-reader .program-cta:disabled { opacity: .65; }
+.building-books-reader .program-open-error { margin: 0; max-width: 100%; color: #a12727; font-size: 11px; line-height: 1.4; text-align: center; }

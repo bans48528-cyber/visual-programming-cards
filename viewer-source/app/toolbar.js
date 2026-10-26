@@ -24,16 +24,16 @@ export function applyToolbarIcons(manager){
   const buttons=manager.ldrButtons;
   // The upstream demo uses modelID as its home link; our home is the launcher.
   buttons.homeButton.href='/';
-  // Completion follows the same host return route, preserving the open album/page.
+  // Completion is distinct from Back: the host may open this model's companion program.
   // The upstream touch/mouse handlers call this method dynamically.
-  manager.clickDone=()=>buttons.homeButton.click();
+  manager.clickDone=()=>{if(window.viewerExit)window.viewerExit('complete');else buttons.homeButton.click();};
   const items=[
     [buttons.backButton,'previous','上一步',()=>manager.prevStep()],
     [buttons.homeButton,'return','返回首页'],
     [buttons.optionsButton.querySelector('a'),'settings','查看设置'],
     [buttons.nextButton,'next','下一步',()=>manager.nextStep()],
     [buttons.nextButtonLarge,'next-large','下一步',()=>manager.nextStep()],
-    [buttons.doneButton,'complete','完成搭建，返回上一页',()=>manager.clickDone()],
+    [buttons.doneButton,'complete','完成搭建',()=>manager.clickDone()],
     [buttons.zoomOutButtonLarge,'zoom-out','缩小',()=>manager.zoomOut()],
     [buttons.zoomOutButton,'zoom-out','缩小',()=>manager.zoomOut()],
     [buttons.resetCameraButton,'reset-view','视角复位',()=>manager.resetCameraPosition()],

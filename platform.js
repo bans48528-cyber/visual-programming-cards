@@ -79,6 +79,7 @@
     closeParamEditor();
   }
   async function back(app) {
+    if(window.CardLearnedCommands?.back())return;
     if(window.CardBuildings?.back())return;
     const dialog = document.querySelector('dialog[open]');
     if (dialog) {
@@ -87,6 +88,7 @@
     }
     if (closeNumberKeypad()) return;
     if (!document.getElementById('paramEditor').hidden) { finishParameters(); return; }
+    if (window.CardUsageGuide?.back()) return;
     cancelDrag();
     const menu = document.querySelector('.home-menu[open]');
     if (menu) { menu.open = false; return; }

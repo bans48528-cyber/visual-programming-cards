@@ -68,12 +68,19 @@ module.exports = function mockAndroid() {
         if(bytes.length===17&&bytes[4]===0xc2) {
           if(bytes[15]!==bytes.slice(0,15).reduce((a,b)=>(a+b)&255,0)) throw new Error('Invalid program frame');
           const seq=bytes[5],op=bytes[6];
+          if(control.respondC2?.(bytes)===true)return;
+          if(op>=0x52&&op<=0x57){
+            const packet=[0x5a,0x98,0x97,0x0a,0xd2,seq,op,2,...Array(7).fill(0)];
+            packet.push(packet.reduce((sum,value)=>sum+value,0)&255,0xa5);
+            setTimeout(()=>control.feed(String.fromCharCode(...packet)),control.ackDelay||5);
+            return;
+          }
           if(op===1) control.mode=4;
           if(op===2) control.mode=3;
           if(control.writeError) throw new Error(control.writeError);
-          if(op===4||[0x10,0x20,0x30,0x51].includes(op)) {
+          if(op===4||[0x10,0x20,0x30,0x43,0x51].includes(op)) {
             if(!control.suppressAck) setTimeout(()=>{
-              const data=[seq,op,0,...(op===4?[control.mode||0,10,20,30,0x3c,0x0f,0]:[0,0,0,0,0,0,0])];
+              const data=[seq,op,0,...(op===4?[control.mode||0,10,20,30,0x3c,0x0f,0]:op===0x43?[bytes[7],bytes[8],0,0,0,0,0]:[0,0,0,0,0,0,0])];
               const packet=[0x5a,0x98,0x97,0x0a,0xd2,...data];
               packet.push(packet.reduce((sum,value)=>sum+value,0)&255,0xa5);
               control.feed(String.fromCharCode(...packet));

@@ -4,7 +4,7 @@ const {chromium}=require('playwright'),assert=require('node:assert/strict');
  const p=await b.newPage({viewport:{width:844,height:390}}),errors=[],bad=[];
  p.on('pageerror',e=>errors.push(e.message));p.on('response',r=>{if(r.status()>=400)bad.push(r.url())});
  await p.addInitScript(()=>localStorage.setItem('cardDefaultModelV1','xiaobai'));
- await p.goto('http://127.0.0.1:4173/dist/#home');await p.getByRole('tab',{name:'搭建图',exact:true}).click();await openBuilding(p,/机器鸭 v2/);
+ await p.goto('http://127.0.0.1:4173/dist/#home');await p.getByRole('tab',{name:'搭建图',exact:true}).click();await p.getByRole('button',{name:'打开测试二册，8页',exact:true}).click();await openBuilding(p,/机器鸭 v2/);
  const f=p.frameLocator('.building-viewer iframe');await f.locator('body[data-ready=true]').waitFor({timeout:60000});
  const model=p.frames().find(f=>f.url().includes('instructions.html'));
  const revision=new URL(model.url()).searchParams.get('v');assert.match(revision,/^[a-f0-9]{12}$/);
@@ -50,7 +50,7 @@ const {chromium}=require('playwright'),assert=require('node:assert/strict');
  }
  const albumPage=await p.locator('#bb-page-range').inputValue();
  await model.evaluate(()=>manager.goToStep(42));
- const done=f.getByRole('button',{name:'完成搭建，返回上一页',exact:true});
+ const done=f.getByRole('button',{name:'完成搭建',exact:true});
  await done.waitFor({state:'visible'});
  assert.match(await done.locator('img').getAttribute('src'),/\/complete\.svg\?v=/);
  await model.evaluate(()=>manager.nextStep());

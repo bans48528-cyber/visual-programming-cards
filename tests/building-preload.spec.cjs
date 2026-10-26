@@ -1,6 +1,6 @@
 const {openBuildingBook,openBuilding}=require('./building-helpers.cjs');
 const {chromium}=require('playwright'),assert=require('node:assert/strict'),fs=require('node:fs');
-const catalog=JSON.parse(fs.readFileSync('dist/building-catalog.json','utf8')),entry=catalog.xiaobai[0];
+const catalog=JSON.parse(fs.readFileSync('dist/building-catalog.json','utf8')),entry=catalog.xiaobai.find(e=>e.id==='duck-v2-test');
 assert.ok(entry.prepared);assert.ok(!fs.existsSync('dist/'+entry.file));
 const bundle=JSON.parse(fs.readFileSync('dist/'+entry.prepared.file,'utf8'));
 assert.equal(bundle.format,1);assert.equal(bundle.hasSteps,true);assert.ok(Object.keys(bundle.parts).length>100);
@@ -39,6 +39,7 @@ assert.equal(bundle.format,1);assert.equal(bundle.hasSteps,true);assert.ok(Objec
  
  // Cancel an in-flight prefetch by switching model; its late response cannot open a viewer.
  const p=await browser.newPage({viewport:{width:751,height:360}});await p.addInitScript(()=>localStorage.setItem('cardDefaultModelV1','xiaobai'));
+ await p.route('**/building-catalog.json',r=>r.fulfill({json:{...catalog,xiaobai:[entry]}}));
  let release,startedResolve;const started=new Promise(r=>startedResolve=r),held=new Promise(r=>release=r);
  await p.route('**/'+entry.prepared.file,async route=>{startedResolve();await held;await route.fulfill({json:bundle}).catch(()=>{});});
  await p.goto('http://127.0.0.1:4173/dist/#home');await p.getByRole('tab',{name:'搭建图',exact:true}).click();await Promise.race([started,new Promise((_,reject)=>setTimeout(()=>reject(Error('prefetch did not start')),10000))]);

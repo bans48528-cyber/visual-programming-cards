@@ -26,7 +26,7 @@ const {openBuildingBook,openBuilding,closeBuildingBook}=require('./building-help
  await p.locator('.home-model-entry').click();assert.equal(await p.evaluate(()=>CardPageTransition.busy),false);await p.locator('.model-cancel').click();
  await p.getByRole('tab',{name:'搭建图',exact:true}).click();assert.equal(await p.evaluate(()=>CardPageTransition.busy),false);
  await openBuildingBook(p);assert.equal(await p.evaluate(()=>CardPageTransition.busy),false,'book opening uses its own animation');
- await openBuilding(p,/机器鸭 v2/);
+ await openBuilding(p,/小白机器人/);
  await p.waitForFunction(()=>document.querySelector('.building-viewer').open);
  assert.equal(await p.locator('#buildingBooksReader.page-transition-surface').count(),1,'the whole book reader exits when the viewer enters');
  assert.equal(await p.locator('.building-viewer.page-transition-surface').count(),1,'the whole viewer enters from the book');
@@ -34,7 +34,7 @@ const {openBuildingBook,openBuilding,closeBuildingBook}=require('./building-help
  await p.evaluate(()=>CardBuildings.back());await idle();assert.equal(await p.locator('.building-viewer').isVisible(),false);
  assert.equal(await p.locator('#buildingBooksReader').isVisible(),true,'quick back restores the book reader');
  assert.equal(await p.locator('.building-viewer iframe').getAttribute('src'),null,'quick back cancels late model loading');
- await openBuilding(p,/机器鸭 v2/);await idle();
+ await openBuilding(p,/小白机器人/);await idle();
  const f=p.frameLocator('.building-viewer iframe');await f.locator('body[data-ready=true]').waitFor({timeout:60000});await p.locator('.building-loading').waitFor({state:'hidden'});
  await p.frames().find(f=>f.url().includes('instructions.html')).evaluate(()=>parent.postMessage({source:'building-viewer',type:'close',visit:'retired'},location.origin));
  await p.waitForTimeout(50);assert.equal(await p.locator('.building-viewer').isVisible(),true,'old viewer message must not close a new visit');

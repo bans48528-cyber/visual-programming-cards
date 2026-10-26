@@ -3,6 +3,7 @@
   color: #26384b;
   background: #f3f6fa;
   color-scheme: light;
+  -webkit-tap-highlight-color: transparent;
   font-size: 16px;
   --header-height: 60px;
   --page-gap: 18px;

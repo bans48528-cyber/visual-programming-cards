@@ -85,25 +85,36 @@ window.createXiaobaiBluetooth = ({model=CardModels.get('xiaobai')}={}) => {
         if(disposed||transport!==candidateTransport)return;
         trace('EVENT',null,`code=${event.code} data=${Array.from(event.data).join(',')}`);
         if(event.code===2||(event.code===1&&event.data[0]!==protocol.MODE.PROGRAM))window.dispatchEvent(new CustomEvent('xiaobai-program-abort',{detail:event}));
-      },onError:error=>{if(valid(ticket))failure(error);}});
+      },onError:error=>{
+        if(valid(ticket))failure(error);
+        if(!disposed&&link===candidate&&model.id==='xiaobai')
+          window.dispatchEvent(new CustomEvent('xiaobai-program-abort',{detail:{reason:error.message}}));
+      }});
+      if(model.id==='xiaobai' && window.XiaobaiLearnedCommands) {
+        new XiaobaiLearnedCommands.Session(candidate,{storage:localStorage,onChange:()=>{
+          if(disposed || link!==candidate)return;
+          window.dispatchEvent(new Event('xiaobai-learned-change'));
+          window.CardProgram?.refresh();
+        }});
+      }
       transport=candidateTransport;link=candidate;
       await candidate.start();
       if(!valid(ticket))throw new Error("连接已取消。");
       try{await candidate.probe();}
       catch(error){if(!valid(ticket)||!result.properties.fallbackWrite)throw error;trace('备用写入',null,'FFF2 无状态回报，改用 FFF1');await candidateTransport.useFallbackWrite();await candidate.probe();}
-      if(!valid(ticket)){candidate.close();await native.disconnect({connectionId}).catch(()=>{});return;}
+      if(!valid(ticket)){candidate.close();candidate.learned?.dispose();await native.disconnect({connectionId}).catch(()=>{});return;}
       link=candidate;current={...device,connectionId};connecting=null;
-      if(desiredMode===protocol.MODE.PROGRAM)await candidate.enterProgram();
+      if(desiredMode===protocol.MODE.PROGRAM){await candidate.enterProgram();if(desiredMode===protocol.MODE.PROGRAM&&link===candidate&&!disposed)candidate.learned?.initialize().catch(()=>{});}
       else if(desiredMode===protocol.MODE.REMOTE)await candidate.enterRemote();
       if(!valid(ticket))return;
       tell(`已连接 ${nameOf(current)}。`);trace('连接就绪',null,device.deviceId);render();
     }
-    catch(error){candidate?.close();candidateTransport?.close();if(transport===candidateTransport)transport=null;if(link===candidate)link=null;if(current?.connectionId===connectionId)current=null;if(connecting?.connectionId===connectionId)connecting=null;await native.disconnect({connectionId}).catch(()=>{});render();throw error;}
+    catch(error){candidate?.close();candidate?.learned?.dispose();candidateTransport?.close();if(transport===candidateTransport)transport=null;if(link===candidate)link=null;if(current?.connectionId===connectionId)current=null;if(connecting?.connectionId===connectionId)connecting=null;await native.disconnect({connectionId}).catch(()=>{});render();throw error;}
   }
   async function manualConnect(device){if(disposed)return;await cancelFlow('用户手动选择');const ticket=++version;flow={ticket,kind:'manual-connect',timer:null};try{await establish(device,ticket,true);if(!valid(ticket))return;prefs.setDefault(device.deviceId);flow=null;tell(`已连接并设为默认设备：${nameOf(device)}`);render();}catch(error){if(valid(ticket)){flow=null;failure(new Error(`连接 ${nameOf(device)} 失败：${error.message}`));}render();}}
   async function manualScan(){await cancelFlow('用户手动扫描');await beginScan('manual-scan',10000);}
   async function ensureConnected(){if(disposed||!CardModelSession.selected||CardModelSession.switching)return false;if(current&&link&&!link.closed)return true;if(autoPromise||flow||connecting||scanning||requesting)return autoPromise||false;autoPromise=(async()=>{const id=prefs.getDefault();await beginScan(id?'auto-default':'auto-first',id?timing.defaultScanMs:timing.firstScanMs,id);})().finally(()=>{autoPromise=null;});return autoPromise;}
-  function clearConnection(){if(current)window.dispatchEvent(new Event('xiaobai-disconnected'));link?.close();transport?.close();link=null;transport=null;current=null;connecting=null;render();}
+  function clearConnection(){if(current)window.dispatchEvent(new Event('xiaobai-disconnected'));link?.close();link?.learned?.dispose();transport?.close();link=null;transport=null;current=null;connecting=null;render();}
   async function disconnect(){await cancelFlow('用户断开');const connectionId=transport?.connectionId;clearConnection();if(connectionId)await native.disconnect({connectionId});tell('已断开连接。');}
   function renameDevice(device){if(!device)return;const dialog=$('.bt-rename-dialog'),input=dialog.querySelector('input');dialog.returnValue='';dialog.dataset.deviceId=device.deviceId;input.value=prefs.customName(device.deviceId)||'';dialog.showModal();setTimeout(()=>{input.focus();input.select();},0);}
   $('.bt-rename-dialog').addEventListener('close',event=>{const dialog=event.currentTarget;if(dialog.returnValue!=='confirm')return;try{prefs.rename(dialog.dataset.deviceId,dialog.querySelector('input').value);render();tell('设备名称已保存在本机。');}catch(error){failure(error);}});
@@ -117,25 +128,48 @@ window.createXiaobaiBluetooth = ({model=CardModels.get('xiaobai')}={}) => {
   $('.bt-search').onclick=()=>{if(scanning||connecting)cancelFlow('用户停止').then(()=>tell('已停止搜索或连接。'));else manualScan().catch(failure);};$('#btDisconnect').onclick=()=>disconnect().catch(failure);$('.bt-rename-current').onclick=()=>renameDevice(current);
   $('#btAccess').onclick=async()=>{try{if(state?.permissionsGranted||state?.permissionState==='denied')await native.openSettings({target:'app'});else{state=await native.requestAccess();render();}}catch(error){failure(error);}};$('#btSystemSettings').onclick=()=>native.openSettings({target:'bluetooth'}).catch(failure);$('#btLocationSettings').onclick=()=>native.openSettings({target:'location'}).catch(failure);
   $('.bt-copy').onclick=async()=>{try{await navigator.clipboard.writeText('Xiaobai Android BLE diagnostics\n'+logs.join('\n'));tell('诊断已复制。');}catch{tell('复制失败，可展开诊断并长按选中文字。',true);}};
-  function route(){if(disposed)return;const show=location.hash==='#bluetooth';page.hidden=!show;document.body.classList.toggle('bluetooth-open',show);if(show){closeParamEditor();document.title='手机蓝牙 · 小白编程';ready.then(refresh).catch(failure);}else{CardBluetoothPage.closePanels(page);if(flow?.kind==='manual-scan')cancelFlow('离开蓝牙界面').catch(()=>{});if(location.hash==='#editor'){document.title=document.querySelector('.brand-title').textContent+' · 小白编程';updateProgramAnchor();if(!document.getElementById('remoteControl')?.open)enterProgram().catch(failure);ready.then(ensureConnected).catch(failure);}}if(location.hash!=='#editor'&&!document.getElementById('remoteControl')?.open){desiredMode=null;link?.stopHeartbeat();}}
+  function route(){if(disposed)return;const show=location.hash==='#bluetooth';page.hidden=!show;document.body.classList.toggle('bluetooth-open',show);if(show){closeParamEditor();document.title='手机蓝牙 · 小白编程';ready.then(refresh).catch(failure);}else{CardBluetoothPage.closePanels(page);if(flow?.kind==='manual-scan')cancelFlow('离开蓝牙界面').catch(()=>{});if(location.hash==='#editor'){document.title=document.querySelector('.brand-title').textContent+' · 小白编程';updateProgramAnchor();if(!document.getElementById('remoteControl')?.open)enterProgram().catch(failure);ready.then(ensureConnected).catch(failure);}}if(location.hash!=='#editor'&&!document.getElementById('remoteControl')?.open){desiredMode=null;programEntry=null;const target=link;if(target?.suspendProgram)target.suspendProgram().catch(failure);else target?.stopHeartbeat();}}
+  let wasEditor=location.hash==='#editor';
+  window.addEventListener('hashchange',()=>{
+    const editor=location.hash==='#editor';
+    if(editor&&!wasEditor&&link?.learned) {
+      const target=link;
+      enterProgram().then(()=>{
+        if(!disposed&&link===target&&desiredMode===protocol.MODE.PROGRAM&&location.hash==='#editor')
+          return target.learned?.refresh();
+      }).catch(()=>{});
+    }
+    wasEditor=editor;
+  },{signal:lifecycle.signal});
   trigger.onclick=()=>window.CardOpenBluetooth('#editor');$('.bt-back').onclick=()=>window.CardBluetoothBack();window.addEventListener('hashchange',route,{signal:lifecycle.signal});window.addEventListener('card-bluetooth-route',route,{signal:lifecycle.signal});
   document.addEventListener('visibilitychange',()=>{if(document.hidden){const connectionId=transport?.connectionId;cancelFlow('应用进入后台').catch(()=>{});clearConnection();if(connectionId)native.disconnect({connectionId}).catch(()=>{});}else ready.then(refresh).catch(failure);},{signal:lifecycle.signal});const statusTimer=setInterval(renderStatus,250);
-  async function enterProgram(){if(disposed)return;desiredMode=protocol.MODE.PROGRAM;if(link&&!link.closed)await link.enterProgram();}
-  async function enterRemote(){if(disposed)return;desiredMode=protocol.MODE.REMOTE;if(link&&!link.closed)await link.enterRemote();}
+  let programEntry=null;
+  async function enterProgram(){
+    if(disposed)return;desiredMode=protocol.MODE.PROGRAM;
+    const target=link;if(!target||target.closed)return;
+    if(programEntry?.link===target)return programEntry.promise;
+    const entry={link:target,promise:null};
+    entry.promise=(async()=>{
+      await target.enterProgram();
+      if(link===target&&!disposed&&desiredMode===protocol.MODE.PROGRAM)target.learned?.initialize().catch(()=>{});
+    })().finally(()=>{if(programEntry===entry)programEntry=null;});
+    programEntry=entry;return entry.promise;
+  }
+  async function enterRemote(){if(disposed)return;desiredMode=protocol.MODE.REMOTE;programEntry=null;if(link&&!link.closed)await link.enterRemote();}
   const api={disconnect,cancelAuto:()=>cancelFlow('切换设备型号'),async dispose(){
     if(disposed)return;disposed=true;lifecycle.abort();clearInterval(statusTimer);
     const pending=cancelFlow('切换设备型号');
-    const connectionId=transport?.connectionId;link?.close();transport?.close();link=null;transport=null;current=null;
+    const connectionId=transport?.connectionId;link?.close();link?.learned?.dispose();transport?.close();link=null;transport=null;current=null;
     page.remove();trigger.classList.remove('is-connected','is-connecting');statusOutput.dataset.state='disconnected';statusOutput.textContent='设备未连接';
     await Promise.allSettled([pending,...listeners.map(handle=>handle.remove()),connectionId?native.disconnect({connectionId}):Promise.resolve()]);
   },ensureConnected,enterProgram,enterRemote,remoteConnection(){
     if(!current||!link||link.closed)return null;const target=link,id=current.connectionId;
     const guard=()=>Boolean(!disposed&&current&&current.connectionId===id&&target===link&&!target.closed);
-    return{id,setMotors:(left,right,shouldWrite=()=>true)=>{if(!guard())return Promise.reject(new Error('连接已取消。'));return target.setMotors(left,right,()=>guard()&&shouldWrite());},stopNeedsConfirmation:Boolean(target.stopNeedsConfirmation),uploadProgram:(bytes,options)=>{if(!guard())throw new Error('连接已取消。');return target.uploadProgram(bytes,options);},send(bytes,shouldWrite=()=>true){if(!guard())return Promise.reject(new Error('蓝牙连接已断开，请重新连接。'));return target.send(bytes,()=>guard()&&shouldWrite());},
+    return{id,learned:target.learned,setMotors:(left,right,shouldWrite=()=>true)=>{if(!guard())return Promise.reject(new Error('连接已取消。'));return target.setMotors(left,right,()=>guard()&&shouldWrite());},stopNeedsConfirmation:Boolean(target.stopNeedsConfirmation),uploadProgram:(bytes,options)=>{if(!guard())throw new Error('连接已取消。');return target.uploadProgram(bytes,options);},send(bytes,shouldWrite=()=>true){if(!guard())return Promise.reject(new Error('蓝牙连接已断开，请重新连接。'));return target.send(bytes,()=>guard()&&shouldWrite());},
       enterProgram:()=>{if(!guard())throw new Error('蓝牙连接已断开。');return enterProgram();},
       enterRemote:()=>{if(!guard())throw new Error('蓝牙连接已断开。');return enterRemote();},
       action:(opcode,args,blocking,timeout)=>{if(!guard())throw new Error("连接已取消。");return target.action(opcode,args,blocking,timeout);},
       stopProgram:()=>{if(!guard())return Promise.resolve();return target.stopProgram();},cancelPending:()=>target.rejectPending(new Error('程序已停止。'))};
-  },get busy(){return Boolean(link?.busy);},get executionPhase(){return link?.executionPhase;},get connected(){return Boolean(current&&link&&!link.closed);},get defaultDeviceId(){return prefs.getDefault();}};
+  },get busy(){return Boolean(link?.busy || link?.learned?.getSnapshot().busy);},get executionPhase(){return link?.executionPhase;},get connected(){return Boolean(current&&link&&!link.closed);},get defaultDeviceId(){return prefs.getDefault();}};
   route();render();return api;
 };

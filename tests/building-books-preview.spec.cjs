@@ -1,4 +1,4 @@
-// Exercise the current six-album configuration without replacing any catalog response.
+// Exercise the guide plus five test albums without replacing any catalog response.
 const {chromium}=require('playwright');
 const assert=require('node:assert/strict');
 const {closeBuildingBook}=require('./building-helpers.cjs');
@@ -12,7 +12,7 @@ const {closeBuildingBook}=require('./building-helpers.cjs');
   await p.getByRole('tab',{name:'搭建图',exact:true}).click();
   await p.locator('.book-button[data-book-id="test-06"]').waitFor();
   assert.equal(await p.locator('.book-button').count(),6);
-  await p.getByText('6 本图册 · 48 页',{exact:true}).waitFor();
+  await p.getByText('6 本图册 · 46 页',{exact:true}).waitFor();
   await p.screenshot({path:'artifacts/building-books-six-shelf-844x390.png'});
   const layout=await p.locator('.building-books-shelf').evaluate(s=>({columns:getComputedStyle(s).gridTemplateColumns.split(' ').length,items:[...s.children].map(e=>({top:e.offsetTop,left:e.offsetLeft})),scrollWidth:s.scrollWidth,width:s.clientWidth}));
   assert.equal(layout.columns,3);assert.equal(new Set(layout.items.map(e=>e.top)).size,2);
@@ -59,6 +59,6 @@ const {closeBuildingBook}=require('./building-helpers.cjs');
   await closeBuildingBook(p);await p.locator('[data-book-id="test-06"]').tap();await ready();assert.equal(await page(),'8','reopening the last album remembers its page');
   await p.evaluate(()=>CardModelSession.select('tc01'));await p.getByRole('tab',{name:'搭建图',exact:true}).click();await p.getByText('暂无搭建图',{exact:true}).waitFor();assert.equal(await p.locator('.book-button').count(),0);assert.equal(await p.locator('#buildingBooksReader').isVisible(),false);
   assert.deepEqual(errors,[]);
-  console.log('PASS actual six albums × eight repeated pages: 3 columns / 2 rows, vertical touch scroll, touch page turn, arrows, immediate slider thumb/page/progress, retarget and cancel during animation, page 8 viewer/album return, and device isolation.');
+  console.log('PASS six albums (six guide pages + five eight-page test albums): 3 columns / 2 rows, vertical touch scroll, touch page turn, arrows, immediate slider thumb/page/progress, retarget and cancel during animation, page 8 viewer/album return, and device isolation.');
  }finally{await browser.close();}
 })().catch(e=>{console.error(e);process.exitCode=1;});

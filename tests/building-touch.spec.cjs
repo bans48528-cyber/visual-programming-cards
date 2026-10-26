@@ -65,7 +65,7 @@ if(require.main===module)(async()=>{
   page.on('pageerror',e=>errors.push(e.message));
   await page.addInitScript(()=>localStorage.setItem('cardDefaultModelV1','xiaobai'));
   await page.goto('http://127.0.0.1:4173/dist/#home');
-  await page.getByRole('tab',{name:'搭建图',exact:true}).click();await openBuilding(page,/机器鸭 v2/);
+  await page.getByRole('tab',{name:'搭建图',exact:true}).click();await openBuilding(page,/小白机器人/);
   await page.frameLocator('.building-viewer iframe').locator('body[data-ready=true]').waitFor({timeout:60000});
   const cdp=await page.context().newCDPSession(page),evaluate=e=>page.evaluate(e),call=(m,p)=>cdp.send(m,p);
   for(const [width,height]of [[751,360],[568,280]]){

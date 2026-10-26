@@ -1,0 +1,355 @@
+{
+  "version": 1,
+  "programs": {
+    "guide-robot-intro": {
+      "id": "guide-robot-intro",
+      "name": "小白机器人 · 配套程序",
+      "modelId": "xiaobai",
+      "guideId": "guide-robot-usage",
+      "state": {
+        "program": [
+          {
+            "id": "eye-expression",
+            "params": {
+              "expression": "EYE_02"
+            }
+          },
+          {
+            "id": "speech-play",
+            "params": {
+              "phrase": "P05"
+            }
+          }
+        ],
+        "stagedGroups": []
+      }
+    },
+    "guide-swing-intro": {
+      "id": "guide-swing-intro",
+      "name": "摇摆模型 · 配套程序",
+      "modelId": "xiaobai",
+      "guideId": "guide-swing-usage",
+      "state": {
+        "program": [
+          {
+            "id": "eye-matrix",
+            "params": {
+              "leftPattern": [
+                0,
+                0,
+                1,
+                1,
+                1,
+                0,
+                0,
+                0,
+                0,
+                1,
+                0,
+                0,
+                0,
+                1,
+                0,
+                0,
+                0,
+                1,
+                0,
+                0,
+                0,
+                1,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                1,
+                0,
+                0,
+                0,
+                0,
+                0,
+                1,
+                1,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                1,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                1,
+                0,
+                0,
+                0,
+                0
+              ],
+              "rightPattern": [
+                0,
+                0,
+                1,
+                1,
+                1,
+                0,
+                0,
+                0,
+                0,
+                1,
+                0,
+                0,
+                0,
+                1,
+                0,
+                0,
+                0,
+                1,
+                0,
+                0,
+                0,
+                1,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                1,
+                0,
+                0,
+                0,
+                0,
+                0,
+                1,
+                1,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                1,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                1,
+                0,
+                0,
+                0,
+                0
+              ]
+            }
+          },
+          {
+            "id": "tilt-wait",
+            "params": {
+              "direction": "forward"
+            }
+          },
+          {
+            "id": "eye-expression",
+            "params": {
+              "expression": "EYE_08"
+            }
+          }
+        ],
+        "stagedGroups": []
+      }
+    }
+  },
+  "guides": {
+    "guide-robot-usage": {
+      "id": "guide-robot-usage",
+      "title": "小白机器人使用指南",
+      "modelId": "xiaobai",
+      "pages": [
+        {
+          "id": "robot-1",
+          "title": "开机准备",
+          "text": [
+            "请按以下文字指导进行操作。",
+            "1. 长按语音按键进行开机。",
+            "2. 等待主机播放进入“编程模式”的语音。"
+          ],
+          "media": {
+            "type": "images",
+            "items": [
+              {
+                "src": "assets/usage-guides/xiaobai/robot/host.webp",
+                "alt": "小白机器人主机",
+                "caption": "小白主机"
+              },
+              {
+                "src": "assets/usage-guides/xiaobai/robot/voice-key.webp",
+                "alt": "语音按键位置图示",
+                "caption": "语音按键"
+              }
+            ]
+          }
+        },
+        {
+          "id": "robot-2",
+          "title": "浏览积木分类",
+          "text": [
+            "点击积木分类，可以查看不同类目的积木块。"
+          ],
+          "media": {
+            "type": "video",
+            "src": "assets/usage-guides/xiaobai/robot/categories.mp4",
+            "poster": "assets/usage-guides/xiaobai/robot/categories-poster.webp",
+            "alt": "积木分类操作演示"
+          }
+        },
+        {
+          "id": "robot-3",
+          "title": "拖放与删除积木",
+          "text": [
+            "长按积木可以拖动，在开始积木后松手可放置。",
+            "将积木拖回下方可删除。"
+          ],
+          "media": {
+            "type": "video",
+            "src": "assets/usage-guides/xiaobai/robot/drag.mp4",
+            "poster": "assets/usage-guides/xiaobai/robot/drag-poster.webp",
+            "alt": "拖放与删除积木操作演示"
+          }
+        },
+        {
+          "id": "robot-4",
+          "title": "构建并运行程序",
+          "text": [
+            "参考视频操作，构建小白机器人的程序。",
+            "构建完成后点击右上角的运行按钮，观察机器状态。"
+          ],
+          "media": {
+            "type": "video",
+            "src": "assets/usage-guides/xiaobai/robot/build.mp4",
+            "poster": "assets/usage-guides/xiaobai/robot/build-poster.webp",
+            "alt": "构建小白机器人程序演示"
+          },
+          "icons": [
+            {
+              "src": "assets/usage-guides/xiaobai/robot/run-icon.webp",
+              "alt": "运行图标",
+              "label": "运行"
+            }
+          ]
+        },
+        {
+          "id": "robot-5",
+          "title": "保存与打开作品",
+          "text": [
+            "点击保存按钮，可将程序保存成本地文件。",
+            "保存的文件可在“我的作品”中重新打开。"
+          ],
+          "media": {
+            "type": "video",
+            "src": "assets/usage-guides/xiaobai/robot/save.mp4",
+            "poster": "assets/usage-guides/xiaobai/robot/save-poster.webp",
+            "alt": "保存与重新打开作品操作演示"
+          },
+          "icons": [
+            {
+              "src": "assets/usage-guides/xiaobai/robot/save-icon.webp",
+              "alt": "保存图标",
+              "label": "保存"
+            },
+            {
+              "src": "assets/usage-guides/xiaobai/robot/works-icon.webp",
+              "alt": "我的作品图标",
+              "label": "我的作品"
+            }
+          ]
+        }
+      ]
+    },
+    "guide-swing-usage": {
+      "id": "guide-swing-usage",
+      "title": "摇摆模型使用指南",
+      "modelId": "xiaobai",
+      "pages": [
+        {
+          "id": "swing-1",
+          "title": "等待倾倒",
+          "text": [
+            "主机可以检测其是否向任意一侧倾倒。",
+            "当执行到该积木块时，程序会等待主机倾倒至指定一侧。"
+          ],
+          "media": {
+            "type": "image",
+            "src": "assets/usage-guides/xiaobai/swing/tilt-block.webp",
+            "alt": "等待倾倒积木与方向参数",
+            "caption": "等待倾倒"
+          }
+        },
+        {
+          "id": "swing-2",
+          "title": "显示表情",
+          "text": [
+            "主机可以显示预设的动态表情。"
+          ],
+          "media": {
+            "type": "image",
+            "src": "assets/usage-guides/xiaobai/swing/expression-block.webp",
+            "alt": "显示表情积木及可选表情",
+            "caption": "显示表情"
+          }
+        },
+        {
+          "id": "swing-3",
+          "title": "绘制双眼",
+          "text": [
+            "可以手动绘制自己想要的点阵图形。"
+          ],
+          "media": {
+            "type": "video",
+            "src": "assets/usage-guides/xiaobai/swing/draw.mp4",
+            "poster": "assets/usage-guides/xiaobai/swing/draw-poster.webp",
+            "alt": "左右眼点阵绘制操作演示"
+          }
+        },
+        {
+          "id": "swing-4",
+          "title": "运行摇摆程序",
+          "text": [
+            "尝试构建该程序并查看效果。"
+          ],
+          "media": {
+            "type": "image",
+            "src": "assets/usage-guides/xiaobai/swing/program.webp",
+            "alt": "摇摆模型配套程序：绘制问号、等待向前倾倒、显示晕眩",
+            "caption": "摇摆模型配套程序"
+          }
+        }
+      ]
+    }
+  }
+}

@@ -3,11 +3,11 @@
   if(typeof module==='object'&&module.exports)module.exports=api;else root.XiaobaiRunner=api;
 })(globalThis,function(protocol){
   'use strict';
-  const {OP,milliseconds}=protocol;
+  const {OP,milliseconds,matrixChunks}=protocol;
   const motorIds=new Set(['motor-forward','motor-reverse','motor-forward-continuous','motor-reverse-continuous','motor-stop']);
   const comboIds=new Set(['combo-forward','combo-backward','combo-turn-left','combo-turn-right','combo-continuous','combo-stop']);
   const supported=new Set([...motorIds,...comboIds,'motor-power','combo-power','wait-time','loop','loop-count','infrared-wait',
-    'eye-expression','display-number','display-off','speech-play','speech-wait','speed-up','speed-down']);
+    'eye-expression','eye-matrix','display-number','display-off','speech-play','speech-wait','self-learned-wait','speed-up','speed-down']);
   const move={advance:1,left:2,right:3,retreat:4};
   const motorIndex=port=>['L/M1','L'].includes(port)?0:1;
   function validate(program){
@@ -17,10 +17,9 @@
       for(const item of items){
         if(!item||++count>1000)throw new Error('程序最多支持 1000 块积木。');
         const {id,params:p={}}=item;
-        // Validate the whole program before entering program mode. Neither command is
-        // defined in the supplied C2 protocol; never guess opcodes or execute a prefix.
+        // Validate the whole program before entering program mode.
         if(id==='tilt-wait')throw new Error('尚未提供“等待倾倒”的通信协议，暂不能运行包含此积木的程序。');
-        if(id==='eye-matrix')throw new Error('尚未提供“点阵表情”的通信协议，暂不能运行包含此积木的程序。');
+        if(id==='eye-matrix')matrixChunks(0,p.leftPattern,p.rightPattern);
         if(!supported.has(id))throw new Error('小白不支持此积木：'+id);
         if(motorIds.has(id)&&!['L/M1','R/M2','L','R'].includes(p.port))throw new Error('请选择左或右电机。');
         if(id==='combo-continuous'&&!Object.hasOwn(move,p.direction))throw new Error('移动方向无效。');
@@ -31,6 +30,7 @@
         if(id==='infrared-wait'&&(!['greater','less'].includes(p.comparison)||!Number.isInteger(p.threshold)||p.threshold<0||p.threshold>100))throw new Error('红外等待条件无效。');
         if(id==='display-number'&&(!Number.isInteger(p.value)||p.value<0||p.value>100))throw new Error('显示数字须在 0 至 100 之间。');
         if(id==='eye-expression'&&!/^EYE_(0[1-9]|10)$/.test(p.expression))throw new Error('眼睛表情无效。');
+        if(id==='self-learned-wait'&&(!Number.isInteger(p.slot)||p.slot<1||p.slot>10))throw new Error('请选择指令1至指令10。');
         if(id==='speech-play'&&!/^P(0[1-9]|10)$/.test(p.phrase))throw new Error('播报词条无效。');
         if(id==='speech-wait'&&!/^ASR_(0[1-9]|10)$/.test(p.phrase))throw new Error('识别词条无效。');
         if(id==='loop'||id==='loop-count'){
@@ -46,14 +46,14 @@
   class Runner{
     constructor(connection,{isCurrent=()=>true,onStep=()=>{}}={}){
       this.connection=connection;this.isCurrent=isCurrent;this.onStep=onStep;
-      this.cancelled=false;this.waiters=new Set();this.done=null;this.comboPower=3;
+      this.cancelled=false;this.waiters=new Set();this.done=null;this.comboPower=3;this.matrixTransfer=0;
     }
     check(){if(this.cancelled)throw new Cancelled();if(!this.isCurrent())throw new Error('连接已断开，程序已取消。');}
     delay(ms){this.check();return new Promise((resolve,reject)=>{
       const finish=()=>{clearTimeout(timer);this.waiters.delete(finish);try{this.check();resolve();}catch(error){reject(error);}};
       const timer=setTimeout(finish,ms);this.waiters.add(finish);
     });}
-    cancel(){this.cancelled=true;for(const wake of [...this.waiters])wake();this.connection.cancelPending?.();}
+    cancel(){this.cancelled=true;this.connection.learned?.stop('程序已停止。');for(const wake of [...this.waiters])wake();this.connection.cancelPending?.();}
     async action(op,args=[],blocking=false,timeout=0){this.check();await this.connection.action(op,args,blocking,timeout);this.check();}
     async sequence(items,parentPath=[]){
       for(const [index,item] of items.entries()){
@@ -84,9 +84,15 @@
           await this.action(OP.MOVE_POWER,[this.comboPower]);
         }else if(id==='infrared-wait')await this.action(OP.WAIT_IR,[1,p.comparison==='greater'?0:1,p.threshold],true);
         else if(id==='eye-expression')await this.action(OP.SHOW_EYE,[Number(p.expression.slice(-2))]);
+        else if(id==='eye-matrix'){
+          this.matrixTransfer=(this.matrixTransfer+1)&255;
+          for(const args of matrixChunks(this.matrixTransfer,p.leftPattern,p.rightPattern))
+            await this.action(OP.SHOW_MATRIX,args,true,1500);
+        }
         else if(id==='display-number')await this.action(OP.SHOW_NUM,[p.value]);
         else if(id==='display-off')await this.action(OP.SHOW_OFF);
         else if(id==='speech-play')await this.action(OP.PLAY_VOICE,[Number(p.phrase.slice(-2))]);
+        else if(id==='self-learned-wait'){this.check();await this.connection.learned.wait(p.slot);this.check();}
         else if(id==='speech-wait')await this.action(OP.WAIT_VOICE,[Number(p.phrase.slice(-2))],true);
       }
     }
@@ -95,7 +101,18 @@
       const copy=validate(program);
       this.done=(async()=>{
         let failure=null;
-        try{await this.connection.enterProgram();await this.sequence(copy);}
+        try{
+          await this.connection.enterProgram();this.check();
+          if(this.connection.learned){
+            await this.connection.learned.prepareRun(copy);this.check();
+            await this.connection.learned.beginRun();this.check();
+          }else{
+            const containsLearned=items=>items.some(item=>item.id==='self-learned-wait'||containsLearned(item.children||[]));
+            if(containsLearned(copy))throw new Error('设备暂不支持自学习口令。');
+          }
+          await this.sequence(copy);this.check();
+          if(this.connection.learned)await this.connection.learned.endRun();
+        }
         catch(error){if(!(error instanceof Cancelled))failure=error;}
         finally{this.cancel();try{if(this.isCurrent())await this.connection.stopProgram();}catch(error){failure=failure||error;}}
         if(failure)throw failure;

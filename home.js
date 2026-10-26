@@ -3,6 +3,22 @@
   let store = DeviceModels.createStore(localStorage, model.id);
   const clone = value => JSON.parse(JSON.stringify(value));
   let projects = [], activeId = null, view = "files", storageReadable = true;
+  // Built-in programs are an editor session, never a row in the user's project store.
+  let companionSession = null, companionVersion = 0, workspaceProjectId = null;
+  const companionDetail = (session = companionSession) => session ? {
+    id: session.id, companionId: session.id, guideId: session.guideId,
+    modelId: session.modelId, resumeKey: session.resumeKey,
+    projectId: session.projectId || null, template: session.template
+  } : null;
+  function companionEvent(type, detail) {
+    document.dispatchEvent(new CustomEvent(`card-companion-${type}`, {detail, bubbles: true}));
+  }
+  function closeCompanion(reason) {
+    const previous = companionSession;
+    companionSession = null;
+    if (previous) companionEvent('closed', {...companionDetail(previous), reason});
+    return previous;
+  }
   const makeItem = (id, params = {}, children) => {
     const item = createProgramItem(id);
     Object.assign(item.params || {}, params);
@@ -119,6 +135,8 @@
     return true;
   }
   function saveActive() {
+    if (companionSession?.template) return true;
+    if (workspaceProjectId !== activeId) return false;
     const project = projects.find(p => p.id === activeId);
     if (!project || project.modelId !== model.id) return false;
     const state = serializeWorkspaceState();
@@ -127,7 +145,35 @@
     if (persist()) setStatus("作品已保存");
     return true;
   }
+  function saveCompanion() {
+    const session = companionSession;
+    if (!session?.template) return false;
+    if (isBlankState(serializeWorkspaceState())) return rejectBlankSave();
+    ask("另存作品", session.name, name => {
+      if (companionSession !== session || model.id !== session.modelId || home.hidden === false) return;
+      const state = serializeWorkspaceState();
+      if (isBlankState(state)) { rejectBlankSave(); return; }
+      const project = {
+        id: crypto.randomUUID(), modelId: model.id, name, updated: Date.now(),
+        state: clone(state), needsName: false, draft: false,
+        companionId: session.id, guideId: session.guideId
+      };
+      projects.unshift(project);
+      if (!persist()) { projects = projects.filter(item => item !== project); return; }
+      activeId = project.id;workspaceProjectId = project.id;
+      try { store.setActive(activeId); } catch { /* The saved copy remains in the project list. */ }
+      const previousResumeKey = session.resumeKey;
+      companionSession = {...session, template: false, projectId: project.id, resumeKey: project.id};
+      document.querySelector(".brand-title").textContent = project.name;
+      document.title = `${project.name} · 小白编程`;
+      setStatus("作品已保存");
+      companionEvent('saved', {...companionDetail(), previousResumeKey});
+    });
+    return true;
+  }
   function saveFromEditor() {
+    if (companionSession?.template) return saveCompanion();
+    if (workspaceProjectId !== activeId) return false;
     const project = projects.find(p => p.id === activeId);
     if (!project || project.modelId !== model.id) return false;
     const state = serializeWorkspaceState();
@@ -155,9 +201,10 @@
   }
   window.CardHome = {
     get modelId() {return model.id;},
-    get activeModelId() {return projects.find(p=>p.id===activeId)?.modelId;},
-    checkpoint() {if (!home.hidden) return;saveActive();if (!persist()) throw new Error('草稿保存失败，未切换设备。');},
+    get activeModelId() {return companionSession?.modelId || projects.find(p=>p.id===activeId)?.modelId;},
+    checkpoint() {if (!home.hidden || companionSession?.template) return;saveActive();if (!persist()) throw new Error('草稿保存失败，未切换设备。');},
     useModel(next) {
+      companionVersion++;closeCompanion('model-change');
       CardBuildings.close();dialog.close();model=next;store=DeviceModels.createStore(localStorage,model.id);readProjects();view='files';
       renderNavigation();showHome();
     },
@@ -165,6 +212,12 @@
     save: saveFromEditor,
     autosave: saveActive,
     load() {
+      if (companionSession?.template) {
+        applyWorkspaceState(clone(companionSession.state));renderProgram();renderPalette();commitHistory();
+        setStatus("已重新读取配套程序");
+        companionEvent('opened', companionDetail());
+        return true;
+      }
       const project = projects.find(p => p.id === activeId);
       if (!project) return false;
       applyWorkspaceState(clone(project.state));renderProgram();renderPalette();commitHistory();setStatus("已读取作品");
@@ -173,7 +226,13 @@
   };
   function enter(project, navigate = true) {
     if (project.modelId !== model.id) {setStatus("作品所属型号不匹配。");return;}
-    activeId = project.id;
+    companionVersion++;closeCompanion('project-change');
+    if (typeof project.companionId === 'string') companionSession = {
+      id: project.companionId, guideId: typeof project.guideId === 'string' ? project.guideId : null,
+      modelId: project.modelId, name: project.name, resumeKey: project.id,
+      projectId: project.id, template: false
+    };
+    activeId = project.id;workspaceProjectId = project.id;
     try { store.setActive(activeId); } catch { /* Saving reports storage failures. */ }
     const showEditor=()=>{home.hidden=true;document.body.classList.remove("home-open");};
     if(navigate&&!home.hidden)CardPageTransition.run(home,document.querySelector(".app"),showEditor);else showEditor();
@@ -184,7 +243,53 @@
     document.querySelector(".brand-title").textContent = project.name;
     document.title = `${project.name} · 小白编程`;
     if (navigate) location.hash = "editor";
+    if (companionSession) companionEvent('opened', companionDetail());
   }
+  window.CardCompanionPrograms = {
+    get isActive() { return Boolean(companionSession); },
+    get isTemplate() { return Boolean(companionSession?.template); },
+    get current() { return companionDetail(); },
+    async open(template) {
+      if (!template || typeof template.id !== 'string' || !template.id || typeof template.name !== 'string' ||
+          template.modelId !== model.id || CardModelSession.switching ||
+          !(Array.isArray(template.state) || Array.isArray(template.state?.program))) {
+        throw new Error('配套程序无效或不属于当前设备型号。');
+      }
+      const state = clone(template.state), ticket = ++companionVersion, scope = CardModelSession.capture();
+      await window.CardProgram?.stop('已打开造型配套程序');
+      await CardPageTransition.idle();
+      if (ticket !== companionVersion || !scope.isCurrent() || document.hidden) return false;
+      CardHome.checkpoint();
+      // Callers can cancel a stale album request and suspend its reader at the actual handoff.
+      if (typeof template.beforeOpen === 'function' && template.beforeOpen() === false) return false;
+      closeParamEditor();cancelDrag();dialog.close();
+      closeCompanion('program-change');
+      workspaceProjectId = null;
+      companionSession = {
+        id: template.id, name: template.name, modelId: model.id,
+        guideId: typeof template.guideId === 'string' ? template.guideId : null,
+        resumeKey: template.id, template: true, state,
+        onReturn: typeof template.onReturn === 'function' ? template.onReturn : null
+      };
+      // Preserve the previous user project's active pointer and the existing album view.
+      const showEditor = () => {home.hidden=true;document.body.classList.remove('home-open');};
+      if (!home.hidden) CardPageTransition.run(home,document.querySelector('.app'),showEditor);else showEditor();
+      applyWorkspaceState(clone(state));historySnapshots=[];historyIndex=-1;
+      renderProgram();renderPalette();commitHistory();
+      programCanvas.scrollLeft=0;programCanvas.scrollTop=0;
+      document.querySelector('.brand-title').textContent=template.name;
+      document.title=`${template.name} · 小白编程`;
+      location.hash='editor';
+      companionEvent('opened', companionDetail());
+      return true;
+    },
+    cancel() {
+      companionVersion++;
+      if (!companionSession) return false;
+      if (!home.hidden) {closeCompanion('cancel');return true;}
+      saveActive();location.hash='home';showHome('cancel');return true;
+    }
+  };
   function create(name, state = {program: [], stagedGroups: []}) {
     const project = {id: crypto.randomUUID(), modelId: model.id, name, updated: Date.now(), state: clone(state), needsName: true, draft: isBlankState(state)};
     projects.unshift(project);
@@ -261,7 +366,11 @@
     demo.querySelectorAll('button, [tabindex]').forEach(el => el.tabIndex = -1);
     home.querySelector('.home-demo-blocks').replaceChildren(demo);
   }
-  function showHome() {
+  function showHome(reason = 'home') {
+    companionVersion++;
+    const returning = companionSession;
+    // Notify after home rendering, so the viewer can restore the existing album safely.
+    companionSession = null;
     const active = projects.find(project => project.id === activeId);
     if (active?.draft && isBlankState(active.state)) {
       projects = projects.filter(project => project.id !== active.id);
@@ -272,6 +381,12 @@
     const reveal=()=>{home.hidden=false;document.body.classList.add("home-open");};
     if(home.hidden&&location.hash!=="#bluetooth"&&!CardModelSession.switching)CardPageTransition.run(document.querySelector(".app"),home,reveal,()=>{},-1);else reveal();
     document.title="小白编程";render();
+    if (returning) {
+      companionEvent('closed', {...companionDetail(returning), reason});
+      if (returning.onReturn) CardPageTransition.idle().then(() => {
+        if (!home.hidden && model.id === returning.modelId && location.hash === '#home') returning.onReturn();
+      }).catch(error => setStatus(error.message || '返回图册失败'));
+    }
   }
   home.querySelector("#newProject").onclick = () => create(`我的作品 ${projects.length+1}`);
   home.querySelector('#resumeProject').onclick = () => {
@@ -286,7 +401,7 @@
       button.setAttribute('role','tab');button.type='button';
       const img=document.createElement('img');img.src=feature.icon;img.alt='';
       const label=document.createElement('span');label.textContent=feature.label;button.append(img,label);
-      button.onclick=()=>{if(feature.open)feature.open();else if(feature.id==='remote')model.remote?.open();else {view=feature.id;render();}};
+      button.onclick=()=>{companionVersion++;if(feature.open)feature.open();else if(feature.id==='remote')model.remote?.open();else {view=feature.id;render();}};
       sidebar.insertBefore(button,sidebar.querySelector('.home-local'));
     }
     home.setAttribute('aria-label',model.name+'编程主页');
@@ -296,7 +411,7 @@
   window.addEventListener("hashchange",()=>{
     if(location.hash==="#bluetooth") return;
     if(location.hash!=="#editor") {if(home.hidden)saveActive();showHome();}
-    else if(!home.hidden) {
+    else if(!home.hidden && !companionSession?.template) {
       const project=projects.find(p=>p.id===activeId);
       if(project)enter(project);else create(`我的作品 ${projects.length+1}`);
     }

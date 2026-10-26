@@ -918,9 +918,11 @@
     }
 
     function getParamBubbleText(card, item = null) {
+      if (card.id === "self-learned-wait") return `指令${getParamValue(card, item, "slot")}`;
       if (card.id.endsWith("-continuous")) {
         if (card.id === "combo-continuous") return `持续${getParamOptionDisplay(card.paramsSchema.direction,getParamValue(card,item,"direction"))}`;
-        return card.id === "motor-forward-continuous" ? "持续正转" : "持续反转";
+        const port = card.paramsSchema?.port ? getParamOptionDisplay(card.paramsSchema.port, getParamValue(card, item, "port")) : "";
+        return `${port}${card.id === "motor-forward-continuous" ? "持续正转" : "持续反转"}`;
       }
       if (card.id === "play-note") return `${getParamValue(card, item, "note")}·${getParamValue(card, item, "beats")}拍`;
       if (hasMatrixParams(card)) {
@@ -1003,6 +1005,7 @@
       paramEditor.setAttribute("role", "dialog");
       paramEditor.setAttribute("aria-label", `${card.label}参数`);
       paramEditor.hidden = false;
+      paramEditor.classList.toggle("is-learned-command", card.id === "self-learned-wait");
       paramEditor.classList.toggle("is-matrix", hasMatrixParams(card));
       paramEditor.classList.toggle("is-dual-eye-matrix", card.id === "eye-matrix");
       paramEditor.classList.toggle("is-number-keypad", Boolean(activeNumberKeypad));
@@ -1016,6 +1019,19 @@
     function createGenericParamEditor(card, item) {
       const panel = document.createElement("div");
       panel.className = "param-editor-panel";
+      if (card.id === "self-learned-wait" && window.CardLearnedCommands) {
+        return window.CardLearnedCommands.createEditor({
+          slot: getParamValue(card, item, "slot"),
+          onSlotChange: slot => {
+            if (window.CardProgram?.running || window.CardBluetooth?.remoteConnection?.()?.learned?.getSnapshot().busy) return;
+            setActiveParamValue("slot", slot);
+          },
+          onLayout: () => {
+            if (activeParamEditor && paramEditor.classList.contains("is-learned-command"))
+              positionParamEditor(findProgramBlockByPath(activeParamEditor.nodePath));
+          }
+        });
+      }
       if (card.id === "eye-matrix") {
         panel.classList.add("dual-eye-matrix-editor");
         ["leftPattern", "rightPattern"].forEach(key => panel.appendChild(createMatrixParamEditor(card, item, key)));

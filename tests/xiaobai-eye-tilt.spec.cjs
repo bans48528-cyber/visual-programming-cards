@@ -17,7 +17,7 @@ const corners=[0,7,56,63];
 const unsupported=/尚未提供.*通信协议/;
 const block=(id,params={},children)=>({id,params,...(children?{children}:{})});
 function protocolGuard(){
-  const additions=[block('tilt-wait',{direction:'forward'}),block('eye-matrix',{leftPattern:Array(64).fill(0),rightPattern:Array(64).fill(0)})];
+  const additions=[block('tilt-wait',{direction:'forward'})];
   for(const addition of additions)for(const nested of [false,true]){
     const calls=[];
     const connection={enterProgram(){calls.push('enter');},action(){calls.push('action');},stopProgram(){calls.push('stop');},cancelPending(){calls.push('cancel');}};
@@ -71,7 +71,7 @@ async function xiaobaiTouch(browser,base,viewport){
     const tilt=page.locator('#chain [data-card-id="tilt-wait"] .param-bubble');
     await tilt.tap();
     assert.deepEqual(await page.locator('#paramEditor .param-option-btn').allTextContents(),['向前','向后','向左','向右']);
-    for(const [label,bubble] of [['向前','先前倾倒'],['向后','向后倾倒'],['向左','向左倾倒'],['向右','向右倾倒']]){
+    for(const [label,bubble] of [['向前','向前倾倒'],['向后','向后倾倒'],['向左','向左倾倒'],['向右','向右倾倒']]){
       await page.locator('#paramEditor').getByRole('button',{name:label,exact:true}).tap();
       assert.equal(await tilt.textContent(),bubble);
     }
@@ -82,10 +82,12 @@ async function xiaobaiTouch(browser,base,viewport){
     const schemas=await page.evaluate(()=>cardById['eye-matrix'].paramsSchema);
     for(const key of ['leftPattern','rightPattern']){
       assert.equal(schemas[key].rows,8);assert.equal(schemas[key].columns,8);assert.deepEqual(schemas[key].disabledIndexes,corners);
+      assert.deepEqual(schemas[key].default,Array(64).fill(0),'each eye defaults to an empty 8x8 pattern');
       assert.equal(await page.locator(`${gridSelector(key)} .matrix-cell`).count(),64);
       assert.equal(await page.locator(`${gridSelector(key)} .matrix-cell:enabled`).count(),60);
       assert.deepEqual(await page.locator(`${gridSelector(key)} .matrix-cell:disabled`).evaluateAll(nodes=>nodes.map(node=>Number(node.dataset.matrixIndex))),corners);
     }
+    assert.deepEqual(await eyeState(page),{leftPattern:Array(64).fill(0),rightPattern:Array(64).fill(0)},'a newly added eye block leaves both eyes blank');
     const isolation=await page.evaluate(()=>CardModels.list().map(model=>({id:model.id,extra:Object.values(model.catalog).flatMap(group=>group.cards).filter(card=>['tilt-wait','eye-matrix'].includes(card.id)).map(card=>card.id)})));
     assert.deepEqual(isolation.find(model=>model.id==='xiaobai').extra,['tilt-wait','eye-matrix']);
     assert.ok(isolation.filter(model=>model.id!=='xiaobai').every(model=>model.extra.length===0),'new blocks belong only to Xiaobai');
@@ -94,10 +96,6 @@ async function xiaobaiTouch(browser,base,viewport){
     const normalized=await page.evaluate(()=>normalizeParamValue(cardById['eye-matrix'].paramsSchema.leftPattern,Array(64).fill(1)));
     assert.equal(normalized.reduce((sum,value)=>sum+value,0),60);
     corners.forEach(index=>assert.equal(normalized[index],0));
-    await page.evaluate(()=>{
-      setActiveParamValue('leftPattern',Array(64).fill(0));
-      setActiveParamValue('rightPattern',Array(64).fill(0));
-    });
     const cdp=await context.newCDPSession(page);
     const before=await eyeState(page),historyBefore=await page.evaluate(()=>historyIndex);
     await stroke(page,cdp,'leftPattern',[17,18,19,20,21]);

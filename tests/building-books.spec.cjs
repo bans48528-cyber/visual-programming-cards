@@ -40,6 +40,11 @@ const config={xiaobai:[{id:'test',title:'测试图册',entries:fixture.slice(0,3
  await openBuildingBook(p);await p.locator('.build-cta').click();await p.setViewportSize({width:844,height:390});await p.evaluate(()=>new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r))));await p.evaluate(()=>{finishBookStop();CardProgram.stop=originalBookStop;});await vf.locator('body[data-ready=true]').waitFor({timeout:30000});await p.evaluate(()=>CardBuildings.back());await p.locator('.building-viewer').waitFor({state:'hidden'});await ready();
  await p.evaluate(()=>CardModelSession.select('tc01'));await p.getByRole('tab',{name:'搭建图',exact:true}).click();await p.getByText('暂无搭建图',{exact:true}).waitFor();assert.equal(await p.locator('.book-button').count(),0);assert.equal(await p.locator('#buildingBooksReader').isVisible(),false);assert.equal(await p.locator('.building-viewer iframe').getAttribute('src'),null);
  assert.deepEqual(errors,[]);
- const production=JSON.parse(fs.readFileSync('building-catalog.json','utf8')),productionBooks=JSON.parse(fs.readFileSync('building-books.json','utf8'));assert.equal(productionBooks.xiaobai.length,6);assert.equal(new Set(productionBooks.xiaobai.map(book=>book.id)).size,6);for(const book of productionBooks.xiaobai)assert.deepEqual(book.entries,Array(8).fill('duck-v2-test'));assert.equal(production.xiaobai.length,1,'repeated pages reuse one actual model');for(const [id,entries] of Object.entries(production))if(id!=='xiaobai')assert.equal(entries.length,0);
+ const production=JSON.parse(fs.readFileSync('building-catalog.json','utf8')),productionBooks=JSON.parse(fs.readFileSync('building-books.json','utf8'));
+ assert.equal(productionBooks.xiaobai.length,6);assert.equal(new Set(productionBooks.xiaobai.map(book=>book.id)).size,6);
+ assert.deepEqual(productionBooks.xiaobai[0].entries,['guide-robot','guide-swing','guide-fan','guide-crawler','guide-simple-car','guide-turnaround-car']);
+ for(const book of productionBooks.xiaobai.slice(1))assert.deepEqual(book.entries,Array(8).fill('duck-v2-test'));
+ assert.equal(production.xiaobai.length,7,'six guide models plus one shared test model');
+ for(const [id,entries] of Object.entries(production))if(id!=='xiaobai')assert.equal(entries.length,0);
  console.log('PASS real touch swipe, vertical/jitter/multitouch cancel, slider preview/cancel/commit, rapid turns, album/page return, settings/back, resize during viewer load, 5 viewports, isolation and production catalog.');
 }finally{await browser.close();}})().catch(e=>{console.error(e);process.exitCode=1});

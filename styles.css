@@ -1,5 +1,7 @@
     :root {
       color-scheme: light;
+      /* Use each control's own pressed state instead of the WebView tap overlay. */
+      -webkit-tap-highlight-color: transparent;
       --ink: #111820;
       --muted: #62707c;
       --line: #111820;

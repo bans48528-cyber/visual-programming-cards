@@ -1,0 +1,133 @@
+.param-popover.is-learned-command {
+  padding: 5px;
+  border: 0;
+  border-radius: 15px;
+  background: #9867e8;
+  box-shadow: 0 9px 24px rgb(74 46 118 / 20%);
+  --ink: #9867e8;
+}
+.param-popover.is-learned-command::after { border-bottom-color: #9867e8; }
+.param-popover.is-learned-command.is-above-anchor::after { border-top-color: #9867e8; }
+.learned-command-editor {
+  width: 244px;
+  max-width: calc(100vw - 32px);
+  max-height: calc(100vh - 32px);
+  max-height: calc(100dvh - 32px);
+  display: grid;
+  grid-auto-rows: max-content;
+  gap: 5px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+  scrollbar-width: thin;
+  color: #27394b;
+  font-size: 14px;
+}
+.learned-command-selector {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr) 42px;
+  align-items: center;
+  border-radius: 10px;
+  background: #fff;
+}
+.learned-command-slot { font-size: 20px; text-align: center; }
+.learned-command-arrow {
+  min-width: 42px;
+  min-height: 40px;
+  padding: 0;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: #9867e8;
+  font: 700 34px/1 system-ui, sans-serif;
+}
+.learned-command-state { padding: 5px 12px 1px; color: white; text-align: center; font-weight: 600; font-size: 13px; }
+.learned-command-state[data-state="loading"] { opacity: .85; }
+.learned-command-memo, .learned-command-action {
+  min-height: 38px;
+  width: 100%;
+  padding: 7px 10px;
+  border: 0;
+  border-radius: 10px;
+  color: #352549;
+  background: #fff;
+  font-family: inherit;
+  font-size: 17px;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+.learned-command-memo { max-height: 66px; overflow-y: auto; color: #67537c; font-size: 15px; touch-action: pan-y; }
+.learned-command-action { font-weight: 700; }
+.learned-command-hint { margin: 1px 6px 4px; font-size: 12px; line-height: 1.45; color: #fff; text-align: center; }
+.learned-command-editor button, .xiaobai-learned-dialog button { cursor: pointer; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+.learned-command-editor button:disabled { opacity: .5; cursor: default; }
+.learned-command-editor button:active:not(:disabled), .xiaobai-learned-dialog button:active:not(:disabled) { transform: translateY(1px); }
+.learned-command-editor button:focus-visible, .xiaobai-learned-dialog button:focus-visible { outline: 3px solid #ffca35; outline-offset: 1px; }
+.learned-command-editor [hidden], .xiaobai-learned-dialog [hidden] { display: none; }
+
+.xiaobai-learned-dialog {
+  box-sizing: border-box;
+  position: fixed;
+  inset: 0;
+  margin: auto;
+  width: min(560px, calc(100vw - 40px));
+  max-width: calc(100vw - 40px);
+  max-height: calc(100vh - 24px);
+  max-height: calc(100dvh - 24px);
+  padding: 0;
+  border: 1px solid #ddd2ed;
+  border-radius: 22px;
+  background: #fff;
+  color: #283b4c;
+  box-shadow: 0 20px 70px rgb(30 39 54 / 24%);
+  overflow-x: hidden;
+  overflow-y: auto;
+  touch-action: pan-y;
+  overscroll-behavior: contain;
+  -webkit-tap-highlight-color: transparent;
+}
+.xiaobai-learned-dialog::backdrop { background: rgb(32 47 65 / 34%); }
+.xiaobai-learned-dialog[open] { animation: learned-dialog-appear 160ms ease-out; }
+.learned-dialog-content { padding: 23px 30px 25px; text-align: center; }
+.learned-dialog-eyebrow { color: #9060d4; font-size: 12px; font-weight: 700; letter-spacing: .08em; }
+.learned-dialog-content h2 { margin: 5px 0 13px; font-size: 23px; line-height: 1.3; }
+.learned-dialog-description { margin: 9px auto 0; line-height: 1.6; font-size: 15px; color: #61778a; overflow-wrap: anywhere; }
+.learned-dialog-robot { display: block; width: 180px; height: 150px; object-fit: contain; margin: 0 auto 9px; user-select: none; pointer-events: none; }
+.learned-dialog-progress { min-height: 56px; }
+.learned-dialog-phase { display: block; color: #6d44a8; font-size: 18px; }
+.learned-dialog-note { margin: 12px 0 0; line-height: 1.5; color: #778b9b; font-size: 13px; }
+.learned-dialog-actions { display: flex; justify-content: center; gap: 12px; margin-top: 22px; }
+.learned-dialog-actions button {
+  min-width: 110px;
+  min-height: 42px;
+  padding: 9px 22px;
+  border: 1px solid transparent;
+  border-radius: 11px;
+  font-family: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.25;
+}
+.learned-dialog-primary { color: white; background: #9060df; box-shadow: 0 4px 12px rgb(137 86 218 / 16%); }
+.learned-dialog-secondary { color: #556b7e; background: #f0f4f8; border-color: #e0e7ee !important; }
+.learned-dialog-actions button:disabled { opacity: .5; cursor: default; }
+.learned-memo-label { display: block; margin: 20px 0 7px; text-align: left; font-size: 13px; font-weight: 600; color: #677e90; }
+.learned-memo-input { box-sizing: border-box; width: 100%; padding: 12px 14px; min-height: 46px; border: 1px solid #cbd7e3; border-radius: 10px; font: inherit; font-size: 16px; color: #283b4c; background: #fbfcff; user-select: text; }
+.learned-memo-input:focus { outline: 2px solid #b594ea; outline-offset: 1px; border-color: transparent; }
+.learned-dialog-error { color: #a53e47; line-height: 1.5; font-size: 13px; }
+.xiaobai-learned-dialog[data-view="confirm"] .learned-dialog-description { color: #465a6b; font-size: 17px; margin-top: 20px; }
+@keyframes learned-dialog-appear { from { opacity: 0; transform: translateY(8px) scale(.98); } to { opacity: 1; transform: none; } }
+@media (orientation: landscape) and (max-height: 430px) {
+  .learned-dialog-content { padding: 14px 25px 16px; }
+  .learned-dialog-content h2 { font-size: 20px; margin-bottom: 8px; }
+  .learned-dialog-robot { width: 160px; height: 120px; margin-bottom: 5px; }
+  .learned-dialog-phase { font-size: 16px; }
+  .learned-dialog-description { font-size: 13px; margin-top: 6px; }
+  .learned-dialog-actions { margin-top: 14px; }
+  .learned-memo-label { margin-top: 13px; }
+}
+@media (orientation: landscape) and (max-height: 350px) {
+  .learned-dialog-robot { width: 112px; height: 84px; }
+}
+@media (prefers-reduced-motion: reduce) { .xiaobai-learned-dialog[open] { animation: none; } }

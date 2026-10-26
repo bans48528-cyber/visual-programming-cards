@@ -14,8 +14,8 @@
     const recognizedLines = ["开始", "下一步", "再来一次", "你好", "再见", "谢谢", "打开", "关闭", "前进", "后退"];
 
     // Confirmed by the user on 2026-10-16: 8 x 8 per eye, with four corner LEDs absent.
-    const eyePattern = () => ["00111100", "01111110", "11000011", "11000011", "11000011", "11000011", "01111110", "00111100"].join("").split("").map(Number);
-    const eyeParam = label => ({label, type: "matrix", rows: 8, columns: 8, disabledIndexes: [0, 7, 56, 63], default: eyePattern()});
+    const emptyEyePattern = () => Array(64).fill(0);
+    const eyeParam = label => ({label, type: "matrix", rows: 8, columns: 8, disabledIndexes: [0, 7, 56, 63], default: emptyEyePattern()});
 
     const categories = {
       motor: {
@@ -53,7 +53,7 @@
           { id: "wait-time", label: "等待时间", type: "logic", kind: "action", paramsSchema: { duration: durationParam("等待时间") } },
           { id: "tilt-wait", label: "等待倾倒", type: "logic", paramsSchema: {
             direction: { label: "倾倒方向", type: "select", default: "forward", options: [
-              {value: "forward", label: "向前", bubble: "先前倾倒"},
+              {value: "forward", label: "向前", bubble: "向前倾倒"},
               {value: "backward", label: "向后", bubble: "向后倾倒"},
               {value: "left", label: "向左", bubble: "向左倾倒"},
               {value: "right", label: "向右", bubble: "向右倾倒"}
@@ -80,7 +80,8 @@
           { id: "display-number", label: "显示数字", type: "dynamic", paramsSchema: { value: { label: "数字", type: "number", default: 0, min: 0, max: 100, step: 1, integer: true } } },
           { id: "display-off", label: "关闭显示", type: "dynamic" },
           { id: "speech-play", label: "语音播报", type: "dynamic", paramsSchema: { phrase: { label: "播报词条", type: "select", default: "P01", options: speechLines.map((label, index) => ({ value: `P${String(index + 1).padStart(2, "0")}`, label, bubble: `P${String(index + 1).padStart(2, "0")}` })) } } },
-          { id: "speech-wait", label: "等待词条", type: "dynamic", paramsSchema: { phrase: { label: "识别词条", type: "select", default: "ASR_01", options: recognizedLines.map((label, index) => ({ value: `ASR_${String(index + 1).padStart(2, "0")}`, label })) } } }
+          { id: "speech-wait", label: "等待词条", type: "dynamic", paramsSchema: { phrase: { label: "识别词条", type: "select", default: "ASR_01", options: recognizedLines.map((label, index) => ({ value: `ASR_${String(index + 1).padStart(2, "0")}`, label })) } } },
+          { id: "self-learned-wait", label: "自学习口令", type: "dynamic", paramsSchema: { slot: { label: "指令编号", type: "number", default: 1, min: 1, max: 10, step: 1, integer: true } } }
         ]
       }
     };

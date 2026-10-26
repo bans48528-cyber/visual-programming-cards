@@ -1,6 +1,110 @@
 {
   "xiaobai": [
     {
+      "id": "guide-robot",
+      "name": "小白机器人",
+      "description": "穿上亮黄色大鞋子，伸出透明小手臂，小白机器人正式亮相！方方的大脑袋搭配青蓝色小身体，显得憨憨的，又很有精神。它微微张开双臂，像在说“你好呀”，也像准备给新朋友一个拥抱。几种清爽的颜色和简洁的积木线条，就拼出了一个让人想亲近的小伙伴，摆在桌边也能给日常添一点童趣。",
+      "tags": [
+        "小白机器人",
+        "人形造型",
+        "黄色大鞋",
+        "透明手臂",
+        "青蓝配色",
+        "萌趣伙伴",
+        "桌面摆件",
+        "积木创意"
+      ],
+      "cover": "assets/building-books/guide-robot.webp",
+      "file": "assets/building-models/xiaobai-guide-robot.io",
+      "companionProgram": "guide-robot-intro"
+    },
+    {
+      "id": "guide-swing",
+      "name": "摇摆模型",
+      "description": "青柠色底座上，小白顶着大脑袋稳稳登场，侧边还伸出一根带着金黄色圆球的小杆，活像举着指挥棒的迷你乐队指挥。黑色支架与亮绿色连接件搭在一起，把支点和连接结构清楚地展现出来。圆圆的底座、大大的脑袋，再加上一点俏皮的不对称，让这个摇摆主题的小造型有了随时准备打拍子的神气！",
+      "tags": [
+        "摇摆模型",
+        "小白机器人",
+        "摇摆主题",
+        "支点结构",
+        "球头小杆",
+        "迷你指挥家",
+        "机械趣味",
+        "创意搭建"
+      ],
+      "cover": "assets/building-books/guide-swing.webp",
+      "file": "assets/building-models/xiaobai-guide-swing.io",
+      "companionProgram": "guide-swing-intro"
+    },
+    {
+      "id": "guide-fan",
+      "name": "小风扇",
+      "description": "四片绿色扇叶舒展开来，像一株长在积木底座上的四叶草。青蓝色立柱托起灰白色电机，小白主机安安稳稳地坐在旁边，仿佛这座迷你“清凉工作站”的小管家。扇叶、转轴和支架一目了然，让常见的风扇也有了可以细细观察的机械趣味。把生活中的小物件变成积木作品，原来可以这么有意思！",
+      "tags": [
+        "小风扇",
+        "积木风扇",
+        "小白机器人",
+        "四叶造型",
+        "电机结构",
+        "旋转主题",
+        "生活小发明",
+        "机械启蒙"
+      ],
+      "cover": "assets/building-books/guide-fan.webp",
+      "file": "assets/building-models/xiaobai-guide-fan.io"
+    },
+    {
+      "id": "guide-crawler",
+      "name": "爬行者",
+      "description": "大大的脑袋、粗粗的轮胎，再配上一副青柠色小支架，爬行者就像一位背着装备出发的迷你探险家。露在外面的齿轮和青蓝色轮轴，让这副小身板多了几分机械趣味。别看它造型紧凑，那股认真向前的架势可一点不含糊——桌面上的探险故事，就从它登场开始！",
+      "tags": [
+        "爬行者",
+        "积木造型",
+        "小白机器人",
+        "轮式结构",
+        "齿轮元素",
+        "迷你探险家",
+        "机械趣味",
+        "创意搭建"
+      ],
+      "cover": "assets/building-books/guide-crawler.webp",
+      "file": "assets/building-models/xiaobai-guide-crawler.io"
+    },
+    {
+      "id": "guide-simple-car",
+      "name": "简易小车",
+      "description": "谁说简单的小车不能有自己的个性？青柠色车头配上青蓝色弧形装饰，像是悄悄扬起了一张笑脸；两侧的黑色轮胎则给它添上了精神十足的运动范儿。侧面透明轮盘与红色传动带格外抢眼，把平时藏起来的机械结构变成了造型亮点。顶着小白的大脑袋，这位圆滚滚的小伙伴，已经摆好了出发的姿势！",
+      "tags": [
+        "简易小车",
+        "积木小车",
+        "小白机器人",
+        "皮带传动",
+        "透明轮盘",
+        "可爱造型",
+        "机械启蒙",
+        "创意搭建"
+      ],
+      "cover": "assets/building-books/guide-simple-car.webp",
+      "file": "assets/building-models/xiaobai-guide-simple-car.io"
+    },
+    {
+      "id": "guide-turnaround-car",
+      "name": "掉头小车",
+      "description": "把小白的大脑袋放低，再搭上两道青柠色弧形护栏，掉头小车就有了一副贴地出发的机灵模样。修长的车身向后延伸，灰白色电机和醒目的黑色车轮组成了利落的尾部，像一辆脑洞十足的迷你概念车。它没有复杂的外壳，独特的布局本身就是看点——仿佛刚想到一个新方向，下一秒就要换条路线去探险！",
+      "tags": [
+        "掉头小车",
+        "积木小车",
+        "小白机器人",
+        "低姿态造型",
+        "弧形护栏",
+        "转向主题",
+        "迷你概念车",
+        "创意搭建"
+      ],
+      "cover": "assets/building-books/guide-turnaround-car.webp",
+      "file": "assets/building-models/xiaobai-guide-turnaround-car.io"
+    },
+    {
       "id": "duck-v2-test",
       "name": "机器鸭 v2",
       "description": "测试搭建图 · 仅适用于小白",

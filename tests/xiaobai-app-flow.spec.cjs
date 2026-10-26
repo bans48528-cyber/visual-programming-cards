@@ -19,9 +19,17 @@ const BASE='http://127.0.0.1:4173/dist/';
     await page.evaluate(()=>{program=[{id:'motor-forward',params:{port:'L/M1',duration:.1}},{id:'infrared-wait',params:{comparison:'greater',threshold:30}},{id:'display-off',params:{}}];renderProgram();});
     await page.getByRole('button',{name:'程序开始，运行程序',exact:true}).tap();
     await page.waitForFunction(()=>!document.getElementById('runProgramBtn').disabled);
-    const actions=await page.evaluate(()=>mockBle.calls.filter(call=>call.method==='write').map(call=>Array.from(atob(call.data),c=>c.charCodeAt(0))).filter(frame=>frame[4]===0xc2&&frame[5]));
+    const actions=await page.evaluate(()=>mockBle.calls.filter(call=>call.method==='write').map(call=>Array.from(atob(call.data),c=>c.charCodeAt(0))).filter(frame=>frame[4]===0xc2&&frame[5]&&frame[6]<0x52));
     assert.deepEqual(actions.map(frame=>frame[6]),[0x10,0x30,0x42]);
     assert.deepEqual(actions[1].slice(7,10),[1,0,30],'IR uses middle channel');
+    await page.evaluate(()=>{
+      const left=Array(64).fill(0),right=Array(64).fill(0);left[1]=1;right[55]=1;
+      program=[{id:'eye-matrix',params:{leftPattern:left,rightPattern:right}}];renderProgram();
+    });
+    await page.getByRole('button',{name:'程序开始，运行程序',exact:true}).tap();
+    await page.waitForFunction(()=>!document.getElementById('runProgramBtn').disabled);
+    const matrix=await page.evaluate(()=>mockBle.calls.filter(call=>call.method==='write').map(call=>Array.from(atob(call.data),c=>c.charCodeAt(0))).filter(frame=>frame[6]===0x43));
+    assert.deepEqual(matrix.map(frame=>frame.slice(7,15)),[[1,0,0,1,0,0,0,0],[1,1,0,0,0,0,0,0],[1,2,0,0,0,64,0,0]],'edited eyes reach all three native BLE writes');
     await page.evaluate(()=>CardRemote.open());await page.waitForFunction(()=>mockBle.calls.some(call=>call.method==='write'&&atob(call.data).charCodeAt(6)===2));
     await page.locator('[data-remote-key=Y]').click();
     await page.waitForFunction(()=>mockBle.calls.some(call=>call.method==='write'&&atob(call.data).charCodeAt(4)===0xc1&&atob(call.data).charCodeAt(9)===1));

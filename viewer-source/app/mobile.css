@@ -1,5 +1,8 @@
 html,body{margin:0;overscroll-behavior:none}canvas{touch-action:none}#main_canvas{display:block}#viewer-message{position:fixed;inset:0;z-index:10000;display:flex;align-items:center;justify-content:center;background:#fff;color:#222;font:16px system-ui;padding:24px;white-space:pre-wrap;overflow-wrap:anywhere}#viewer-message[hidden]{display:none}#viewer-message a{color:#254f7d}.viewer-failure{max-width:560px}button,input{font-size:16px}
 
+/* Iframe documents do not inherit the host app's touch feedback settings. */
+:root{-webkit-tap-highlight-color:transparent}
+
 /* Instructions occupy one viewport. Settings keep their own scrollable document. */
 html.viewer-instructions{position:fixed;inset:0;width:100%;height:100%;overflow:hidden}
 .viewer-instructions body,.viewer-instructions #main_canvas_holder{width:100%;height:100%;overflow:hidden}

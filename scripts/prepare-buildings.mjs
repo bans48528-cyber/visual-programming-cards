@@ -14,14 +14,22 @@ for(const [device,entries]of Object.entries(catalog))for(const entry of entries)
  if(!/^[\w-]+$/.test(device)||!/^[\w-]+$/.test(entry.id))throw Error('Invalid building identity');
  if(!/^assets\/building-models\/[\w./-]+\.(io|ldr|mpd|dat)$/i.test(entry.file)||entry.file.includes('..'))throw Error('Invalid building path');
  const source=fs.readFileSync(path.join(root,entry.file));
- let text;
+ let text;const packagedParts={};
  if(/\.io$/i.test(entry.file)){
   zip ||= await import('data:text/javascript;base64,'+fs.readFileSync(path.join(viewer,'app/zip-full.min.js')).toString('base64'));
   const reader=new zip.ZipReader(new zip.Uint8ArrayReader(source),{useWebWorkers:false});
   try{
-   const item=(await reader.getEntries()).find(e=>e.filename.toLowerCase()==='model.ldr'&&!e.directory);
+   const archive=await reader.getEntries();
+   const item=archive.find(e=>e.filename.toLowerCase()==='model.ldr'&&!e.directory);
    if(!item)throw Error('No model.ldr: '+entry.file);
    text=await item.getData(new zip.TextWriter(),{password:'soho0909',checkSignature:true});
+   // Studio stores user geometry beside model.ldr, outside its embedded submodels.
+   // Keep each archive's parts local so another model cannot replace their geometry.
+   for(const part of archive.filter(e=>!e.directory&&/^CustomParts\/.+\.dat$/i.test(e.filename))){
+    const id=part.filename.slice('CustomParts/'.length).replace(/\\/g,'/').toLowerCase();
+    if(!/^[\w./-]+\.dat$/.test(id)||id.split('/').includes('..')||Object.hasOwn(packagedParts,id))throw Error('Invalid or duplicate custom part: '+part.filename);
+    packagedParts[id]=await part.getData(new zip.TextWriter(),{password:'soho0909',checkSignature:true});
+   }
   }finally{await reader.close();}
  }else text=source.toString('utf8');
  text=applyCustomParts(text.replace(/^\uFEFF/,''),custom);
@@ -30,10 +38,14 @@ for(const [device,entries]of Object.entries(catalog))for(const entry of entries)
  function collect(source){
   for(const line of source.split(/\r?\n/)){
    const ref=parseReference(line);if(!ref||embedded.has(ref.id)||Object.hasOwn(parts,ref.id))continue;
-   const part=library[ref.id];if(!part)throw Error('Missing part '+ref.id+' in '+entry.file);
-   const url=part.url||'/library/'+ref.id;
-   if(!/^\/(custom-library|library)\/[\w./-]+$/.test(url)||url.includes('..'))throw Error('Invalid part path: '+url);
-   parts[ref.id]=fs.readFileSync(path.join(viewer,url.slice(1)),'utf8');collect(parts[ref.id]);
+   if(Object.hasOwn(packagedParts,ref.id))parts[ref.id]=packagedParts[ref.id];
+   else{
+    const part=library[ref.id];if(!part)throw Error('Missing part '+ref.id+' in '+entry.file);
+    const url=part.url||'/library/'+ref.id;
+    if(!/^\/(custom-library|library)\/[\w./-]+$/.test(url)||url.includes('..'))throw Error('Invalid part path: '+url);
+    parts[ref.id]=fs.readFileSync(path.join(viewer,url.slice(1)),'utf8');
+   }
+   collect(parts[ref.id]);
   }
  }
  collect(text);

@@ -13,6 +13,7 @@
  const alive=token=>token===epoch&&reader.open;
  const key=()=>session.model.id+'/'+session.book.id;
  const image=entry=>escape(entry.cover||session?.model.image||'');
+ const theme=book=>book.theme==='mint'?'mint':'blue';
  // A single cover coordinate system keeps type and artwork proportional at every card size.
  // SVG viewBox scaling also works on Android WebViews without container query units.
  function cover(book,model){
@@ -24,11 +25,14 @@
    <circle class="cover-orbit" cx="117" cy="187" r="83"/>
    <ellipse class="cover-ground" cx="120" cy="269" rx="40" ry="4"/>
    <image class="cover-model" href="${escape(book.cover||book.pages[0].cover||model.image)}" x="23" y="103" width="188" height="172" preserveAspectRatio="xMidYMid meet"/>
-   <text class="cover-motto" x="34" y="291">把想象，搭成模样</text><text class="cover-arrow" x="202" y="292" text-anchor="end">↗</text>
+   <text class="cover-motto" x="34" y="291">${escape(book.motto||'把想象，搭成模样')}</text><text class="cover-arrow" x="202" y="292" text-anchor="end">↗</text>
   </svg></div>`;
  }
- function left(i){const {book,model}=session,e=book.pages[i];return `<section class="paper visual-page"><div class="page-topline"><span>${escape(model.name)} · 造型收藏</span><span>${i+1} / ${book.pages.length}</span></div><div class="drawing-stage"><img src="${image(e)}" alt="${escape(e.name)}积木造型" draggable="false"></div><div class="visual-footer"><div class="visual-caption">${escape(book.title)}</div><button type="button" class="build-cta" aria-label="去搭建${escape(e.name)}"><span>去搭建</span>${arrow}</button></div></section>`;}
- function right(i){const {book,model}=session,e=book.pages[i];return `<section class="paper story-page"><div class="story-index">${escape(book.title)}</div><h2>${escape(e.name)}</h2><p class="story-description">${escape(e.description||'跟随搭建步骤，把造型一点点搭出来。')}</p><div class="story-tags"><span>${escape(model.name)}</span></div><div class="story-bottom"><span>一块一块，把灵感变成作品</span><strong>${String(i+1).padStart(2,'0')}</strong></div></section>`;}
+ function left(i){const {book,model}=session,e=book.pages[i];return `<section class="paper visual-page"><div class="page-topline"><span>${escape(model.name)} · 造型收藏</span><span>${i+1} / ${book.pages.length}</span></div><div class="drawing-stage"><img src="${image(e)}" alt="${escape(e.name)}积木造型" draggable="false"></div><div class="visual-footer"><div class="visual-caption">${escape(book.title)}</div><button type="button" class="build-cta" aria-label="去搭建${escape(e.name)}"><span>去搭建</span>${arrow}</button>${e.companionProgram&&session.onProgram?`<button type="button" class="program-cta" aria-label="去编程${escape(e.name)}"><span>去编程</span>${arrow}</button><p class="program-open-error" role="alert" hidden></p>`:''}</div></section>`;}
+ function right(i){
+  const {book,model}=session,e=book.pages[i],tags=Array.isArray(e.tags)&&e.tags.length?e.tags:[model.name];
+  return `<section class="paper story-page"><div class="story-index">${escape(book.title)}</div><h2>${escape(e.name)}</h2><p class="story-description">${escape(e.description||book.introduction||'跟随搭建步骤，把造型一点点搭出来。')}</p><div class="story-tags">${tags.map(tag=>`<span>${escape(tag)}</span>`).join('')}</div><div class="story-bottom"><span>${escape(book.closingNote||'一块一块，把灵感变成作品')}</span><strong>${String(i+1).padStart(2,'0')}</strong></div></section>`;
+ }
  function position(i){const pages=session.book.pages;range.setAttribute('aria-valuetext',`第 ${i+1} 页，共 ${pages.length} 页，${pages[i].name}`);$('current-page').textContent=i+1;$('page-name').textContent=pages[i].name;range.style.setProperty('--progress',`${i/Math.max(1,pages.length-1)*100}%`);}
  // The thumb tracks the requested page immediately; the paper may still be turning.
  function controls(){if(!session)return;const n=session.book.pages.length;range.max=n;range.disabled=n<=1;prev.disabled=session.desired<=0;next.disabled=session.desired>=n-1;$('total-pages').textContent=n;if(!scrubber.active){range.value=session.desired+1;position(session.desired);} $('reader-announcement').textContent=`${session.book.title}，第 ${session.index+1} 页，共 ${n} 页`;}
@@ -39,7 +43,7 @@
  function cleanAnimation(){for(const a of animations)a.cancel();animations.clear();reader.querySelectorAll('.opening-cover,.turning-sheet,.cover-flight').forEach(e=>e.remove());}
  function cancelTouch(){swipe.cancel();scrubber.cancel();}
  function closeNow(){epoch++;cancelTouch();cleanAnimation();if(session)memory.set(key(),session.index);if(reader.open)reader.close();reader.classList.remove('is-ready','is-closing');shell.classList.remove('has-paper');spread.replaceChildren();turning=false;closeRequested=false;setPhase('closed');}
- async function open(book,model,opener,onBuild){if(phase!=='closed')return;const token=++epoch;session={book,model,opener,onBuild,index:Math.min(memory.get(model.id+'/'+book.id)||0,book.pages.length-1)};session.desired=session.index;closeRequested=false;setPhase('opening');$('reader-title').textContent=book.title;$('series-mark').textContent=book.number;reader.classList.remove('is-ready','is-closing');shell.classList.remove('has-paper');render();const source=opener.getBoundingClientRect();reader.showModal();
+ async function open(book,model,opener,onBuild,onProgram){if(phase!=='closed')return;const token=++epoch;session={book,model,opener,onBuild,onProgram,index:Math.min(memory.get(model.id+'/'+book.id)||0,book.pages.length-1)};session.desired=session.index;closeRequested=false;reader.dataset.theme=theme(book);setPhase('opening');$('reader-title').textContent=book.title;$('series-mark').textContent=book.number;reader.classList.remove('is-ready','is-closing');shell.classList.remove('has-paper');render();const source=opener.getBoundingClientRect();reader.showModal();
   const f=flight(source);await animate(f.el,[{transform:f.from},{transform:f.to}],{duration:300,easing:'cubic-bezier(.2,.75,.25,1)'});if(!alive(token))return;
   const l=leaf();shell.classList.add('has-paper');f.el.remove();spread.firstElementChild.style.visibility='hidden';await animate(l,[{transform:'rotateY(0deg)'},{transform:'rotateY(-180deg)'}],{duration:420,easing:'cubic-bezier(.25,.7,.25,1)'});if(!alive(token))return;
   l.remove();render();setPhase('open');reader.classList.add('is-ready');$('close-reader').focus({preventScroll:true});if(closeRequested)close();
@@ -57,11 +61,32 @@
  const scrubber=BookTouchControls.bindScrubber(range,{enabled:()=>['open','turning'].includes(phase)&&!closeRequested&&!range.disabled,onPreview:page=>position(page-1),onCommit:page=>turnTo(page-1),onCancel:controls});
  prev.onclick=()=>turnTo(session.desired-1);next.onclick=()=>turnTo(session.desired+1);$('close-reader').onclick=()=>close();
  reader.addEventListener('cancel',e=>{e.preventDefault();close();});reader.addEventListener('click',e=>{if(e.target===reader)close();});
- spread.addEventListener('click',e=>{if(!e.target.closest('.build-cta'))return;if(phase!=='open'||closeRequested)return;cancelTouch();memory.set(key(),session.index);session.onBuild(session.model,session.book.pages[session.index]);});
+ spread.addEventListener('click',async e=>{
+  const button=e.target.closest('.build-cta,.program-cta');if(!button||button.disabled||phase!=='open'||closeRequested)return;
+  cancelTouch();memory.set(key(),session.index);
+  if(button.matches('.build-cta')){session.onBuild(session.model,session.book.pages[session.index]);return;}
+  const current=window.CardBuildingBooks.capture(),error=button.parentElement.querySelector('.program-open-error');
+  button.disabled=true;button.setAttribute('aria-busy','true');button.querySelector('span').textContent='正在打开…';error.hidden=true;
+  try{await session.onProgram(session.model,session.book.pages[session.index]);}
+  catch(cause){if(current()){error.textContent=cause.message||'配套程序打开失败，请重试';error.hidden=false;}}
+  finally{if(button.isConnected){button.disabled=false;button.removeAttribute('aria-busy');button.querySelector('span').textContent='去编程';}}
+ });
  function settle(){if(phase==='closed')return;const closing=closeRequested||phase==='closing';epoch++;cancelTouch();cleanAnimation();turning=false;if(closing){closeNow();return;}if(phase==='turning')session.index=session.desired;render();shell.classList.add('has-paper');reader.classList.add('is-ready');setPhase('open');}
  document.addEventListener('pointerdown',e=>{if(!e.isPrimary)cancelTouch();},{capture:true,passive:true});document.addEventListener('visibilitychange',()=>{if(document.hidden)settle();});window.addEventListener('resize',settle);window.addEventListener('pagehide',()=>closeNow());
  // Each configured occurrence is a page; repeated pages share the same catalog model/cache.
  function booksFor(model,entries,config){const used=new Set(),lookup=new Map(entries.map(e=>[e.id,e])),books=[];for(const item of config?.[model.id]||[]){if(!item.id||books.some(b=>b.id===item.id))continue;const pages=(item.entries||[]).map(id=>lookup.get(id)).filter(Boolean);if(!pages.length)continue;pages.forEach(e=>used.add(e.id));books.push({...item,pages});}const remaining=entries.filter(e=>!used.has(e.id));if(remaining.length)books.push({id:'unassigned',title:books.length?'未分组图册':'测试图册',description:model.name+' · 搭建造型',pages:remaining});return books.map((b,i)=>({...b,number:String(i+1).padStart(2,'0')}));}
- function mount(grid,model,books,onBuild){const shelf=document.createElement('div');shelf.className='building-books-shelf';for(const book of books){const article=document.createElement('article');article.className='book-item';article.innerHTML=`<button type="button" class="book-button" data-book-id="${escape(book.id)}" data-model-id="${escape(model.id)}" aria-label="打开${escape(book.title)}，${book.pages.length}页">${cover(book,model)}</button><div class="book-caption"><h2>${escape(book.title)}</h2><p>${escape(book.description||model.name)} · ${book.pages.length} 页</p></div>`;const button=article.querySelector('button');button.onclick=()=>open(book,model,button,onBuild);shelf.append(article);}grid.replaceChildren(shelf);}
- window.CardBuildingBooks={element:reader,booksFor,mount,close,capture(){const owner=session,index=session?.index;return ()=>reader.open&&session===owner&&session.index===index&&phase==='open'&&!closeRequested;},get isOpen(){return reader.open;},back(){if(!reader.open)return false;close();return true;}};
+ function mount(grid,model,books,onBuild,onProgram){const shelf=document.createElement('div');shelf.className='building-books-shelf';for(const book of books){const article=document.createElement('article');article.className='book-item';article.dataset.theme=theme(book);article.innerHTML=`<button type="button" class="book-button" data-book-id="${escape(book.id)}" data-model-id="${escape(model.id)}" aria-label="打开${escape(book.title)}，${book.pages.length}页">${cover(book,model)}</button><div class="book-caption"><h2>${escape(book.title)}</h2><p>${escape(book.description||model.name)} · ${book.pages.length} 页</p></div>`;const button=article.querySelector('button');button.onclick=()=>open(book,model,button,onBuild,onProgram);shelf.append(article);}grid.replaceChildren(shelf);}
+ // Temporarily leave the reader for its companion program, keeping album/page ownership.
+ function suspend(){
+  if(!reader.open||!session)return null;
+  const owner=session,scope=CardModelSession.capture();let used=false;
+  closeNow();
+  return async()=>{
+   if(used||!scope.isCurrent()||phase!=='closed')return false;
+   const opener=[...document.querySelectorAll('.book-button')].find(button=>button.dataset.bookId===owner.book.id&&button.dataset.modelId===owner.model.id);
+   if(!opener)return false;used=true;
+   await open(owner.book,owner.model,opener,owner.onBuild,owner.onProgram);return true;
+  };
+ }
+ window.CardBuildingBooks={element:reader,booksFor,mount,close,suspend,capture(){const owner=session,index=session?.index;return ()=>reader.open&&session===owner&&session.index===index&&phase==='open'&&!closeRequested;},get isOpen(){return reader.open;},back(){if(!reader.open)return false;close();return true;}};
 })();
