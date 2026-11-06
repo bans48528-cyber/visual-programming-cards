@@ -22,7 +22,7 @@ async function create(browser,scenario={}){
  const page=await context.newPage(),errors=[];page.on('pageerror',e=>errors.push(e.message));
  await page.goto(BASE+'#home');await page.waitForFunction(()=>CardBluetooth?.firmware&&!CardPageTransition?.busy);
  const bundle=await page.evaluate(async()=>{const b=await XiaobaiFirmwareBundle.load();return{signature:b.pkg.signatureVerified,sha:b.pkg.packageSha256,version:b.pkg.version};});
- eq(bundle,{signature:true,sha:'a4951259ca4ca31cf0ec1acad5ea6e1b1f232d1989e93b86170e074d3a7178d9',version:0x10003},'actual frozen signed 1.0.3 package loaded');
+ eq(bundle,{signature:true,sha:target.packageSha256,version:target.version},'actual currently bound frozen signed package loaded');
  return{context,page,errors};
 }
 async function enter(page){await page.locator('#newProject').tap();await page.waitForFunction(()=>location.hash==='#editor'&&!CardPageTransition.busy);await page.locator('#xiaobaiFirmwareDialog').waitFor({state:'visible'});await page.waitForFunction(()=>CardBluetooth.firmware.snapshot().canUpgrade&&!CardBluetooth.firmware.snapshot().busy);}

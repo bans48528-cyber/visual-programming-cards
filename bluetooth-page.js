@@ -41,11 +41,11 @@ window.CardBluetoothPage = (() => {
     page.querySelectorAll('.bt-sheet').forEach(dialog=>dialog.querySelector('.bt-sheet-close').onclick=()=>dialog.close());
     return page;
   }
-  function status(page,{connected=false,connecting=false,scanning=false,count=0}={}) {
-    const hero=page.querySelector('.bt-hero-state');
-    hero.classList.toggle('is-connected',connected);hero.classList.toggle('is-busy',connecting||scanning);
-    hero.querySelector('span').textContent=connected?'已连接':connecting?'正在连接…':scanning?'正在扫描…':'尚未连接';
-    page.querySelector('.bt-hero-note').textContent=connected?'已记为默认设备，下次优先连接':'打开主机电源，保持在手机附近';
+  function status(page,{connected=false,connecting=false,scanning=false,count=0,otaConnection=null}={}) {
+    const hero=page.querySelector('.bt-hero-state'),otaConnected=otaConnection?.phase==='connected',otaConnecting=otaConnection?.phase==='connecting';
+    hero.classList.toggle('is-connected',connected||otaConnected);hero.classList.toggle('is-busy',connecting||scanning||otaConnecting);
+    hero.querySelector('span').textContent=otaConnected?(otaConnection.bootInfoVerified?'已读取引导状态':'升级通道已连接'):otaConnecting?'正在连接升级主机…':connected?'已连接':connecting?'正在连接…':scanning?'正在扫描…':'尚未连接';
+    page.querySelector('.bt-hero-note').textContent=otaConnected?(otaConnection.bootInfoVerified?'正在恢复主控，完成后再进入编程':'正在读取引导状态，尚未进入编程'):otaConnecting?'正在连接原绑定主机，请保持主机供电':connected?'已记为默认设备，下次优先连接':'打开主机电源，保持在手机附近';
     page.querySelector('.bt-device-count').textContent=count||'';
     page.querySelector('.bt-current').classList.toggle('is-pending',connecting&&!connected);
   }

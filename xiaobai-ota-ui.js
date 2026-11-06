@@ -4,6 +4,7 @@
   const dialog=document.createElement('dialog');dialog.id='xiaobaiFirmwareDialog';dialog.className='firmware-dialog';
   dialog.setAttribute('aria-labelledby','firmwareTitle');dialog.setAttribute('aria-describedby','firmwareMessage');
   dialog.innerHTML=`<div class="firmware-content"><img class="firmware-robot" src="assets/devices/xiaobai-product.webp" alt="小白主机"><div class="firmware-copy"><h2 id="firmwareTitle">正在核对小白</h2><p id="firmwareMessage" role="status" aria-live="polite"></p></div>
+    <p class="firmware-connection" role="status" aria-live="polite" hidden></p>
     <dl class="firmware-versions"><div><dt>主机版本</dt><dd class="firmware-current">未确认</dd></div><div><dt>本 App 对应版本</dt><dd class="firmware-target">—</dd></div></dl>
     <div class="firmware-progress-wrap" hidden><progress class="firmware-progress" value="0" max="1" aria-label="设备已提交固件进度"></progress><output class="firmware-progress-text"></output></div>
     <p class="firmware-help" hidden></p></div>
@@ -11,7 +12,7 @@
   document.body.append(dialog);
   const $=selector=>dialog.querySelector(selector),textVersion=value=>Number.isInteger(value)?XiaobaiOtaProtocol.versionText(value):'未确认';
   let current=null,off=null,state=null,cancelling=false,rendering=false,followUpgrade=false,managedCloses=0;
-  const titles={checking:'正在核对小白',ready:'小白已就绪','update-required':'小白需要更新',newer:'请更新 App',unknown:'主机版本尚未确认',upgrading:'正在更新小白',recovery:'需要恢复更新',success:'小白更新完成'};
+  const titles={checking:'正在核对小白',ready:'小白已就绪','update-required':'小白需要更新','boot-update-required':'需要更新主控引导程序',newer:'请更新 App',unknown:'主机版本尚未确认',upgrading:'正在更新小白',recovery:'需要恢复更新',confirming:'正在确认小白',unconfirmed:'待连接确认',success:'小白更新完成'};
   function service(){return window.CardModelSession?.current.id==='xiaobai'?window.CardBluetooth?.firmware:null;}
   function bind(){
     const next=service();if(next===current)return;
@@ -28,23 +29,29 @@
       if(!open){if(dialog.open){managedCloses++;dialog.close();}return;}
       const session=s.session||{},progress=s.progress||session;
       const busy=Boolean(s.busy&&s.phase!=='checking')||Boolean(session.busy),written=Boolean(session.written);
+      const bootBlocked=['BOOT_VERSION','BOOT_UNKNOWN'].includes(s.code);
+      const confirming=!bootBlocked&&Boolean(s.confirmationOnly||session.confirmationOnly||s.phase==='unconfirmed'||progress.phase==='confirming');
       dialog.dataset.phase=s.phase;dialog.dataset.written=String(written);
-      $('#firmwareTitle').textContent=written&&['recovery','unknown'].includes(s.phase)?'固件已写入，启动尚未确认':titles[s.phase]||'小白固件';
+      $('#firmwareTitle').textContent=bootBlocked?(s.code==='BOOT_VERSION'?'需要更新主控引导程序':'引导版本尚未确认'):confirming?(busy?'正在确认启动状态':'待连接确认'):written&&['recovery','unknown'].includes(s.phase)?'固件已写入，启动尚未确认':titles[s.phase]||'小白固件';
       $('#firmwareMessage').textContent=s.message||'小白需更新到本 App 对应版本，才能学习和运行作品。';
       $('.firmware-current').textContent=textVersion(s.currentVersion??s.actual?.info?.version??s.actual?.version);
       $('.firmware-target').textContent=textVersion(s.targetVersion??s.target?.version??s.target?.firmware?.version);
       const total=progress.total||session.total||0,committed=progress.committed??session.committed??0;
-      $('.firmware-progress-wrap').hidden=!(total>0&&(busy||written||s.phase==='recovery'));
+      $('.firmware-progress-wrap').hidden=!(total>0&&!bootBlocked&&!confirming&&['begin','transfer','finish'].includes(progress.phase));
       $('.firmware-progress').max=total||1;$('.firmware-progress').value=Math.min(total,Math.max(0,committed));
       $('.firmware-progress-text').textContent=`已提交 ${Math.floor(committed/Math.max(1,total)*100)}%`;
-      const help=$('.firmware-help');help.hidden=!(busy||s.phase==='recovery'||written);
-      help.textContent=written?'启动检查通过后才会解除限制。无需重复写入，作品不会自动运行。':s.phase==='recovery'?'保持原主机供电。恢复时会先确认写入状态，未完成的传输从头开始。':'请保持主机供电、手机在附近并停留前台。更新后不会自动运行作品。';
+      const connection=window.CardBluetooth?.ota?.connectionState?.()||{phase:'idle',epoch:null};
+      const connectionText=confirming?(s.actual?.epoch?'已连接主机，正在确认启动状态…':busy?'正在查找并确认原主机…':'等待连接原主机后确认'):connection.phase==='connecting'?'正在连接原主机的升级通道…':connection.phase==='connected'?(connection.epoch&&session.bootInfoEpoch===connection.epoch?'已读取引导状态':'升级通道已连接，正在读取引导状态…'):busy?'正在准备更新连接…':'尚未建立升级连接';
+      const connectionOutput=$('.firmware-connection');connectionOutput.hidden=!(busy||s.phase==='recovery'||confirming);
+      connectionOutput.textContent=connectionText;connectionOutput.dataset.state=connection.phase;
+      const help=$('.firmware-help');help.hidden=bootBlocked||!(busy||s.phase==='recovery'||written||confirming);
+      help.textContent=bootBlocked?'':confirming?'将核对原主机身份、镜像和启动状态，确认后恢复编程。请保持主机供电、手机在附近并停留前台。':written?'启动检查通过后才会解除限制。无需重复写入，作品不会自动运行。':s.phase==='recovery'?'保持原主机供电。恢复时会先确认写入状态，未完成的传输从头开始。':'请保持主机供电、手机在附近并停留前台。更新后不会自动运行作品。';
       const confirm=$('.firmware-confirm');confirm.hidden=busy||(!s.canUpgrade&&s.phase!=='success'&&s.phase!=='ready');
-      confirm.disabled=busy||cancelling;confirm.textContent=s.phase==='success'||s.phase==='ready'?'完成':'确定';
-      const retry=$('.firmware-retry');retry.hidden=busy||s.canUpgrade||!['unknown','recovery'].includes(s.phase);retry.disabled=cancelling;
-      retry.textContent=written?'重试启动检查':s.phase==='recovery'?'恢复更新':'重新检查';
+      confirm.disabled=busy||cancelling;confirm.textContent=s.phase==='success'||s.phase==='ready'?'完成':s.phase==='recovery'?'连接并恢复':'确定';
+      const retry=$('.firmware-retry');retry.hidden=busy||s.canUpgrade||!['unknown','recovery','unconfirmed'].includes(s.phase);retry.disabled=cancelling;
+      retry.textContent=bootBlocked?'重新核对引导版本':confirming?'重试确认':written?'重试启动检查':s.phase==='recovery'?'恢复更新':'重新检查';
       const cancel=$('.firmware-cancel');cancel.hidden=s.phase==='success'||s.phase==='ready';cancel.disabled=cancelling;
-      cancel.textContent=cancelling?'正在取消…':busy?'取消更新':'稍后再说';
+      cancel.textContent=cancelling?'正在取消…':busy?(confirming?'取消确认':'取消更新'):'稍后再说';
       if(!dialog.open){window.closeParamEditor?.();dialog.showModal();}
     }finally{rendering=false;window.CardProgram?.refresh();window.CardLearnedCommands?.refresh?.();}
   }
@@ -67,6 +74,7 @@
     bind();if(location.hash!=='#editor'&&current?.snapshot?.().busy)cancel(true).catch(()=>{});else render(current?.snapshot?.());
   };
   window.addEventListener('xiaobai-firmware-change',()=>{bind();render(current?.snapshot?.());});
+  window.addEventListener('xiaobai-ota-connection-change',()=>render(current?.snapshot?.()));
   window.addEventListener('hashchange',scopeChanged);
   window.addEventListener('card-bluetooth-route',scopeChanged);
   document.addEventListener('visibilitychange',()=>{if(document.hidden)cancel(true).catch(()=>{});else scopeChanged();});

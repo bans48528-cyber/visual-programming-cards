@@ -2,14 +2,14 @@
 
 设备型号架构和接入说明见 [docs/DEVICE_MODELS.md](docs/DEVICE_MODELS.md)。小白保持原有功能，LBS2206 已接入独立模块（业务发送待实物验证，见 [接入状态](docs/LBS2206_INTEGRATION.md)），型号、作品和默认蓝牙设备分别管理；网页用于界面预览，硬件操作在 Android APP 中验证。
 
-当前版本：Android 1.2.10（versionCode 16），固定内置 PY32 1.0.3。分支：`xiaobai/remote-blocks`。发布校验及边界见 [1.2.10 交付记录](docs/RELEASE_1.2.10.md)。
+当前候选：Android 1.2.15（versionCode21），唯一内置已签名PY32 1.0.4，最低Boot1.0.1。旧Boot明确提示DAP组合更新并禁止普通蓝牙升级。软件回归和实际APK核验通过，整机验收由主线程继续。详见 [1.2.15交付记录](docs/RELEASE_1.2.15.md)。此前 [1.2.14只读收尾](docs/RELEASE_1.2.14.md) 与 [1.2.13完整OTA/冷启动](docs/RELEASE_1.2.13.md) 的实测范围分别保留。
 
 - 支持小白积木、作品保存与手动遥控。手机负责程序顺序、循环和等待时间；设备按 C2 指令执行电机、红外、显示和语音动作。
 - 手动遥控仍使用 C1：Y/A 控制左电机正/反，X/B 控制右电机正/反，L 加速、R 减速。
 - 编程界面进入编程模式并保持心跳；遥控界面进入遥控模式。定时动作与条件等待按序号等待 DONE。程序停止发送 STOP_PROGRAM。
 - Android 原生允许校验通过的 C1/C2 定长帧，优先写 FFF2，订阅 FFF1，必要时退回 FFF1 写入。
 - 蓝牙自动连接默认设备；首次使用选择信号最强的兼容设备。支持设备本地改名，默认设备和名称会保留。
-- APK：`artifacts/drluck-codelab-1.2.10-debug.apk`，包名 `com.xiaobai.remote`，覆盖安装保留作品和设备绑定。
+- APK：`artifacts/drluck-codelab-1.2.13-debug.apk`，包名 `com.xiaobai.remote`，覆盖安装保留作品和设备绑定。
 - 构建：powershell -ExecutionPolicy Bypass -File scripts/android.ps1。无需 Pika 编译器。
 - 测试：npm test。安装及验证范围见 [小白安装说明](docs/XIAOBAI_APP.md)。
 

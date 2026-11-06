@@ -6,6 +6,18 @@ window.createXiaobaiBluetooth = ({model=CardModels.get('xiaobai')}={}) => {
   const prefs=window.XiaobaiDevicePreferences.create(localStorage,model.id);
   const timing=window.__XIAOBAI_BLE_TIMING||model.bluetooth.timing;
   let disposed=false,otaExclusive=false,firmware=null;
+  let otaConnection=Object.freeze({phase:'idle',epoch:null,deviceId:null});
+  const otaConnectionState=()=>Object.freeze({...otaConnection});
+  function showOtaConnection(phase,epoch=null,deviceId=null,{expectedEpoch=null}={}){
+    if(expectedEpoch!==null&&otaConnection.epoch!==expectedEpoch)return;
+    if(disposed&&phase!=='idle')return;
+    if(phase==='idle'){epoch=null;deviceId=null;}
+    if(otaConnection.phase===phase&&otaConnection.epoch===epoch&&otaConnection.deviceId===deviceId)return;
+    otaConnection=Object.freeze({phase,epoch,deviceId});
+    window.dispatchEvent(new CustomEvent('xiaobai-ota-connection-change',{detail:otaConnectionState()}));
+    renderStatus();
+  }
+  const clearOtaConnection=epoch=>showOtaConnection('idle',null,null,{expectedEpoch:epoch??null});
   const otaReceivers=new Set(),otaDisconnectListeners=new Set();
   const lifecycle=new AbortController(),listeners=[];
   async function listen(name,fn){const handle=await native.addListener(name,event=>{if(!disposed)fn(event);});if(disposed)await handle.remove();else listeners.push(handle);}
@@ -34,8 +46,19 @@ window.createXiaobaiBluetooth = ({model=CardModels.get('xiaobai')}={}) => {
   const nameOf=device=>prefs.displayName(device);
   const withNativeName=(device,result)=>{const value={...device};for(const key of ['name','advertisedName','cachedName','nameSource','nameObservedAt','nameObservation'])if(result[key]!==undefined)value[key]=result[key];return value;};
   const valid=ticket=>!disposed&&ticket===version&&!document.hidden;
-  function status(){if(connecting)return{id:'connecting',text:`正在连接 ${nameOf(connecting)}`};if(!current||!link||link.closed)return{id:scanning?'connecting':'disconnected',text:scanning?'正在搜索设备':'设备未连接'};return link.status ? {id:link.status.id,text:`${nameOf(current)} · ${link.status.text}`} : {id:'stop',text:`${nameOf(current)} 已连接`};}
-  function renderStatus(){if(disposed)return;const value=status();statusOutput.dataset.state=value.id;statusOutput.textContent=value.text;$('.bt-current p').textContent=value.text;CardBluetoothPage.status(page,{connected:Boolean(current&&link&&!link.closed),connecting:Boolean(connecting),scanning,count:rows.size});CardBluetoothPage.nameDetails?.(page,current||connecting||{},prefs.describeName?.(current||connecting||{}));}
+  function status(){
+    if(otaConnection.phase==='connecting')return{id:'connecting',text:'正在连接升级主机…'};
+    if(otaConnection.phase==='connected')return{id:'stop',text:firmware?.session?.state?.bootInfoEpoch===otaConnection.epoch?'已读取主控引导状态':'升级通道已连接，正在读取引导状态…'};
+    if(connecting)return{id:'connecting',text:`正在连接 ${nameOf(connecting)}`};if(!current||!link||link.closed)return{id:scanning?'connecting':'disconnected',text:scanning?'正在搜索设备':'设备未连接'};return link.status ? {id:link.status.id,text:`${nameOf(current)} · ${link.status.text}`} : {id:'stop',text:`${nameOf(current)} 已连接`};}
+  function renderStatus(){
+    if(disposed)return;
+    const value=status(),connected=Boolean(current&&link&&!link.closed),otaConnected=otaConnection.phase==='connected',otaConnecting=otaConnection.phase==='connecting';
+    statusOutput.dataset.state=value.id;statusOutput.textContent=value.text;$('.bt-current p').textContent=value.text;
+    CardBluetoothPage.status(page,{connected,connecting:Boolean(connecting),scanning,count:rows.size,otaConnection:{...otaConnectionState(),bootInfoVerified:otaConnected&&firmware?.session?.state?.bootInfoEpoch===otaConnection.epoch}});
+    CardBluetoothPage.nameDetails?.(page,current||connecting||{},prefs.describeName?.(current||connecting||{}));
+    trigger.classList.toggle('is-connected',connected||otaConnected);trigger.classList.toggle('is-connecting',Boolean(connecting||scanning||requesting||otaConnecting));
+    trigger.title=trigger.ariaLabel=otaConnection.phase!=='idle'?value.text:current?`蓝牙已连接：${nameOf(current)}`:connecting?`正在连接：${nameOf(connecting)}`:scanning?'正在搜索设备':'蓝牙未连接';
+  }
   function render(){
     if(disposed)return;
     renderStatus();$('#btRadioState').textContent=!state?'检查中':!state.available?'不可用':(!state.requiresLocation&&!state.permissionsGranted)?'待授权':state.bluetoothEnabled?'已开启':'已关闭';
@@ -58,7 +81,6 @@ window.createXiaobaiBluetooth = ({model=CardModels.get('xiaobai')}={}) => {
       const button=row.querySelector('.bt-connect');button.textContent=connecting?.deviceId===device.deviceId?'连接中…':'连接';button.disabled=Boolean(current||connecting?.manual);
     });
     $('.bt-empty').hidden=Boolean(list.childElementCount||current||connecting);$('.bt-empty strong').textContent=scanning?'正在扫描…':hasScanned?'暂未发现主机':'尚未扫描';$('.bt-empty > span:last-child').textContent=scanning?'请保持主机在手机附近':hasScanned?'请重试或手动选择设备':'打开主机电源后开始扫描';
-    trigger.classList.toggle('is-connected',Boolean(current&&link&&!link.closed));trigger.classList.toggle('is-connecting',Boolean(connecting||scanning||requesting));trigger.title=trigger.ariaLabel=current?`蓝牙已连接：${nameOf(current)}`:connecting?`正在连接：${nameOf(connecting)}`:scanning?'正在搜索设备':'蓝牙未连接';
   }
   function scheduleRender(){if(renderQueued)return;renderQueued=true;setTimeout(()=>{renderQueued=false;render();},80);}
   async function refresh(){const value=await native.getState();if(disposed)return;state=value;render();return state;}
@@ -78,16 +100,19 @@ window.createXiaobaiBluetooth = ({model=CardModels.get('xiaobai')}={}) => {
     flow=null;tell(rows.size?'扫描完成，请选择设备。':'未发现设备，请重试。',!rows.size);render();
   }
   async function connectNextCandidate(active){while(valid(active.ticket)&&flow===active&&active.candidates.length){const device=active.candidates.shift();try{await establish(device,active.ticket,false);if(!valid(active.ticket)||flow!==active||current?.deviceId!==device.deviceId)return;prefs.setDefault(device.deviceId);flow=null;render();return;}catch(error){if(!valid(active.ticket)||flow!==active)return;trace('候选设备不兼容',null,`${device.deviceId} ${error.message}`);}}if(valid(active.ticket)&&flow===active){flow=null;notify(`未发现兼容的${model.name}设备，请重试或进入蓝牙界面手动选择。`);render();}}
-  async function establish(device,ticket,manual,{boundDevice=false,quiet=false}={}){
-    if(!device)throw new Error('设备已离开扫描列表，请重新扫描。');clearTimer();scanning=false;await native.stopScan().catch(()=>{});if(!valid(ticket))return;
+  async function establish(device,ticket,manual,{boundDevice=false,quiet=false,confirmationOnly=false,guard=()=>true,onConnect=()=>{}}={}){
+    const alive=()=>valid(ticket)&&guard();
+    if(!device)throw new Error('设备已离开扫描列表，请重新扫描。');clearTimer();scanning=false;await native.stopScan().catch(()=>{});if(!alive())return;
     const connectionId=crypto.randomUUID();connecting={...device,connectionId,manual};render();tell(`正在连接 ${nameOf(device)}…`);trace('连接开始',null,device.deviceId);let candidateTransport,candidate;
+    onConnect(connectionId);
     try{
       const result=await native.connect({deviceId:device.deviceId,connectionId,profile:model.bluetooth.nativeProfile||'xiaobai',boundDevice,...model.bluetooth.connectionOptions?.()});
-      if(!valid(ticket)){await native.disconnect({connectionId}).catch(()=>{});return;}
+      if(!alive()){await native.disconnect({connectionId}).catch(()=>{});return;}
       candidateTransport=new AndroidBleTransport(connectionId,result.properties);
       candidate=new protocol.Link(candidateTransport,{profile:model.bluetooth.profile?.(),onTrace:trace,onState:()=>{if(!disposed){renderStatus();window.CardProgram?.refresh();}},onEvent:event=>{
         if(disposed||transport!==candidateTransport)return;
         trace('EVENT',null,`code=${event.code} data=${Array.from(event.data).join(',')}`);
+        if(candidate?.confirmationProbe)return;
         if(model.id==='xiaobai')firmware?.onVersionEvent(event,connectionId);
         if(event.code===1&&event.data[0]!==protocol.MODE.PROGRAM)firmware?.leaveProgram('主机已切换模式。');
         if(event.code===2||(event.code===1&&event.data[0]!==protocol.MODE.PROGRAM))window.dispatchEvent(new CustomEvent('xiaobai-program-abort',{detail:event}));
@@ -96,8 +121,9 @@ window.createXiaobaiBluetooth = ({model=CardModels.get('xiaobai')}={}) => {
         if(!disposed&&link===candidate&&model.id==='xiaobai')
           window.dispatchEvent(new CustomEvent('xiaobai-program-abort',{detail:{reason:error.message}}));
       }});
+      candidate.confirmationProbe=confirmationOnly;
       if(model.id==='xiaobai')candidate.firmwareGate=firmware;
-      if(model.id==='xiaobai' && window.XiaobaiLearnedCommands) {
+      if(model.id==='xiaobai' && !confirmationOnly && window.XiaobaiLearnedCommands) {
         new XiaobaiLearnedCommands.Session(candidate,{storage:localStorage,onChange:()=>{
           if(disposed || link!==candidate)return;
           window.dispatchEvent(new Event('xiaobai-learned-change'));
@@ -106,15 +132,15 @@ window.createXiaobaiBluetooth = ({model=CardModels.get('xiaobai')}={}) => {
       }
       transport=candidateTransport;link=candidate;
       await candidate.start();
-      if(!valid(ticket))throw new Error("连接已取消。");
+      if(!alive())throw new Error("连接已取消。");
       try{await candidate.probe();}
-      catch(error){if(!valid(ticket)||!result.properties.fallbackWrite)throw error;trace('备用写入',null,'FFF2 无状态回报，改用 FFF1');await candidateTransport.useFallbackWrite();await candidate.probe();}
-      if(!valid(ticket)){candidate.close();candidate.learned?.dispose();await native.disconnect({connectionId}).catch(()=>{});return;}
+      catch(error){if(!alive()||!result.properties.fallbackWrite)throw error;trace('备用写入',null,'FFF2 无状态回报，改用 FFF1');await candidateTransport.useFallbackWrite();if(!alive())throw Object.assign(new Error('连接确认已取消。'),{code:'CANCELLED'});await candidate.probe();}
+      if(!alive()){candidate.close();candidate.learned?.dispose();await native.disconnect({connectionId}).catch(()=>{});return;}
       link=candidate;current={...withNativeName(device,result),connectionId};connecting=null;
       firmware?.attachEpoch(connectionId,{owned:quiet&&otaExclusive});
       if(!quiet&&!otaExclusive&&desiredMode===protocol.MODE.PROGRAM)await enterProgram();
       else if(!quiet&&!otaExclusive&&desiredMode===protocol.MODE.REMOTE)await candidate.enterRemote();
-      if(!valid(ticket))return;
+      if(!alive())return;
       tell(`已连接 ${nameOf(current)}。`);trace('连接就绪',null,`${device.deviceId} ${prefs.describeName?.(current)?.description||''}`);render();
     }
     catch(error){candidate?.close();candidate?.learned?.dispose();candidateTransport?.close();if(transport===candidateTransport)transport=null;if(link===candidate)link=null;if(current?.connectionId===connectionId)current=null;if(connecting?.connectionId===connectionId)connecting=null;await native.disconnect({connectionId}).catch(()=>{});render();throw error;}
@@ -133,7 +159,7 @@ window.createXiaobaiBluetooth = ({model=CardModels.get('xiaobai')}={}) => {
   async function manualConnect(device){if(disposed||otaExclusive)return;await cancelFlow('用户手动选择');const ticket=++version;flow={ticket,kind:'manual-connect',timer:null};try{await establish(device,ticket,true);if(!valid(ticket))return;prefs.setDefault(device.deviceId);flow=null;tell(`已连接并设为默认设备：${nameOf(device)}`);render();}catch(error){if(valid(ticket)){flow=null;if(await offerBoundRecovery(device,error)){render();return;}failure(new Error(`连接 ${nameOf(device)} 失败：${error.message}`));}render();}}
   async function manualScan(){if(otaExclusive)return;await cancelFlow('用户手动扫描');await beginScan('manual-scan',10000);}
   async function ensureConnected(){if(otaExclusive||disposed||!CardModelSession.selected||CardModelSession.switching)return false;if(current&&link&&!link.closed)return true;if(firmware?.hasRecovery()){firmware.onProgramRequested().catch(()=>{});return false;}if(autoPromise||flow||connecting||scanning||requesting)return autoPromise||false;autoPromise=(async()=>{const id=prefs.getDefault();await beginScan(id?'auto-default':'auto-first',id?timing.defaultScanMs:timing.firstScanMs,id);})().finally(()=>{autoPromise=null;});return autoPromise;}
-  function clearConnection({otaOwned=false}={}){firmware?.disconnected(current?.connectionId||transport?.connectionId,{owned:otaOwned});if(current&&!otaOwned)window.dispatchEvent(new Event('xiaobai-disconnected'));link?.close();link?.learned?.dispose();transport?.close();link=null;transport=null;current=null;connecting=null;render();}
+  function clearConnection({otaOwned=false}={}){firmware?.disconnected(current?.connectionId||transport?.connectionId,{owned:otaOwned});if(current&&!otaOwned)window.dispatchEvent(new Event('xiaobai-disconnected'));link?.close();link?.learned?.dispose();transport?.close();link=null;transport=null;current=null;connecting=null;clearOtaConnection();render();}
   async function disconnect(){await firmware?.cancel({background:true,reason:'用户已断开升级连接。'});await cancelFlow('用户断开');const connectionId=transport?.connectionId;clearConnection();if(connectionId)await native.disconnect({connectionId});tell('已断开连接。');}
   function renameDevice(device){if(!device)return;const dialog=$('.bt-rename-dialog'),input=dialog.querySelector('input');dialog.returnValue='';dialog.dataset.deviceId=device.deviceId;input.value=prefs.customName(device.deviceId)||'';dialog.showModal();setTimeout(()=>{input.focus();input.select();},0);}
   $('.bt-rename-dialog').addEventListener('close',event=>{const dialog=event.currentTarget;if(dialog.returnValue!=='confirm')return;try{prefs.rename(dialog.dataset.deviceId,dialog.querySelector('input').value);render();tell('设备名称已保存在本机。');}catch(error){failure(error);}});
@@ -143,6 +169,7 @@ window.createXiaobaiBluetooth = ({model=CardModels.get('xiaobai')}={}) => {
     await listen('notification',event=>{if(event.connectionId===transport?.connectionId)transport.notification(event.data);});
     await listen('otaNotification',event=>{if(event.connectionId!==transport?.connectionId)return;const bytes=Uint8Array.from(atob(event.data),c=>c.charCodeAt(0));for(const receiver of otaReceivers)receiver(bytes);});
     await listen('disconnected',event=>{
+      if(event.connectionId&&event.connectionId===otaConnection.epoch)clearOtaConnection(event.connectionId);
       if(event.connectionId===connecting?.connectionId&&!current){
         trace('连接未完成',null,event.reason);
         if(event.connectionId===transport?.connectionId)link?.rejectPending(Object.assign(new Error(event.reason||'蓝牙连接已断开。'),{code:'DISCONNECTED'}));
@@ -183,6 +210,127 @@ window.createXiaobaiBluetooth = ({model=CardModels.get('xiaobai')}={}) => {
   // OTA owns this exact native device, not a scan result with a matching name.
   const otaActive=()=>!disposed&&otaExclusive&&!document.hidden&&!firmware?.cancelled&&!firmware?.session.cancelRequested;
   const requireOta=()=>{if(!otaActive())throw Object.assign(new Error('升级连接已取消。'),{code:'CANCELLED'});};
+  let otaBoundScan=null;
+  const cancelOtaBoundScan=()=>otaBoundScan?.cancel();
+  async function freshBoundOtaAdvertisement(binding,{confirmationOnly=false,deadlineAt=Infinity}={}){
+    requireOta();
+    if(otaBoundScan)throw Object.assign(new Error('原主机广播检查尚未结束。'),{code:'BUSY'});
+    const owner={scanId:crypto.randomUUID(),generation:firmware?.session.generation,consent:firmware?.consent,started:false,cancelled:false,stopPromise:null};
+    const handles=[],removals=[],candidates=new Map();let timer,settled=false,resolveMatch,rejectMatch,device;
+    const match=new Promise((resolve,reject)=>{resolveMatch=resolve;rejectMatch=reject;});match.catch(()=>{});
+    const finish=(error,device)=>{if(settled)return;settled=true;error?rejectMatch(error):resolveMatch(device);};
+    const check=()=>{requireOta();if(otaBoundScan!==owner||owner.cancelled||firmware?.session.generation!==owner.generation||firmware?.consent!==owner.consent)throw Object.assign(new Error('升级连接准备已取消。'),{code:'CANCELLED'});};
+    const stop=()=>{
+      if(otaBoundScan!==owner||!owner.started)return Promise.resolve();
+      if(!owner.stopPromise)owner.stopPromise=Promise.resolve(native.stopScan()).catch(error=>{owner.stopError=error;});
+      return owner.stopPromise;
+    };
+    const cleanup=async()=>{await stop();for(const handle of handles.splice(0))removals.push(Promise.resolve(handle.remove()));await Promise.allSettled(removals);};
+    owner.cancel=()=>{owner.cancelled=true;finish(Object.assign(new Error('升级连接准备已取消。'),{code:'CANCELLED'}));cleanup().catch(()=>{});};
+    otaBoundScan=owner;
+    try{
+      const scanEnded=()=>confirmationOnly?finish(null,null):finish(Object.assign(new Error('10 秒内未收到原主机的新广播，请保持主机供电并在附近，稍后重试确认。'),{code:'SCAN_TIMEOUT'}));
+      check();handles.push(await native.addListener('scanResult',device=>{
+        if(settled||device.scanId!==owner.scanId)return;
+        try{
+          check();
+          if(device.deviceId===binding.deviceId){finish(null,device);return;}
+          // Radio names only shortlist a bounded set. Service/C2, fresh UID and
+          // exact INFO below are required before accepting any different locator.
+          const radioName=XiaobaiDevicePreferences.cleanRadioName(device.name)||XiaobaiDevicePreferences.cleanRadioName(device.advertisedName);
+          if(confirmationOnly&&device.deviceId&&candidates.size<3&&/^(?:Spark[_ ]?AI|BT_[0-9a-f]{12}|XiaoBai(?:[_ -].*)?|小白(?:[_ -].*)?)$/i.test(radioName))candidates.set(device.deviceId,device);
+        }catch(error){finish(error);}
+      }));check();
+      handles.push(await native.addListener('scanStopped',event=>{
+        if(settled||event.scanId!==owner.scanId)return;
+        try{check();if(event.reason==='finished')scanEnded();else finish(Object.assign(new Error('原主机广播检查已停止，请重试确认。'),{code:'SCAN_FAILED'}));}catch(error){finish(error);}
+      }));check();
+      trace('OTA 广播检查',null,`${binding.deviceId} scan=${owner.scanId}`);
+      owner.started=true;check();await native.startScan({scanId:owner.scanId,includeUnnamed:true});check();
+      timer=setTimeout(scanEnded,Math.max(0,Math.min(10000,deadlineAt-performance.now())));
+      device=await match;check();
+      trace(device?'OTA 原主机广播已确认':'OTA 确认候选扫描完成',null,`${binding.deviceId} scan=${owner.scanId}`);
+    }catch(error){
+      if(!otaActive()||owner.cancelled||firmware?.session.generation!==owner.generation||firmware?.consent!==owner.consent)throw Object.assign(new Error('升级连接准备已取消。'),{code:'CANCELLED'});
+      if(!error.code)error.code='SCAN_FAILED';throw error;
+    }finally{
+      clearTimeout(timer);await cleanup();if(otaBoundScan===owner)otaBoundScan=null;
+    }
+    requireOta();
+    if(owner.cancelled||firmware?.session.generation!==owner.generation||firmware?.consent!==owner.consent)throw Object.assign(new Error('升级连接准备已取消。'),{code:'CANCELLED'});
+    if(owner.stopError)throw Object.assign(new Error('原主机广播检查未能停止，请重新确认恢复。'),{code:'SCAN_FAILED'});
+    return confirmationOnly?{device,candidates:[...candidates.values()]}:device;
+  }
+
+  async function connectAppForConfirmation(binding,target,deadlineAt){
+    requireOta();
+    const owner={generation:firmware?.session.generation,consent:firmware?.consent,epoch:null,expired:false,reused:Boolean(current&&link&&!link.closed)};
+    const deadline=Number.isFinite(deadlineAt)?deadlineAt:performance.now()+30000;
+    const check=()=>{
+      requireOta();
+      if(owner.expired||performance.now()>=deadline)throw Object.assign(new Error('主机启动尚待连接确认，请重试确认。'),{code:'UNCONFIRMED'});
+      if(firmware?.session.generation!==owner.generation||firmware?.consent!==owner.consent)throw Object.assign(new Error('启动确认已取消。'),{code:'CANCELLED'});
+    };
+    const exact=actual=>{
+      check();const i=actual?.info;
+      if(actual?.uid!==binding.uid||!actual.deviceId||actual.epoch!==current?.connectionId)throw Object.assign(new Error('候选主机不是原绑定主机，已停止确认。'),{code:'IDENTITY'});
+      if(!target||!i||i.mode!==0||i.protocol!==XiaobaiOtaProtocol.C.OTA_PROTOCOL_VERSION||!i.imageValid||i.boardId!==target.boardId||i.version!==target.version||i.imageSize!==target.imageSize||i.imageSha256!==target.imageSha256)throw Object.assign(new Error('原主机镜像尚未匹配，请重新核对固件。'),{code:'IMAGE_MISMATCH'});
+      return actual;
+    };
+    const closeCandidate=async()=>{
+      const id=owner.epoch;if(!id)return;
+      if(transport?.connectionId===id||current?.connectionId===id||connecting?.connectionId===id)clearConnection({otaOwned:true});
+      await native.disconnect({connectionId:id}).catch(()=>{});
+      if(owner.epoch===id)owner.epoch=null;
+    };
+    const readUid=async()=>{
+      const candidate=link,id=current?.connectionId;const bytes=[];
+      for(let part=0;part<2;part++){
+        check();if(!candidate||candidate!==link||candidate.closed||id!==current?.connectionId)throw Object.assign(new Error('候选主机连接已变化。'),{code:'DISCONNECTED'});
+        const data=await candidate.request(candidate.nextSeq(),protocol.OP.READ_UID,[part],Math.max(1,Math.min(1800,deadline-performance.now())),(data,result)=>result!==0||data[0]===part);
+        check();if(candidate!==link||candidate.closed||id!==current?.connectionId)throw Object.assign(new Error('候选主机连接已变化。'),{code:'DISCONNECTED'});
+        if(data.length!==7||data[0]!==part)throw Object.assign(new Error('候选主机没有有效的小白身份反馈。'),{code:'IDENTITY'});
+        bytes.push(...data.slice(1));
+      }
+      return bytes.map(n=>n.toString(16).padStart(2,'0')).join('');
+    };
+    let timer;
+    const timeout=new Promise((resolve,reject)=>{timer=setTimeout(()=>{
+      owner.expired=true;if(owner.scan&&otaBoundScan===owner.scan)owner.scan.cancel();
+      if(!owner.reused)closeCandidate().catch(()=>{});
+      reject(Object.assign(new Error('主机启动尚待连接确认，请重试确认。'),{code:'UNCONFIRMED'}));
+    },Math.max(0,deadline-performance.now()));});
+    const operation=(async()=>{
+      check();
+      // A valid current App is never disconnected merely to confirm it again.
+      if(owner.reused)return exact(await otaAdapter.readApp({guard:()=>{check();return true;}}));
+      await otaAdapter.disconnect();check();
+      const scanning=freshBoundOtaAdvertisement(binding,{confirmationOnly:true,deadlineAt:deadline});owner.scan=otaBoundScan;
+      const scan=await scanning;check();
+      const candidates=scan.device?[scan.device]:scan.candidates;let last;
+      for(const device of candidates){
+        check();
+        try{
+          const ticket=++version;
+          await establish(device,ticket,false,{boundDevice:device.deviceId===binding.deviceId,quiet:true,confirmationOnly:true,guard:()=>{check();return true;},onConnect:id=>{owner.epoch=id;}});check();
+          if(await readUid()!==binding.uid)throw Object.assign(new Error('候选 UID 与原主机不符。'),{code:'IDENTITY'});
+          const actual=await otaAdapter.readApp({guard:()=>{check();return true;}});check();
+          return exact(actual);
+        }catch(error){
+          last=error;
+          // Keep the real original App available for a new explicit version check.
+          if(error.code==='IMAGE_MISMATCH')throw error;
+          await closeCandidate();check();
+          if(device.deviceId===binding.deviceId&&error.code==='IDENTITY')throw error;
+          trace('OTA 确认候选已拒绝',null,`${device.deviceId} ${error.code||error.message}`);
+        }
+      }
+      throw Object.assign(new Error(`原主机启动尚待连接确认${last?`：${last.message}`:''}。请保持主机供电后重试确认。`),{code:'UNCONFIRMED'});
+    })();
+    operation.catch(()=>{});
+    try{return await Promise.race([operation,timeout]);}finally{clearTimeout(timer);}
+  }
+
   const otaAdapter=model.id!=='xiaobai'?null:{
     traceOta(stage,detail=''){if(!disposed)trace('OTA '+stage,null,typeof detail==='string'?detail:JSON.stringify(detail));},
     async prepare(){
@@ -200,7 +348,7 @@ window.createXiaobaiBluetooth = ({model=CardModels.get('xiaobai')}={}) => {
       window.CardProgram?.refresh();
     },
     async release(){
-      otaExclusive=false;
+      cancelOtaBoundScan();clearOtaConnection();otaExclusive=false;
       if(link&&!link.closed&&link.learned?.disposed&&window.XiaobaiLearnedCommands){
         new XiaobaiLearnedCommands.Session(link,{storage:localStorage,onChange:()=>{window.dispatchEvent(new Event('xiaobai-learned-change'));window.CardProgram?.refresh();}});
       }
@@ -244,7 +392,7 @@ window.createXiaobaiBluetooth = ({model=CardModels.get('xiaobai')}={}) => {
     },
     raw(){
       const id=transport?.connectionId;if(!id)throw Object.assign(new Error('主控升级连接已断开。'),{code:'DISCONNECTED'});
-      return{subscribe(fn){otaReceivers.add(fn);return()=>otaReceivers.delete(fn);},onDisconnect(fn){const listener=event=>{if(event.connectionId===id)fn(event);};otaDisconnectListeners.add(listener);return()=>otaDisconnectListeners.delete(listener);},write(bytes){if(id!==transport?.connectionId||!otaExclusive)throw Object.assign(new Error('升级连接已变化。'),{code:'DISCONNECTED'});return native.writeOta({connectionId:id,data:btoa(String.fromCharCode(...bytes))});}};
+      return{get connectionId(){return id;},subscribe(fn){otaReceivers.add(fn);return()=>otaReceivers.delete(fn);},onDisconnect(fn){const listener=event=>{if(event.connectionId===id)fn(event);};otaDisconnectListeners.add(listener);return()=>otaDisconnectListeners.delete(listener);},write(bytes){if(id!==transport?.connectionId||!otaExclusive)throw Object.assign(new Error('升级连接已变化。'),{code:'DISCONNECTED'});return native.writeOta({connectionId:id,data:btoa(String.fromCharCode(...bytes))});}};
     },
     async enterBoot(){
       requireOta();
@@ -270,37 +418,58 @@ window.createXiaobaiBluetooth = ({model=CardModels.get('xiaobai')}={}) => {
       requireOta();
       if(id!==transport?.connectionId)throw Object.assign(new Error('主机已切换升级连接，需重新读取 Boot。'),{code:'DISCONNECTED'});
       target.close();await target.queue;if(link===target)link=null;
+      showOtaConnection('connecting',id,current?.deviceId||null);
       try{await native.beginOta({connectionId:id});}
-      catch(error){if(id!==transport?.connectionId)error.code='DISCONNECTED';throw error;}
-      requireOta();return this.raw();
+      catch(error){clearOtaConnection(id);if(id!==transport?.connectionId)error.code='DISCONNECTED';throw error;}
+      try{requireOta();}catch(error){clearOtaConnection(id);throw error;}
+      showOtaConnection('connected',id,current?.deviceId||null,{expectedEpoch:id});return this.raw();
     },
     async connectBoot(binding){
       if(!binding?.uid||!binding.deviceId)throw new Error('缺少原主机绑定身份。');
-      requireOta();await this.disconnect();await ready;requireOta();
+      requireOta();await this.disconnect();requireOta();await ready;requireOta();
+      await freshBoundOtaAdvertisement(binding);requireOta();
       const id=crypto.randomUUID();trace('OTA Boot 重连',null,`${binding.deviceId} epoch=${id}`);
-      const result=await native.connect({deviceId:binding.deviceId,connectionId:id,profile:'xiaobai',boundDevice:true});
-      if(!otaActive()){await native.disconnect({connectionId:id});requireOta();}
-      transport=new AndroidBleTransport(id,result.properties);current={...withNativeName({deviceId:binding.deviceId,name:binding.name},result),connectionId:id};firmware?.attachEpoch(id,{owned:true});
-      await native.subscribe({connectionId:id});requireOta();await native.beginOta({connectionId:id});requireOta();trace('OTA Boot 通道就绪',null,`epoch=${id}`);return this.raw();
+      showOtaConnection('connecting',id,binding.deviceId);
+      try{
+        const result=await native.connect({deviceId:binding.deviceId,connectionId:id,profile:'xiaobai',boundDevice:true});
+        if(!otaActive()){await native.disconnect({connectionId:id});requireOta();}
+        transport=new AndroidBleTransport(id,result.properties);current={...withNativeName({deviceId:binding.deviceId,name:binding.name},result),connectionId:id};firmware?.attachEpoch(id,{owned:true});
+        await native.subscribe({connectionId:id});requireOta();await native.beginOta({connectionId:id});requireOta();
+        showOtaConnection('connected',id,binding.deviceId,{expectedEpoch:id});trace('OTA Boot 通道就绪',null,`epoch=${id}`);return this.raw();
+      }catch(error){clearOtaConnection(id);throw error;}
     },
-    async connectApp(binding){
+    async connectApp(binding,{confirmationOnly=false,target=null,deadlineAt}={}){
       if(!binding?.uid||!binding.deviceId)throw new Error('缺少升级前的主机身份。');
-      requireOta();await this.disconnect();requireOta();const ticket=++version;trace('OTA App 重连',null,`${binding.deviceId} ticket=${ticket}`);
-      await establish({deviceId:binding.deviceId,name:binding.name||'小白'},ticket,false,{boundDevice:true,quiet:true});requireOta();
+      if(confirmationOnly)return connectAppForConfirmation(binding,target,deadlineAt);
+      requireOta();await this.disconnect();requireOta();
+      const device=await freshBoundOtaAdvertisement(binding);requireOta();
+      const ticket=++version;trace('OTA App 重连',null,`${binding.deviceId} ticket=${ticket}`);
+      await establish(device,ticket,false,{boundDevice:true,quiet:true});requireOta();
     },
-    async disconnect(){const id=transport?.connectionId;clearConnection({otaOwned:true});otaReceivers.clear();if(id)await native.disconnect({connectionId:id}).catch(()=>{});},
+    async disconnect(){cancelOtaBoundScan();const id=transport?.connectionId||connecting?.connectionId;clearConnection({otaOwned:true});otaReceivers.clear();if(id)await native.disconnect({connectionId:id}).catch(()=>{});},
+    connectionState:otaConnectionState,
     get connected(){return Boolean(current&&link&&!link.closed);},
     get nativeSupported(){return state?.otaTransportVersion===1;},
     identity(){return current&&link&&!link.closed?{epoch:current.connectionId,deviceId:current.deviceId}:null;},
-    async enterProgramRaw(){if(!current||!link||link.closed)throw new Error('编程连接已断开。');desiredMode=protocol.MODE.PROGRAM;await link.enterProgram();},
-    async initializeLearned(){if(!link||link.closed||!firmware?.snapshot().ready)throw new Error('固件尚未核对。');await link.learned?.initialize();}
+    async enterProgramRaw(){if(!current||!link||link.closed)throw new Error('编程连接已断开。');const candidate=link,id=current.connectionId;desiredMode=protocol.MODE.PROGRAM;await candidate.enterProgram();if(link!==candidate||candidate.closed||current?.connectionId!==id)throw new Error('编程连接已变化。');candidate.confirmationProbe=false;},
+    adoptConfirmedLocator(actual,previousDeviceId){
+      if(!current||!link||link.closed||actual.epoch!==current.connectionId||actual.deviceId!==current.deviceId||firmware?.session.binding?.uid!==actual.uid||firmware?.session.binding?.deviceId!==actual.deviceId)throw new Error('主机确认连接已变化。');
+      const saved=prefs.getDefault();
+      if(saved===previousDeviceId||saved===actual.deviceId)prefs.setDefault(actual.deviceId);
+    },
+    async initializeLearned({confirmationEpoch=null}={}){
+      const snapshot=firmware?.snapshot(),confirmed=confirmationEpoch&&confirmationEpoch===current?.connectionId&&confirmationEpoch===snapshot?.actual?.epoch&&confirmationEpoch===firmware?.session.state.healthVerifiedEpoch&&snapshot.busy;
+      if(!link||link.closed||(!snapshot?.ready&&!confirmed))throw new Error('固件尚未核对。');
+      if(!link.learned&&window.XiaobaiLearnedCommands){const candidate=link;new XiaobaiLearnedCommands.Session(candidate,{storage:localStorage,onChange:()=>{if(!disposed&&link===candidate){window.dispatchEvent(new Event('xiaobai-learned-change'));window.CardProgram?.refresh();}}});}
+      await link.learned?.initialize();
+    }
 
   };
   if(model.id==='xiaobai'&&window.XiaobaiFirmware)firmware=new XiaobaiFirmware.Gate(otaAdapter,{storage:localStorage,onChange:snapshot=>{
-    window.dispatchEvent(new CustomEvent('xiaobai-firmware-change',{detail:snapshot}));window.CardProgram?.refresh();
+    window.dispatchEvent(new CustomEvent('xiaobai-firmware-change',{detail:snapshot}));window.CardProgram?.refresh();renderStatus();
   }});
   const api={ota:otaAdapter,firmware,disconnect,cancelAuto:()=>cancelFlow('切换设备型号'),async dispose(){
-    if(disposed)return;await firmware?.dispose();disposed=true;lifecycle.abort();clearInterval(statusTimer);
+    if(disposed)return;await firmware?.dispose();clearOtaConnection();disposed=true;lifecycle.abort();clearInterval(statusTimer);
     const pending=cancelFlow('切换设备型号');
     const connectionId=transport?.connectionId;link?.close();link?.learned?.dispose();transport?.close();link=null;transport=null;current=null;
     page.remove();trigger.classList.remove('is-connected','is-connecting');statusOutput.dataset.state='disconnected';statusOutput.textContent='设备未连接';

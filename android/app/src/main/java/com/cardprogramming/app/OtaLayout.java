@@ -27,8 +27,8 @@ final class OtaLayout {
     static final int OTA_MAX_PAYLOAD=0x000000a0;
     static final int OTA_FRAME_MAX=0x000000b0;
     static final int OTA_DATA_MAX=0x00000080;
-    static final int OTA_APP_VERSION=0x00010003;
-    static final int OTA_BOOT_VERSION=0x00010000;
+    static final int OTA_APP_VERSION=0x00010004;
+    static final int OTA_BOOT_VERSION=0x00010001;
     static final int OTA_MANIFEST_MAGIC=0x314d4258;
     static final int OTA_INFO_MAGIC=0x31494258;
     static final int OTA_RECORD_MAGIC=0x31564258;

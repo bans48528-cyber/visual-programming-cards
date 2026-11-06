@@ -91,6 +91,121 @@
         },
         "schemaVersion": 1
       }
+    },
+    {
+      "manifestSha256": "58b049bdd33fc508008ce7bcc453146c981187625876bef5cfb96b3c73faee95",
+      "release": {
+        "app": {
+          "applicationId": "com.xiaobai.remote",
+          "versionCode": 17,
+          "versionName": "1.2.11"
+        },
+        "firmware": {
+          "asset": "assets/firmware/xiaobai_py32_1.0.3.ota",
+          "boardId": 258,
+          "imageSha256": "9401ff24056f6b884f195554c459af85ce31f04530667bdbd8ad1db131ad7514",
+          "imageSize": 32312,
+          "minBootVersion": 65536,
+          "packageSha256": "a4951259ca4ca31cf0ec1acad5ea6e1b1f232d1989e93b86170e074d3a7178d9",
+          "packageSize": 32440,
+          "protocol": 1,
+          "version": 65539,
+          "versionName": "1.0.3"
+        },
+        "schemaVersion": 1
+      }
+    },
+    {
+      "manifestSha256": "5eb7f0b381551a6aa65505c038470500b48e7b06ac5778326fc0bb5f65cee639",
+      "release": {
+        "app": {
+          "applicationId": "com.xiaobai.remote",
+          "versionCode": 18,
+          "versionName": "1.2.12"
+        },
+        "firmware": {
+          "asset": "assets/firmware/xiaobai_py32_1.0.3.ota",
+          "boardId": 258,
+          "imageSha256": "9401ff24056f6b884f195554c459af85ce31f04530667bdbd8ad1db131ad7514",
+          "imageSize": 32312,
+          "minBootVersion": 65536,
+          "packageSha256": "a4951259ca4ca31cf0ec1acad5ea6e1b1f232d1989e93b86170e074d3a7178d9",
+          "packageSize": 32440,
+          "protocol": 1,
+          "version": 65539,
+          "versionName": "1.0.3"
+        },
+        "schemaVersion": 1
+      }
+    },
+    {
+      "manifestSha256": "3eb856c202f3583476791aa85cb3d0dde42ab6f749ff5ec293fa0a9f1fd4f2bc",
+      "release": {
+        "app": {
+          "applicationId": "com.xiaobai.remote",
+          "versionCode": 19,
+          "versionName": "1.2.13"
+        },
+        "firmware": {
+          "asset": "assets/firmware/xiaobai_py32_1.0.3.ota",
+          "boardId": 258,
+          "imageSha256": "9401ff24056f6b884f195554c459af85ce31f04530667bdbd8ad1db131ad7514",
+          "imageSize": 32312,
+          "minBootVersion": 65536,
+          "packageSha256": "a4951259ca4ca31cf0ec1acad5ea6e1b1f232d1989e93b86170e074d3a7178d9",
+          "packageSize": 32440,
+          "protocol": 1,
+          "version": 65539,
+          "versionName": "1.0.3"
+        },
+        "schemaVersion": 1
+      }
+    },
+    {
+      "manifestSha256": "65f79cba695066ec70e185243a60e4baeb2066066964391ab65fb7f96d900541",
+      "release": {
+        "app": {
+          "applicationId": "com.xiaobai.remote",
+          "versionCode": 20,
+          "versionName": "1.2.14"
+        },
+        "firmware": {
+          "asset": "assets/firmware/xiaobai_py32_1.0.3.ota",
+          "boardId": 258,
+          "imageSha256": "9401ff24056f6b884f195554c459af85ce31f04530667bdbd8ad1db131ad7514",
+          "imageSize": 32312,
+          "minBootVersion": 65536,
+          "packageSha256": "a4951259ca4ca31cf0ec1acad5ea6e1b1f232d1989e93b86170e074d3a7178d9",
+          "packageSize": 32440,
+          "protocol": 1,
+          "version": 65539,
+          "versionName": "1.0.3"
+        },
+        "schemaVersion": 1
+      }
+    },
+    {
+      "manifestSha256": "3d44cafdcece1572f970cf2732269cad6d289bcd43fc8ca1ac21354168d380c9",
+      "release": {
+        "app": {
+          "applicationId": "com.xiaobai.remote",
+          "versionCode": 21,
+          "versionName": "1.2.15"
+        },
+        "firmware": {
+          "asset": "assets/firmware/xiaobai_py32_1.0.4.ota",
+          "boardId": 258,
+          "imageSha256": "fc473b50f3f37ef8b151f07fd6f20e6a99e6824ee8bebcff67a6b148240edbce",
+          "imageSize": 32260,
+          "minBootVersion": 65537,
+          "packageSha256": "d9f1777bd27a01a8650a4e2c320fd3213a9b9ad89d3aee2ab33f2e0e73ce9e9d",
+          "packageSize": 32388,
+          "protocol": 1,
+          "version": 65540,
+          "versionName": "1.0.4"
+        },
+        "schemaVersion": 1
+      }
     }
   ],
   "schemaVersion": 1

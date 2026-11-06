@@ -14,7 +14,7 @@ module.exports=function mockFirmware(options){
     if(id===control.connectionId){control.connectionId=null;control.subscribed=false;control.rawActive=false;control.nativePending=null;}
     control.emit('disconnected',{connectionId:id,reason});
   };
-  control.appAvailable=options.appAvailable!==false;control.appIdentity={protocol:1,boardId:258,bootVersion:65536,version:options.version??target.version,mode:0,imageValid:options.imageValid!==false,state:0,lastError:0,imageSize:target.imageSize,nextOffset:0,imageSha256:target.imageSha256};
+  control.appAvailable=options.appAvailable!==false;control.appIdentity={protocol:1,boardId:258,bootVersion:options.bootVersion??target.minBootVersion,version:options.version??target.version,mode:0,imageValid:options.imageValid!==false,state:0,lastError:0,imageSize:target.imageSize,nextOffset:0,imageSha256:target.imageSha256};
   if(control.appIdentity.version!==target.version){control.appIdentity.imageSize=320;control.appIdentity.imageSha256='1'.repeat(64);}
   if(options.collision)control.appIdentity.imageSha256='2'.repeat(64);
   if(!control.appAvailable)control.appIdentity.mode=1;

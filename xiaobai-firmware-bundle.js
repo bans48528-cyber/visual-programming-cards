@@ -6,7 +6,7 @@
   const immutable=value=>{if(value&&typeof value==='object'){for(const child of Object.values(value))immutable(child);Object.freeze(value);}return value;};
   // This pin is generated only when a signed package is bound to a new App release.
   // BEGIN GENERATED FIRMWARE RELEASE PIN
-  const METADATA=immutable({"bound":true,"app":{"applicationId":"com.xiaobai.remote","versionName":"1.2.10","versionCode":16},"firmware":{"boardId":258,"protocol":1,"version":65539},"manifestSha256":"94ad4838bb1d29ceee8b03865e8a0ebfcb7744dd5882ed0ce051d5c50d7848f0"});
+  const METADATA=immutable({"bound":true,"app":{"applicationId":"com.xiaobai.remote","versionName":"1.2.15","versionCode":21},"firmware":{"boardId":258,"protocol":1,"version":65540},"manifestSha256":"3d44cafdcece1572f970cf2732269cad6d289bcd43fc8ca1ac21354168d380c9"});
   // END GENERATED FIRMWARE RELEASE PIN
   const MANIFEST_ASSET='assets/firmware/release.json';
   const HASH=/^[0-9a-f]{64}$/;

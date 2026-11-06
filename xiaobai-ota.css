@@ -8,6 +8,7 @@
 .firmware-copy{align-self:center;min-width:0}
 .firmware-copy h2{font-size:22px;line-height:1.3;margin:0 0 8px;font-weight:750}
 .firmware-copy p{font-size:14px;line-height:1.65;color:#526d83;margin:0;overflow-wrap:anywhere}
+.firmware-connection{grid-column:1 / -1;font-size:14px;line-height:1.5;font-weight:650;margin:0;color:#203b53;overflow-wrap:anywhere}
 .firmware-versions{grid-column:1 / -1;display:grid;grid-template-columns:1fr 1fr;gap:20px;margin:0;padding:16px 0;border-top:1px solid #dfebf5;border-bottom:1px solid #dfebf5}
 .firmware-versions dt{font-size:13px;color:#526d83;margin:0 0 5px}
 .firmware-versions dd{font-size:18px;line-height:1.4;font-weight:700;font-variant-numeric:tabular-nums;margin:0}

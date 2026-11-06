@@ -3,21 +3,21 @@ const assert=require('node:assert/strict');
 const fs=require('node:fs'),path=require('node:path');
 const P=require('../xiaobai-ota-protocol.js');
 const {Session,validateStatus,targetOf}=require('../xiaobai-ota.js');
-const firmware=process.env.XIAOBAI_FIRMWARE_ROOT||'D:/BaiduSyncdisk/2026/5月/小白机器人/LBS-XIAOBAI-AI';
+const firmware=process.env.XIAOBAI_FIRMWARE_ROOT;
 const targetFile=process.env.XIAOBAI_OTA_TEST_PACKAGE||path.join(__dirname,'..',require('../assets/firmware/release.json').firmware.asset);
-const oldFile=path.join(firmware,'dist/ota/py32_1.0.0/xiaobai_py32_1.0.0.ota');
+const oldFile=firmware?path.join(firmware,'dist/ota/py32_1.0.0/xiaobai_py32_1.0.0.ota'):path.join(__dirname,'fixtures/firmware/xiaobai_py32_1.0.0.ota');
 const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 const observed=p=>p.then(value=>({ok:true,value}),error=>({ok:false,error}));
 const defer=()=>{let resolve;const promise=new Promise(r=>resolve=r);return{promise,resolve};};
 const clock=()=>performance.now();
 const timing={requestMs:15,beginMs:25,finishMs:25,retries:1,bootWaitMs:150,bootPollMs:5,restartMs:1,healthGapMs:510,healthDeadlineMs:1200};
-const uid='00112233445566778899aabb',deviceId='AA:BB:CC:11:22:33';
+const uid='00112233445566778899aabb',deviceId='AA:BB:CC:11:22:33',newDeviceId='AA:BB:CC:44:55:66',otherUid='ffeeddccbbaa998877665544';
 const dataStatus=()=>Uint8Array.of(0,40,40,40,0x74,0x0e,0);
 const le32=n=>Uint8Array.of(n&255,n>>>8&255,n>>>16&255,n>>>24&255);
 const get32=b=>new DataView(b.buffer,b.byteOffset,b.byteLength).getUint32(0,true);
 async function until(fn,label='condition',ms=2000){const end=clock()+ms;while(!fn()&&clock()<end)await sleep(1);assert.ok(fn(),label);}
 function storage(){const items=new Map();return{items,getItem:k=>items.get(k)??null,setItem:(k,v)=>items.set(k,String(v))};}
-function infoFor(pkg,mode=0,extra={}){return{protocol:1,boardId:258,bootVersion:65536,version:pkg.version,mode,imageValid:true,state:0,lastError:0,imageSize:pkg.imageSize,nextOffset:0,imageSha256:pkg.imageSha256,supported:true,...extra};}
+function infoFor(pkg,mode=0,extra={}){return{protocol:1,boardId:258,bootVersion:Math.max(P.C.OTA_BOOT_VERSION,pkg.minBootVersion??pkg.minBoot??0),version:pkg.version,mode,imageValid:true,state:0,lastError:0,imageSize:pkg.imageSize,nextOffset:0,imageSha256:pkg.imageSha256,supported:true,...extra};}
 function infoBytes(info){const b=new Uint8Array(60),d=new DataView(b.buffer);d.setUint32(0,P.C.OTA_INFO_MAGIC,true);d.setUint16(4,info.protocol,true);d.setUint16(6,info.boardId,true);d.setUint32(8,info.bootVersion,true);d.setUint32(12,info.version,true);b.set([info.mode,+info.imageValid,info.state,info.lastError],16);d.setUint32(20,info.imageSize,true);d.setUint32(24,info.nextOffset,true);b.set(P.unhex(info.imageSha256),28);return b;}
 class MemoryBoot {
   constructor(adapter){this.adapter=adapter;this.listeners=new Set();this.disconnectListeners=new Set();this.frames=[];this.offset=0;this.receiving=false;this.info=infoFor(adapter.current,1);}
@@ -57,7 +57,7 @@ class MemoryBoot {
   }
 }
 function adapterFixture(previous,target,options={}){
-  const a={current:previous,target,options,log:[],owned:false,epoch:'initial-app',seq:0,post:false,connected:true,appAvailable:true};
+  const a={current:previous,target,options,log:[],owned:false,epoch:'initial-app',seq:0,post:false,connected:true,appAvailable:true,deviceId};
   a.boot=new MemoryBoot(a);
   a.prepare=async()=>{a.log.push('prepare');a.owned=true;await options.prepareGate?.promise;};
   a.release=async()=>{a.log.push('release');a.owned=false;};
@@ -66,7 +66,7 @@ function adapterFixture(previous,target,options={}){
     a.log.push('readApp:'+a.epoch);
     if(options.oldFirmware)throw Object.assign(new Error('unsupported OTA opcode'),{result:2});
     if(!a.connected)throw Object.assign(new Error('not connected App'),{code:'DISCONNECTED'});
-    return{uid:a.post&&options.wrongUid?'ffeeddccbbaa998877665544':uid,deviceId,epoch:a.epoch,name:'小白',
+    return{uid:a.post&&options.wrongUid?otherUid:(options.initialUid||uid),deviceId:a.deviceId,epoch:a.epoch,name:'小白',
       info:infoFor(a.current,0,a.post?(options.finalInfo||{}):(options.initialInfo||{}))};
   };
   a.queryStatus=async()=>{
@@ -84,7 +84,8 @@ function adapterFixture(previous,target,options={}){
     return a.boot;
   };
   a.connectBoot=async binding=>{a.log.push('connectBoot');if(options.connectBootUnavailable)throw Object.assign(new Error('bound Boot unavailable'),{code:'CONNECTION_FAILED'});assert.equal(binding.deviceId,deviceId);assert.equal(binding.uid,uid);a.connected=false;return a.boot;};
-  a.connectApp=async binding=>{a.log.push('connectApp');if(!a.appAvailable)throw Object.assign(new Error('Boot does not answer App requests'),{code:'TIMEOUT'});assert.equal(binding.deviceId,deviceId);assert.equal(binding.uid,uid);a.epoch='new-app-'+(a.seq+1);a.connected=true;a.post=true;};
+  a.connectApp=async(binding,settings)=>{a.log.push('connectApp');(a.connectSettings??=[]).push(settings);if(!a.appAvailable)throw Object.assign(new Error('Boot does not answer App requests'),{code:'TIMEOUT'});assert.ok([deviceId,newDeviceId].includes(binding.deviceId));assert.equal(binding.uid,uid);a.epoch='new-app-'+(a.seq+1);a.deviceId=options.newMac||binding.deviceId;a.connected=true;a.post=true;if(options.connectAppReturnsActual)return a.readApp();};
+  a.adoptConfirmedLocator=async(actual,previousDeviceId)=>{a.log.push('adoptLocator');(a.adopted??=[]).push({actual,previousDeviceId});};
   a.disconnect=async()=>{a.log.push('disconnect');a.connected=false;a.boot.disconnected();};
   return a;
 }
@@ -260,6 +261,69 @@ async function writeDisconnectBoundaries(previous,target){
   assert.equal(f.adapter.log.filter(v=>v==='connectBoot').length,0);assert.equal(count(f.adapter,P.OP.BEGIN),0);
 }
 
+async function installedConfirmation(previous,target){
+  const bind=(f,extra={})=>f.session.saveBinding({deviceId,uid,name:'original',pending:targetOf(target),written:false,...extra});
+  const noControl=f=>{for(const op of ['prepare','connectApp','disconnect','release','enterBoot','connectBoot'])assert.ok(!f.adapter.log.includes(op),'live confirmation must not '+op);assert.equal(f.adapter.boot.frames.length,0);};
+  // Historical written intent is not the canonical target of an explicit new upgrade.
+  let f=await fixture(previous,target);bind(f,{pending:targetOf(previous),written:true});
+  await f.session.start({recovery:true});assert.equal(f.session.snapshot().phase,'success');assert.equal(count(f.adapter,P.OP.BEGIN),1,'an old pending target must not permanently lock an explicitly confirmed newer upgrade into read-only mode');assert.equal(f.session.binding.pending,null);
+  f=await fixture(previous,target);bind(f,{pending:targetOf(previous),written:true});
+  await assert.rejects(f.session.start({recovery:true,confirmationOnly:true}),e=>e.code==='IDENTITY');assert.equal(f.session.snapshot().phase,'unconfirmed');assert.equal(count(f.adapter,P.OP.BEGIN),0);assert.deepEqual(f.session.binding.pending,targetOf(previous),'explicit read-only failure must not fall through to a write');
+  f=await fixture(target,target);bind(f);let actual=await f.adapter.readApp();let restoreCalled=false;f.adapter.log=[];
+  await f.session.confirmInstalled(actual,target,{restore:async()=>{restoreCalled=true;assert.ok(f.session.binding.pending);assert.equal(f.session.snapshot().healthVerifiedEpoch,actual.epoch);}});
+  assert.equal(restoreCalled,true);assert.equal(f.session.binding.pending,null);assert.equal(f.session.snapshot().phase,'success');assert.equal(f.session.snapshot().written,true);noControl(f);assert.equal(f.session.snapshot().confirmationOnly,false);
+  assert.equal(f.adapter.seq,2);assert.equal(f.adapter.epoch,actual.epoch);
+  f=await fixture(target,target);bind(f);f.adapter.deviceId=newDeviceId;actual=await f.adapter.readApp();f.adapter.log=[];
+  await f.session.confirmInstalled(actual,target);noControl(f);assert.equal(f.session.binding.deviceId,newDeviceId);assert.equal(f.session.binding.uid,uid);
+  assert.equal(f.adapter.adopted[0].previousDeviceId,deviceId);assert.equal(f.session.binding.pending,null);
+  for(const patch of [{uid:otherUid},{info:infoFor(target,0,{boardId:259})},{info:infoFor(target,0,{protocol:2})},{info:infoFor(target,0,{imageSize:target.imageSize+1})},{info:infoFor(target,0,{imageSha256:'0'.repeat(64)})},{info:infoFor(target,1)}]){
+    f=await fixture(target,target);bind(f);actual={...await f.adapter.readApp(),deviceId:newDeviceId,...patch};const original=f.session.binding;
+    await assert.rejects(f.session.confirmInstalled(actual,target),e=>['IDENTITY','BINDING'].includes(e.code));assert.equal(f.session.binding,original);assert.equal(f.adapter.seq,0);assert.equal(f.adapter.adopted,undefined);
+  }
+  f=await fixture(target,target);bind(f,{uid:otherUid});actual=await f.adapter.readApp();let original=f.session.binding;
+  await assert.rejects(f.session.confirmInstalled(actual,target),e=>e.code==='BINDING');assert.equal(f.session.binding,original);
+  f=await fixture(target,target);bind(f);actual=await f.adapter.readApp();let live=true;
+  await assert.rejects(f.session.confirmInstalled(actual,target,{guard:()=>live,restore:async()=>{live=false;}}),e=>e.code==='CANCELLED');assert.ok(f.session.binding.pending);assert.equal(f.session.snapshot().phase,'unconfirmed');assert.equal(f.session.snapshot().healthVerifiedEpoch,null);noControl({...f,adapter:{...f.adapter,log:f.adapter.log.filter(v=>v!=='readApp:initial-app')}});
+  f=await fixture(target,target);bind(f);actual=await f.adapter.readApp();
+  await assert.rejects(f.session.confirmInstalled(actual,target,{restore:async()=>{f.session.saveBinding({...f.session.binding,name:'replaced-by-task'});}}),e=>e.code==='BINDING');assert.equal(f.session.binding.name,'replaced-by-task');assert.ok(f.session.binding.pending);
+  f=await fixture(target,target);bind(f);actual=await f.adapter.readApp();
+  await assert.rejects(f.session.confirmInstalled(actual,target,{queryStatus:async()=>({...await f.adapter.queryStatus(),epoch:'obsolete'})}),e=>e.code==='SESSION');assert.ok(f.session.binding.pending);assert.equal(f.session.snapshot().healthVerifiedEpoch,null);
+  f=await fixture(target,target);bind(f);actual=await f.adapter.readApp();let restored=0;
+  await assert.rejects(f.session.confirmInstalled(actual,target,{queryStatus:async()=>{const status=await f.adapter.queryStatus();f.session.saveBinding({...f.session.binding,uid:otherUid});return status;},restore:async()=>{restored++;}}),e=>e.code==='BINDING');
+  assert.equal(f.session.binding.uid,otherUid);assert.ok(f.session.binding.pending);assert.equal(restored,0);assert.equal(f.adapter.seq,1,'replaced task must not keep querying or restore program mode');
+  f=await fixture(target,target);bind(f);original=f.session.binding;f.store.setItem=()=>{throw new Error('disk full');};
+  assert.throws(()=>f.session.saveBinding({...original,deviceId:newDeviceId}),e=>e.code==='STORAGE');assert.equal(f.session.binding,original,'failed persistence must not replace live binding');
+  // Recovery and normal exact-target paths reuse the just-read App epoch.
+  for(const recovery of [false,true]){
+    f=await fixture(target,target);bind(f);await f.session.start({recovery});
+    assert.equal(f.session.snapshot().phase,'success');assert.equal(f.session.binding.pending,null);assert.equal(count(f.adapter,P.OP.BEGIN),0);
+    assert.equal(f.adapter.log.filter(v=>v==='connectApp').length,recovery?1:0);assert.equal(f.adapter.log.filter(v=>v.startsWith('readApp:')).length,1);
+    assert.equal(f.adapter.log.filter(v=>v==='disconnect').length,0,'an already verified live App must not be torn down');
+  }
+  // A written pending retry is read-only even if App confirmation cannot connect.
+  f=await fixture(target,target,{connectAppReturnsActual:true,newMac:newDeviceId});bind(f,{written:true});
+  await f.session.start({recovery:true,confirmationOnly:true});assert.equal(f.session.snapshot().phase,'success');assert.equal(f.session.binding.deviceId,newDeviceId);
+  assert.equal(f.adapter.log.filter(v=>v==='connectApp').length,1);assert.equal(f.adapter.log.filter(v=>v.startsWith('readApp:')).length,1);assert.equal(f.adapter.boot.frames.length,0);
+  assert.equal(f.adapter.connectSettings[0].confirmationOnly,true);assert.deepEqual(f.adapter.connectSettings[0].target,targetOf(target));
+  f=await fixture(previous,target);bind(f,{written:true});f.adapter.appAvailable=false;
+  await assert.rejects(f.session.start({recovery:true}),e=>e.code==='UNCONFIRMED');assert.equal(f.session.snapshot().phase,'unconfirmed');assert.equal(f.session.snapshot().written,true);assert.equal(f.session.snapshot().confirmationOnly,true);assert.ok(f.session.binding.pending);
+  assert.equal(f.adapter.log.filter(v=>v==='connectBoot'||v==='enterBoot').length,0);assert.equal(f.adapter.boot.frames.length,0);
+  f=await fixture(previous,target);f.adapter.connectApp=async()=>{f.adapter.log.push('connectApp');f.adapter.connected=true;throw Object.assign(new Error('same UID, different App image'),{code:'IMAGE_MISMATCH'});};
+  await assert.rejects(f.session.start(),e=>e.code==='IMAGE_MISMATCH');assert.equal(f.session.snapshot().phase,'unconfirmed');assert.ok(f.session.binding.pending);assert.equal(f.adapter.connected,true);
+  assert.equal(f.adapter.log.filter(v=>v==='disconnect').length,1,'only pre-confirmation Boot disconnect is allowed; keep mismatching App connected');assert.equal(count(f.adapter,P.OP.BEGIN),1);assert.equal(f.adapter.log.filter(v=>v==='connectBoot').length,0);
+  for(const confirmationOnly of [false,true]){
+    f=await fixture(confirmationOnly?target:previous,target,{connectAppReturnsActual:true});
+    if(confirmationOnly)bind(f,{written:true});let restoredActual=null;
+    await assert.rejects(f.session.start({recovery:confirmationOnly,confirmationOnly,restoreConfirmation:async fresh=>{restoredActual=fresh;assert.equal(f.session.snapshot().healthVerifiedEpoch,fresh.epoch);assert.ok(f.session.binding.pending);throw new Error('program/learned restore failed');}}),e=>e.code==='UNCONFIRMED');
+    assert.equal(restoredActual.uid,uid);assert.equal(restoredActual.info.imageSha256,target.imageSha256);assert.equal(f.session.snapshot().phase,'unconfirmed');assert.equal(f.session.snapshot().confirmationOnly,true);assert.equal(f.session.snapshot().healthVerifiedEpoch,null);assert.ok(f.session.binding.pending);
+    assert.equal(count(f.adapter,P.OP.BEGIN),confirmationOnly?0:1);assert.equal(f.adapter.log.filter(v=>v==='connectBoot').length,0,'restore failure must never trigger raw recovery or another BEGIN');
+  }
+  // Inspection cannot erase a different UID's record or migrate an unverified locator.
+  f=await fixture(previous,target);bind(f);f.adapter.deviceId=newDeviceId;await f.session.inspect();assert.equal(f.session.binding.deviceId,deviceId);assert.ok(f.session.binding.pending);
+  f=await fixture(previous,target,{initialUid:otherUid});bind(f);original=f.session.binding;await assert.rejects(f.session.inspect(),e=>e.code==='BINDING');assert.equal(f.session.binding,original);
+  await assert.rejects(f.session.start(),e=>e.code==='BINDING');assert.equal(f.session.binding,original);assert.equal(f.adapter.boot.frames.length,0);
+}
+
 function statusValidation(){
   const base={epoch:'fresh',seq:7,opcode:4,result:0,sentAt:100,receivedAt:110,data:dataStatus()},last={...base,seq:8,sentAt:620,receivedAt:630};
   const opts={epoch:'fresh',startedAt:90,endedAt:650};assert.equal(validateStatus([base,last],opts),true);
@@ -274,7 +338,7 @@ async function main(){
   const target=await P.verifyPackage(fs.readFileSync(targetFile),{name:path.basename(targetFile)}),previous=await P.verifyPackage(fs.readFileSync(oldFile),{name:path.basename(oldFile)});
   assert.ok(target.version>previous.version,'requires a genuinely signed newer test package');
   statusValidation();
-  for(const test of [writeDisconnectBoundaries,eventDisconnectBoundaries,normal,currentAndPolicy,cancelAndRecover,confirmation,cancellationBoundaries,bootInfoReconnectGate]){await test(previous,target);console.log('PASS OTA session '+test.name);}
+  for(const test of [installedConfirmation,writeDisconnectBoundaries,eventDisconnectBoundaries,normal,currentAndPolicy,cancelAndRecover,confirmation,cancellationBoundaries,bootInfoReconnectGate]){await test(previous,target);console.log('PASS OTA session '+test.name);}
   console.log(`PASS Session orchestration; signed ${previous.versionText} -> ${target.versionText}; mock adapter/Boot only, no hardware`);
 }
 main().catch(error=>{console.error(error);process.exitCode=1;});

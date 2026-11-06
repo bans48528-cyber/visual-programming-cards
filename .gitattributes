@@ -1,0 +1,5 @@
+# Release manifest fingerprints use the exact file bytes.
+/assets/firmware/release.json -text
+
+# Signed OTA packages must never undergo text conversion.
+*.ota binary

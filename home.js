@@ -302,6 +302,13 @@
       const start = document.createElement("div");
       start.className = "block start";
       start.setAttribute("aria-hidden", "true");
+      const icon = document.createElement("img");
+      icon.className = "start-art-icon";
+      icon.classList.toggle("model-art-icon", model.artStyle === "fitted");
+      icon.src = model.startIcon || "assets/blocks/start.svg";
+      icon.alt = "";
+      icon.draggable = false;
+      start.append(icon);
       sequence.append(start);
     }
     items.forEach(item => sequence.appendChild(createStagedPreviewNode(item)));
