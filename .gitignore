@@ -15,3 +15,9 @@ dist/
 build/
 artifacts/
 android/app/src/main/jniLibs/
+
+# Disposable browser regression and development output
+/outputs/
+/test-results/
+/playwright-report/
+/coverage/

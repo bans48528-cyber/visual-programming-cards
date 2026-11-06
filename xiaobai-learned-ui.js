@@ -32,6 +32,7 @@
   function permission(service, slot) {
     const current = context();
     if (!service || current.service !== service) return '请先连接小白后再学习口令。';
+    if(window.CardBluetooth?.firmware&&!window.CardBluetooth.firmware.snapshot().ready)return '请先完成主控固件核对或更新。';
     const snapshot = service.getSnapshot();
     if (window.CardProgram?.running || snapshot.run) return '请先停止程序，再学习口令。';
     if (snapshot.learning && !snapshot.learning.terminal) return '当前口令还在学习中。';
@@ -59,7 +60,9 @@
       if (!service || locked(snapshot) || !snapshot.uid) return;
       openMemo(service, currentSlot, false);
     });
-    const action = button('', 'learned-command-action', () => {
+    const action = button('', 'learned-command-action', async () => {
+      const firmware=window.CardBluetooth?.firmware;
+      if(firmware&&!await firmware.ensureReady({interactive:true,reason:'learn'}))return;
       const {service, snapshot} = context();
       if (!service) { notice('请先连接小白后再学习口令。'); return; }
       if (locked(snapshot)) return;
@@ -97,8 +100,9 @@
       memo.setAttribute('aria-label', `修改指令${currentSlot}备忘`);
       memo.disabled = busy || !snapshot?.uid;
       action.textContent = reading ? '读取中' : !known ? '重新读取' : info.state === 'learned' ? '重新学习' : '未学习 · 点击学习';
-      action.disabled = !service || busy || reading || unsupported;
-      if (!service) hint.textContent = '连接小白后可学习，指令编号可先编辑。';
+      action.disabled = (!service&&!window.CardBluetooth?.firmware?.hasRecovery?.()) || busy || reading || unsupported;
+      if (!service) hint.textContent = window.CardBluetooth?.firmware?.hasRecovery?.()?'主控待恢复，点击按钮可继续。':'连接小白后可学习，指令编号可先编辑。';
+      else if (window.CardBluetooth?.firmware&&!window.CardBluetooth.firmware.snapshot().ready) hint.textContent = '主控需完成固件核对，点击按钮可继续。';
       else if (unsupported) hint.textContent = '设备暂不支持自学习口令';
       else if (window.CardProgram?.running || snapshot.run) hint.textContent = '程序运行中，请先停止程序。';
       else if (snapshot.learning && !snapshot.learning.terminal) hint.textContent = `正在学习指令${snapshot.learning.slot}`;
@@ -384,6 +388,7 @@
     syncDialog();
   }
   window.addEventListener('xiaobai-learned-change', refresh);
+  window.addEventListener('xiaobai-firmware-change', refresh);
   window.addEventListener('card-program-state', refresh);
   window.addEventListener('xiaobai-disconnected', refresh);
   window.addEventListener('xiaobai-program-abort', refresh);

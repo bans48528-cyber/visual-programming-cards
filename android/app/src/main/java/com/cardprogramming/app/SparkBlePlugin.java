@@ -26,6 +26,11 @@ public class SparkBlePlugin extends Plugin {
     private static final UUID CCCD=UUID.fromString("00002902-0000-1000-8000-00805f9b34fb");
     private final Handler main=new Handler(Looper.getMainLooper());
     private final Map<String,BluetoothDevice> found=new HashMap<>();
+    private final Map<String,BleDeviceName> foundNames=new HashMap<>();
+    private final Map<String,Long> foundNameTimes=new HashMap<>();
+    private BleDeviceName connectionName;
+    private long connectionNameObservedAt;
+    private String connectionNameObservation="";
     private BluetoothAdapter adapter;
     private BluetoothLeScanner scanner;
     private ScanCallback scanCallback;
@@ -41,6 +46,11 @@ public class SparkBlePlugin extends Plugin {
     private int lbsMaxBytes=0, lbsSafeActions=0;
     private String closingReason="";
     private final UploadGate uploadGate=new UploadGate();
+    private final OtaTransport ota=new OtaTransport();
+    private byte[][] otaChunks;
+    private int otaChunkIndex;
+    private Runnable otaPump;
+    private long lastNotificationAt=-1000;
     private int negotiatedMtu=23;
     private Runnable scanTimeout, connectTimeout, operationTimeout;
     private final BroadcastReceiver radioReceiver=new BroadcastReceiver() {
@@ -78,7 +88,19 @@ public class SparkBlePlugin extends Plugin {
         result.put("connected",gatt!=null && characteristic!=null && subscribed);
         result.put("connectionId",connectionId);
         result.put("deviceId",deviceId);
+        result.put("otaTransportVersion",1);
+        result.put("otaActive",ota.active());
+        putConnectionName(result);
         return result;
+    }
+    private static void putName(JSObject result,BleDeviceName name,long observedAt,String observation) {
+        if(name==null)return;
+        result.put("name",name.name);result.put("advertisedName",name.advertisedName);
+        result.put("cachedName",name.cachedName);result.put("nameSource",name.source);
+        result.put("nameObservedAt",observedAt);result.put("nameObservation",observation);
+    }
+    private void putConnectionName(JSObject result) {
+        putName(result,connectionName,connectionNameObservedAt,connectionNameObservation);
     }
     @PluginMethod public void getState(PluginCall call) {main.post(()->call.resolve(state()));}
     @PluginMethod public void requestAccess(PluginCall call) {
@@ -106,18 +128,22 @@ public class SparkBlePlugin extends Plugin {
     @PluginMethod public void startScan(PluginCall call) {main.post(()->{
         if(!ready(call,true)) return;
         if(gatt!=null) {call.reject("请先断开当前设备再扫描。");return;}
-        stopScanInternal("replaced");found.clear();scanId=call.getString("scanId","");
+        stopScanInternal("replaced");found.clear();foundNames.clear();foundNameTimes.clear();scanId=call.getString("scanId","");
         final String ticket=scanId;
         final boolean includeUnnamed=call.getBoolean("includeUnnamed",false);
         scanCallback=new ScanCallback() {
             @Override public void onScanResult(int type,ScanResult result) {main.post(()->{
                 if(scanCallback!=this || !ticket.equals(scanId)) return;
-                String name=result.getScanRecord()==null?null:result.getScanRecord().getDeviceName();
-                try {if(name==null) name=result.getDevice().getName();} catch(SecurityException ignored) {}
-                if(name==null || name.isEmpty()) {if(!includeUnnamed)return;name="未命名设备";}
+                String advertised=result.getScanRecord()==null?null:result.getScanRecord().getDeviceName();
+                String cached=null;
+                try {cached=result.getDevice().getName();} catch(SecurityException ignored) {}
+                BleDeviceName name=BleDeviceName.resolve(advertised,cached);
+                if(name.source.equals("unnamed")&&!includeUnnamed)return;
                 String id=result.getDevice().getAddress();
-                found.put(id,result.getDevice());
-                JSObject row=new JSObject();row.put("scanId",ticket);row.put("deviceId",id);row.put("name",name);row.put("rssi",result.getRssi());
+                long observedAt=SystemClock.elapsedRealtime();
+                found.put(id,result.getDevice());foundNames.put(id,name);foundNameTimes.put(id,observedAt);
+                JSObject row=new JSObject();row.put("scanId",ticket);row.put("deviceId",id);row.put("rssi",result.getRssi());
+                putName(row,name,observedAt,"scan");
                 notifyListeners("scanResult",row);
             });}
             @Override public void onScanFailed(int code) {main.post(()->{
@@ -146,10 +172,15 @@ public class SparkBlePlugin extends Plugin {
     }
     @PluginMethod public void connect(PluginCall call) {main.post(()->{
         if(!ready(call,false)) return;
+        if(ota.active()) {call.reject("固件升级期间请先结束当前升级。","OTA_EXCLUSIVE");return;}
         String id=call.getString("deviceId","");
         BluetoothDevice device=found.get(id);
-        if(device==null) {call.reject("设备不在本次扫描结果中，请重新搜索。");return;}
         String requested=call.getString("profile","xiaobai");
+        // Recovery explicitly targets the UID-bound stable native address. Never search by name.
+        if(device==null&&requested.equals("xiaobai")&&call.getBoolean("boundDevice",false)&&BluetoothAdapter.checkBluetoothAddress(id)) {
+            try {device=adapter.getRemoteDevice(id);}catch(Exception ignored) {}
+        }
+        if(device==null) {call.reject("设备不在本次扫描结果中，请重新搜索。");return;}
         if(!requested.equals("xiaobai") && !requested.equals("spark-ai") && !requested.equals("tc01") && !requested.equals("lbs2206") && !requested.equals("inspect")) {call.reject("未知设备协议");return;}
         UUID service=SERVICE,notify=CHARACTERISTIC,write=requested.equals("spark-ai")?CHARACTERISTIC:WRITE_CHARACTERISTIC;
         if(requested.equals("tc01")) {
@@ -177,6 +208,12 @@ public class SparkBlePlugin extends Plugin {
         tcWriteMode=call.getString("writeMode","");tcLineEnding=call.getString("lineEnding","");
         lbsWriteMode=call.getString("writeMode","");lbsMaxBytes=call.getInt("maxFrameBytes",0);lbsSafeActions=call.getInt("safeActions",0);
         connectionId=call.getString("connectionId","");deviceId=id;connectCall=call;
+        BleDeviceName observed=foundNames.get(id);
+        String cachedName=null;
+        try {cachedName=device.getName();} catch(SecurityException ignored) {}
+        connectionName=BleDeviceName.resolve(observed==null?null:observed.advertisedName,cachedName);
+        connectionNameObservedAt=observed==null?SystemClock.elapsedRealtime():foundNameTimes.getOrDefault(id,0L);
+        connectionNameObservation=observed==null?"system-cache":"last-scan";
         try {
             gatt=device.connectGatt(getContext(),false,callback,BluetoothDevice.TRANSPORT_LE);
             if(gatt==null) throw new IllegalStateException();
@@ -240,6 +277,7 @@ public class SparkBlePlugin extends Plugin {
     @PluginMethod public void write(PluginCall call) {main.post(()->{
         if(!matches(call)) return;
         if(!subscribed) {call.reject("请先订阅设备通知。");return;}
+        if(ota.active()) {call.reject("固件升级期间不能发送普通控制指令。","OTA_EXCLUSIVE");return;}
         byte[] bytes;
         try {bytes=Base64.decode(call.getString("data",""),Base64.NO_WRAP);} catch(Exception e) {call.reject("无效的蓝牙数据。");return;}
         // Validate against the connection profile; LBS frames are never sent to Xiaobai.
@@ -270,8 +308,52 @@ public class SparkBlePlugin extends Plugin {
             if(!accepted) throw new IllegalStateException();
         } catch(Exception e) {closeConnection("蓝牙写入失败，连接已关闭，未自动重发。");}
     });}
+    @PluginMethod public void beginOta(PluginCall call) {main.post(()->{
+        if(!matches(call))return;
+        if(!profile.equals("xiaobai")||!subscribed||uploadGate.active()) {call.reject("请先连接并订阅小白主机。");return;}
+        if(ota.active()) {call.reject("升级通道已经开启。");return;}
+        // No release/heartbeat may be sent into Boot, including from background cleanup.
+        remoteUsed=false;ota.begin();ota.observedRx(lastNotificationAt);
+        JSObject result=new JSObject();result.put("chunkBytes",OtaTransport.CHUNK_BYTES);
+        result.put("chunkIntervalMs",OtaTransport.CHUNK_INTERVAL_MS);result.put("rxQuietMs",OtaTransport.RX_QUIET_MS);
+        result.put("otaTransportVersion",1);call.resolve(result);
+    });}
+    @PluginMethod public void writeOta(PluginCall call) {main.post(()->{
+        if(!matches(call))return;
+        if(!profile.equals("xiaobai")||!subscribed||!ota.active()) {call.reject("升级通道尚未开启。");return;}
+        try {otaChunks=ota.prepare(Base64.decode(call.getString("data",""),Base64.NO_WRAP));}
+        catch(Exception error) {call.reject(error.getMessage());return;}
+        otaChunkIndex=0;beginOperation(call,"otaWrite");
+        final BluetoothGatt expected=gatt;
+        final String epoch=connectionId;
+        otaPump=()->pumpOta(expected,epoch,call);
+        main.post(otaPump);
+    });}
+    private void pumpOta(BluetoothGatt expected,String epoch,PluginCall call) {
+        if(expected!=gatt||!epoch.equals(connectionId)||!ota.active()||operationCall!=call||!operation.equals("otaWrite"))return;
+        long delay=ota.delay(SystemClock.elapsedRealtime());
+        if(delay>0) {main.postDelayed(otaPump,delay);return;}
+        if(otaChunkIndex>=otaChunks.length) {otaChunks=null;otaPump=null;finishOperation(BluetoothGatt.GATT_SUCCESS);return;}
+        byte[] bytes=otaChunks[otaChunkIndex];
+        if(otaChunkIndex==otaChunks.length-1)ota.markSent();
+        BluetoothGattCharacteristic target=writeCharacteristic;
+        int type=(target.getProperties()&BluetoothGattCharacteristic.PROPERTY_WRITE)!=0
+            ? BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT:BluetoothGattCharacteristic.WRITE_TYPE_NO_RESPONSE;
+        try {
+            boolean accepted;
+            if(Build.VERSION.SDK_INT>=33)accepted=gatt.writeCharacteristic(target,bytes,type)==BluetoothStatusCodes.SUCCESS;
+            else {target.setWriteType(type);target.setValue(bytes);accepted=gatt.writeCharacteristic(target);}
+            if(!accepted)throw new IllegalStateException();
+        }catch(Exception error){closeConnection("升级数据发送失败，已停止；重新连接后需从头升级。");}
+    }
+    @PluginMethod public void endOta(PluginCall call) {main.post(()->{
+        // A normal App session must always reconnect with a new connection ID after OTA.
+        if(connectionId.equals(call.getString("connectionId",""))&&ota.active())closeConnection("升级通道已关闭，请重新连接主机。");
+        call.resolve();
+    });}
     @PluginMethod public void useFallbackWrite(PluginCall call) {main.post(()->{
         if(!matches(call)) return;
+        if(ota.active()) {call.reject("固件升级期间不能切换写入特征。");return;}
         if(fallbackCharacteristic==null) {call.reject("设备没有可用的备用写入特征。");return;}
         writeCharacteristic=fallbackCharacteristic;
         call.resolve();
@@ -285,7 +367,7 @@ public class SparkBlePlugin extends Plugin {
     private void releaseAndClose(String reason) {
         closingReason=reason;
         if(operation.equals("release")) return;
-        if(!remoteUsed || gatt==null || !subscribed) {closeConnection(reason);return;}
+        if(ota.active() || !remoteUsed || gatt==null || !subscribed) {closeConnection(reason);return;}
         if(!operation.isEmpty()) return;
         remoteUsed=false;
         operation="release";
@@ -304,22 +386,35 @@ public class SparkBlePlugin extends Plugin {
         } catch(Exception ignored) {closeConnection(reason);}
     }
     private void closeConnection(String reason) {
+        if(otaPump!=null)main.removeCallbacks(otaPump);
+        otaPump=null;otaChunks=null;otaChunkIndex=0;ota.close();
         uploadGate.reset();negotiatedMtu=23;
         closingReason="";remoteUsed=false;
         if(connectTimeout!=null) main.removeCallbacks(connectTimeout);
         if(operationTimeout!=null) main.removeCallbacks(operationTimeout);
         BluetoothGatt previous=gatt;gatt=null;characteristic=null;writeCharacteristic=null;fallbackCharacteristic=null;subscribed=false;
         String ticket=connectionId;connectionId="";deviceId="";
+        connectionName=null;connectionNameObservedAt=0;connectionNameObservation="";
         PluginCall pendingConnect=connectCall,pendingOperation=operationCall;
         connectCall=null;operationCall=null;operation="";
-        if(pendingConnect!=null) pendingConnect.reject(reason);
-        if(pendingOperation!=null) pendingOperation.reject(reason);
+        // The transport is already closed; pending promises must carry this fact
+        // even when their rejection reaches JS before the disconnected event.
+        if(pendingConnect!=null) pendingConnect.reject(reason,"DISCONNECTED");
+        if(pendingOperation!=null) pendingOperation.reject(reason,"DISCONNECTED");
         try {if(previous!=null) previous.disconnect();} catch(Exception ignored) {}
         try {if(previous!=null) previous.close();} catch(Exception ignored) {}
         if(!ticket.isEmpty()) {JSObject event=new JSObject();event.put("connectionId",ticket);event.put("reason",reason);notifyListeners("disconnected",event);}
     }
     private void receive(BluetoothGatt source,BluetoothGattCharacteristic item,byte[] value) {
         if(source!=gatt || !selectedNotify.equals(item.getUuid()) || value==null) return;
+        lastNotificationAt=SystemClock.elapsedRealtime();
+        if(ota.active()) {
+            for(byte[] frame:ota.receive(value,SystemClock.elapsedRealtime())) {
+                JSObject event=new JSObject();event.put("connectionId",connectionId);event.put("data",Base64.encodeToString(frame,Base64.NO_WRAP));
+                notifyListeners("otaNotification",event);
+            }
+            return;
+        }
         JSObject event=new JSObject();event.put("connectionId",connectionId);event.put("data",Base64.encodeToString(value,Base64.NO_WRAP));
         notifyListeners("notification",event);
     }
@@ -386,7 +481,7 @@ public class SparkBlePlugin extends Plugin {
             properties.put("writeWithoutResponse",(wp&BluetoothGattCharacteristic.PROPERTY_WRITE_NO_RESPONSE)!=0);
             properties.put("fallbackWrite",fallbackCharacteristic!=null&&fallbackCharacteristic!=writeCharacteristic);
             properties.put("writeCharacteristic",writeCharacteristic.getUuid().toString());
-            result.put("properties",properties);result.put("connectionId",connectionId);
+            result.put("properties",properties);result.put("connectionId",connectionId);result.put("deviceId",deviceId);result.put("otaTransportVersion",1);putConnectionName(result);
             PluginCall call=connectCall;connectCall=null;call.resolve(result);
         });}
         @Override public void onDescriptorWrite(BluetoothGatt source,BluetoothGattDescriptor descriptor,int status) {main.post(()->{
@@ -396,6 +491,12 @@ public class SparkBlePlugin extends Plugin {
         });}
         @Override public void onCharacteristicWrite(BluetoothGatt source,BluetoothGattCharacteristic item,int status) {main.post(()->{
             if(source==gatt && writeCharacteristic!=null && writeCharacteristic.getUuid().equals(item.getUuid()) && operation.equals("release")) {closeConnection(closingReason);return;}
+            if(source==gatt && writeCharacteristic!=null && writeCharacteristic.getUuid().equals(item.getUuid()) && operation.equals("otaWrite")) {
+                if(status!=BluetoothGatt.GATT_SUCCESS) {closeConnection("升级数据写入失败（GATT "+status+"），已停止。");return;}
+                ota.written(SystemClock.elapsedRealtime());otaChunkIndex++;
+                if(otaPump!=null)main.post(otaPump);
+                return;
+            }
             if(source==gatt && writeCharacteristic!=null && writeCharacteristic.getUuid().equals(item.getUuid()) && operation.equals("write")) finishOperation(status);
         });}
         @Override public void onCharacteristicChanged(BluetoothGatt source,BluetoothGattCharacteristic item) {

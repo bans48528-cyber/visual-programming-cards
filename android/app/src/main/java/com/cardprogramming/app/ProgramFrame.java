@@ -10,6 +10,7 @@ final class ProgramFrame {
         for(int i=0;i<15;i++) sum+=b[i]&255;
         if((sum&255)!=(b[15]&255)) return false;
         int seq=b[5]&255, op=b[6]&255;
+        if(op==0x04) return zero(b,7); // QUERY_STATUS permits fresh nonzero health-check sequences.
         if(op>=1&&op<=5) return seq==0 && zero(b,7);
         if(seq==0) return false;
         int args;
@@ -17,9 +18,13 @@ final class ProgramFrame {
             case 0x10: case 0x20: args=6;break;
             case 0x11: args=2;break;
             case 0x30: args=3;break;
+            case 0x32:
+                // Only four stable sides; seven trailing bytes are reserved.
+                int side=b[7]&255;
+                return side>=2 && side<=5 && zero(b,8);
             case 0x12: case 0x13: case 0x21: case 0x23:
             case 0x40: case 0x41: case 0x50: case 0x51: args=1;break;
-            case 0x22: case 0x31: case 0x42: args=0;break;
+            case 0x22: case 0x31: case 0x33: case 0x42: args=0;break;
             case 0x43:
                 // transfer, part, six column bytes; the final part has four columns.
                 // Upload ordering and transfer matching are checked by the firmware ACK.
@@ -35,6 +40,10 @@ final class ProgramFrame {
             case 0x56:
                 // UID96 is read as two six-byte response parts.
                 return (b[7]&255)<=1 && zero(b,8);
+            case OtaLayout.OTA_OP_INFO:
+                // OTA App INFO is ten independently matched six-byte parts.
+                return (b[7]&255)<OtaLayout.OTA_INFO_PARTS && zero(b,8);
+            case OtaLayout.OTA_OP_ENTER: args=0;break;
             case 0x57:
                 return nonzeroId(b) && (b[11]&255)<=1 && zero(b,12);
             default: return false;

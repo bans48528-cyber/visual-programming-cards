@@ -297,13 +297,13 @@
     const show=location.hash==="#bluetooth";
     page.hidden=!show;document.body.classList.toggle("bluetooth-open",show);
     if(show) {
-      closeParamEditor();document.title="蓝牙连接 · 卡片编程";
+      closeParamEditor();document.title="蓝牙连接 · Drluck CodeLab";
       if(!window.isSecureContext) tell("蓝牙需要安全连接。请使用 HTTPS，或在本机通过 localhost / 127.0.0.1 打开；手机访问局域网 HTTP 地址无法使用。",true);
       else if(!supported) tell("当前浏览器不支持网页蓝牙。请在支持 Web Bluetooth 的 Chrome 或 Edge 中打开；iPhone / iPad 的常见浏览器暂不支持。",true);
       else if(!message.textContent) tell("点击搜索设备，会打开浏览器的蓝牙设备选择器。");
       render();authorizedDevices();
     } else if(location.hash==="#editor") {
-      document.title=`${document.querySelector(".brand-title").textContent} · 卡片编程`;
+      document.title=`${document.querySelector(".brand-title").textContent} · Drluck CodeLab`;
       updateProgramAnchor();
     }
   }

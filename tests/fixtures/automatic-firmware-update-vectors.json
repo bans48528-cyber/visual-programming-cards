@@ -1,0 +1,40 @@
+{
+  "protocol": "docs/automatic_firmware_update_protocol.txt",
+  "event": 10,
+  "physical_event_offset": 5,
+  "physical_sequence_offset": 6,
+  "physical_data_offset": 7,
+  "note": "Synthetic parser vectors; actual1.0.0/1.0.1 does not send this event and requiresINFO fallback. Duplicate event must not duplicate UI confirmation.",
+  "cases": [
+    {
+      "name": "running_target",
+      "frame": "5a98970ad30a0202000100020101017aa5",
+      "event_seq": 2,
+      "event": 10,
+      "version": 65538,
+      "board_id": 258,
+      "protocol": 1,
+      "image_valid": true
+    },
+    {
+      "name": "metadata_invalid",
+      "frame": "5a98970ad30a02020001000201010079a5",
+      "event_seq": 2,
+      "event": 10,
+      "version": 65538,
+      "board_id": 258,
+      "protocol": 1,
+      "image_valid": false
+    },
+    {
+      "name": "older_version_parser_fixture",
+      "frame": "5a98970ad30a03000001000201010179a5",
+      "event_seq": 3,
+      "event": 10,
+      "version": 65536,
+      "board_id": 258,
+      "protocol": 1,
+      "image_valid": true
+    }
+  ]
+}

@@ -3,12 +3,13 @@
   if(typeof module==='object'&&module.exports)module.exports=api;else root.XiaobaiRunner=api;
 })(globalThis,function(protocol){
   'use strict';
-  const {OP,milliseconds,matrixChunks}=protocol;
+  const {OP,TILT,milliseconds,matrixChunks}=protocol;
   const motorIds=new Set(['motor-forward','motor-reverse','motor-forward-continuous','motor-reverse-continuous','motor-stop']);
   const comboIds=new Set(['combo-forward','combo-backward','combo-turn-left','combo-turn-right','combo-continuous','combo-stop']);
   const supported=new Set([...motorIds,...comboIds,'motor-power','combo-power','wait-time','loop','loop-count','infrared-wait',
-    'eye-expression','eye-matrix','display-number','display-off','speech-play','speech-wait','self-learned-wait','speed-up','speed-down']);
+    'tilt-wait','eye-expression','eye-matrix','display-number','display-off','speech-play','speech-wait','self-learned-wait','speed-up','speed-down']);
   const move={advance:1,left:2,right:3,retreat:4};
+  const tilt={forward:TILT.FORWARD,backward:TILT.BACKWARD,left:TILT.LEFT,right:TILT.RIGHT};
   const motorIndex=port=>['L/M1','L'].includes(port)?0:1;
   function validate(program){
     const copy=JSON.parse(JSON.stringify(program));let count=0;
@@ -18,11 +19,11 @@
         if(!item||++count>1000)throw new Error('程序最多支持 1000 块积木。');
         const {id,params:p={}}=item;
         // Validate the whole program before entering program mode.
-        if(id==='tilt-wait')throw new Error('尚未提供“等待倾倒”的通信协议，暂不能运行包含此积木的程序。');
+        if(id==='tilt-wait'&&!Object.prototype.hasOwnProperty.call(tilt,p.direction))throw new Error('倾倒方向无效，请选择向前、向后、向左或向右。');
         if(id==='eye-matrix')matrixChunks(0,p.leftPattern,p.rightPattern);
         if(!supported.has(id))throw new Error('小白不支持此积木：'+id);
         if(motorIds.has(id)&&!['L/M1','R/M2','L','R'].includes(p.port))throw new Error('请选择左或右电机。');
-        if(id==='combo-continuous'&&!Object.hasOwn(move,p.direction))throw new Error('移动方向无效。');
+        if(id==='combo-continuous'&&!Object.prototype.hasOwnProperty.call(move,p.direction))throw new Error('移动方向无效。');
         if(['motor-forward','motor-reverse','combo-forward','combo-backward','combo-turn-left','combo-turn-right','wait-time'].includes(id)){
           if(!Number.isFinite(p.duration)||p.duration<0.001||p.duration>86400)throw new Error('时间须在 0.001 至 86400 秒之间。');
         }
@@ -82,7 +83,8 @@
         else if(id==='speed-up'||id==='speed-down'){
           this.comboPower=Math.max(1,Math.min(3,this.comboPower+(id==='speed-up'?1:-1)));
           await this.action(OP.MOVE_POWER,[this.comboPower]);
-        }else if(id==='infrared-wait')await this.action(OP.WAIT_IR,[1,p.comparison==='greater'?0:1,p.threshold],true);
+        }else if(id==='infrared-wait')await this.action(OP.WAIT_IR,[1,p.comparison==='greater'?0:1,p.threshold],true); // Compatibility selector 1 is the single PA1 IR on the new board.
+        else if(id==='tilt-wait')await this.action(OP.WAIT_TILT,[tilt[p.direction]],true);
         else if(id==='eye-expression')await this.action(OP.SHOW_EYE,[Number(p.expression.slice(-2))]);
         else if(id==='eye-matrix'){
           this.matrixTransfer=(this.matrixTransfer+1)&255;
@@ -103,6 +105,8 @@
         let failure=null;
         try{
           await this.connection.enterProgram();this.check();
+          if(this.connection.ensureFirmware&&!await this.connection.ensureFirmware({interactive:false,reason:'run'}))throw new Error('主控固件尚未就绪，程序未运行。');
+          this.check();
           if(this.connection.learned){
             await this.connection.learned.prepareRun(copy);this.check();
             await this.connection.learned.beginRun();this.check();

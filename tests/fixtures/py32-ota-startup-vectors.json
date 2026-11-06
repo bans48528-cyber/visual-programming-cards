@@ -1,0 +1,95 @@
+{
+  "schema_version": 1,
+  "scope": "Basic APP startup only; not sound, display, motor or SC7 acceptance",
+  "clock": "host_monotonic_ms",
+  "sample_source": "Fresh matched C2 QUERY_STATUS D2; seq and opcode must match the outstanding request",
+  "rules": {"min_samples":2,"min_span_ms":500,"deadline_ms":30000,"seq_min":1,"seq_max":255,"different_seq":true,"mode_max":4,"ir_max":100,"ir_slots_equal":true,"minimum_mv":3000,"task":0,"faults":0},
+  "context": {"session_id":"startup-A","started_ms":900,"now_ms":1600},
+  "cases": [
+    {"name":"two_new_queries_500ms",
+     "samples":[
+       {"session_id":"startup-A","monotonic_ms":1000,"seq":21,"opcode":4,"result":0,"data":[0,25,25,25,60,15,0]},
+       {"session_id":"startup-A","monotonic_ms":1500,"seq":22,"opcode":4,"result":0,"data":[0,25,25,25,60,15,0]}
+     ],"expected":{"ok":true}},
+    {"name":"mode4_ir100_exact_3000mv",
+     "samples":[
+       {"session_id":"startup-A","monotonic_ms":1000,"seq":21,"opcode":4,"result":0,"data":[4,100,100,100,184,11,0]},
+       {"session_id":"startup-A","monotonic_ms":1500,"seq":22,"opcode":4,"result":0,"data":[4,100,100,100,184,11,0]}
+     ],"expected":{"ok":true}},
+    {"name":"duplicate_seq",
+     "samples":[
+       {"session_id":"startup-A","monotonic_ms":1000,"seq":21,"opcode":4,"result":0,"data":[0,25,25,25,60,15,0]},
+       {"session_id":"startup-A","monotonic_ms":1500,"seq":21,"opcode":4,"result":0,"data":[0,25,25,25,60,15,0]}
+     ],"expected":{"ok":false,"error_code":"DUPLICATE"}},
+    {"name":"zero_seq_not_fresh_health_evidence",
+     "samples":[
+       {"session_id":"startup-A","monotonic_ms":1000,"seq":21,"opcode":4,"result":0,"data":[0,25,25,25,60,15,0]},
+       {"session_id":"startup-A","monotonic_ms":1500,"seq":0,"opcode":4,"result":0,"data":[0,25,25,25,60,15,0]}
+     ],"expected":{"ok":false,"error_code":"PROTOCOL"}},
+    {"name":"old_epoch",
+     "samples":[
+       {"session_id":"startup-A","monotonic_ms":1000,"seq":21,"opcode":4,"result":0,"data":[0,25,25,25,60,15,0]},
+       {"session_id":"startup-old","monotonic_ms":1500,"seq":22,"opcode":4,"result":0,"data":[0,25,25,25,60,15,0]}
+     ],"expected":{"ok":false,"error_code":"SESSION"}},
+    {"name":"window_expired",
+     "context":{"now_ms":30901},
+     "samples":[
+       {"session_id":"startup-A","monotonic_ms":1000,"seq":21,"opcode":4,"result":0,"data":[0,25,25,25,60,15,0]},
+       {"session_id":"startup-A","monotonic_ms":1500,"seq":22,"opcode":4,"result":0,"data":[0,25,25,25,60,15,0]}
+     ],"expected":{"ok":false,"error_code":"TIMEOUT"}},
+    {"name":"only_499ms",
+     "samples":[
+       {"session_id":"startup-A","monotonic_ms":1000,"seq":21,"opcode":4,"result":0,"data":[0,25,25,25,60,15,0]},
+       {"session_id":"startup-A","monotonic_ms":1499,"seq":22,"opcode":4,"result":0,"data":[0,25,25,25,60,15,0]}
+     ],"expected":{"ok":false,"error_code":"SETTLING"}},
+    {"name":"nonmonotonic_time",
+     "samples":[
+       {"session_id":"startup-A","monotonic_ms":1000,"seq":21,"opcode":4,"result":0,"data":[0,25,25,25,60,15,0]},
+       {"session_id":"startup-A","monotonic_ms":999,"seq":22,"opcode":4,"result":0,"data":[0,25,25,25,60,15,0]}
+     ],"expected":{"ok":false,"error_code":"TIMING"}},
+    {"name":"low_voltage_2999mv",
+     "samples":[
+       {"session_id":"startup-A","monotonic_ms":1000,"seq":21,"opcode":4,"result":0,"data":[0,25,25,25,183,11,0]},
+       {"session_id":"startup-A","monotonic_ms":1500,"seq":22,"opcode":4,"result":0,"data":[0,25,25,25,183,11,0]}
+     ],"expected":{"ok":false,"error_code":"POWER"}},
+    {"name":"active_device_task",
+     "samples":[
+       {"session_id":"startup-A","monotonic_ms":1000,"seq":21,"opcode":4,"result":0,"data":[0,25,25,25,60,15,16]},
+       {"session_id":"startup-A","monotonic_ms":1500,"seq":22,"opcode":4,"result":0,"data":[0,25,25,25,60,15,16]}
+     ],"expected":{"ok":false,"error_code":"BUSY"}},
+    {"name":"latched_fault",
+     "samples":[
+       {"session_id":"startup-A","monotonic_ms":1000,"seq":21,"opcode":4,"result":0,"data":[0,25,25,25,60,15,8]},
+       {"session_id":"startup-A","monotonic_ms":1500,"seq":22,"opcode":4,"result":0,"data":[0,25,25,25,60,15,8]}
+     ],"expected":{"ok":false,"error_code":"FAULT"}},
+    {"name":"ir_slots_disagree",
+     "samples":[
+       {"session_id":"startup-A","monotonic_ms":1000,"seq":21,"opcode":4,"result":0,"data":[0,25,26,25,60,15,0]},
+       {"session_id":"startup-A","monotonic_ms":1500,"seq":22,"opcode":4,"result":0,"data":[0,25,26,25,60,15,0]}
+     ],"expected":{"ok":false,"error_code":"IR"}},
+    {"name":"ir_outside_normalized_range",
+     "samples":[
+       {"session_id":"startup-A","monotonic_ms":1000,"seq":21,"opcode":4,"result":0,"data":[0,101,101,101,60,15,0]},
+       {"session_id":"startup-A","monotonic_ms":1500,"seq":22,"opcode":4,"result":0,"data":[0,101,101,101,60,15,0]}
+     ],"expected":{"ok":false,"error_code":"IR"}},
+    {"name":"invalid_product_mode",
+     "samples":[
+       {"session_id":"startup-A","monotonic_ms":1000,"seq":21,"opcode":4,"result":0,"data":[5,25,25,25,60,15,0]},
+       {"session_id":"startup-A","monotonic_ms":1500,"seq":22,"opcode":4,"result":0,"data":[5,25,25,25,60,15,0]}
+     ],"expected":{"ok":false,"error_code":"MODE"}},
+    {"name":"query_rejected",
+     "samples":[
+       {"session_id":"startup-A","monotonic_ms":1000,"seq":21,"opcode":4,"result":0,"data":[0,25,25,25,60,15,0]},
+       {"session_id":"startup-A","monotonic_ms":1500,"seq":22,"opcode":4,"result":3,"data":[0,25,25,25,60,15,0]}
+     ],"expected":{"ok":false,"error_code":"DEVICE_REPLY"}},
+    {"name":"wrong_reply_opcode",
+     "samples":[
+       {"session_id":"startup-A","monotonic_ms":1000,"seq":21,"opcode":4,"result":0,"data":[0,25,25,25,60,15,0]},
+       {"session_id":"startup-A","monotonic_ms":1500,"seq":22,"opcode":51,"result":0,"data":[0,25,25,25,60,15,0]}
+     ],"expected":{"ok":false,"error_code":"PROTOCOL"}},
+    {"name":"one_sample_only",
+     "samples":[
+       {"session_id":"startup-A","monotonic_ms":1000,"seq":21,"opcode":4,"result":0,"data":[0,25,25,25,60,15,0]}
+     ],"expected":{"ok":false,"error_code":"SAMPLES"}}
+  ]
+}

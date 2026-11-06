@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "app": {
+    "applicationId": "com.xiaobai.remote",
+    "versionName": "1.2.10",
+    "versionCode": 16
+  },
+  "firmware": {
+    "boardId": 258,
+    "protocol": 1,
+    "version": 65539
+  }
+}

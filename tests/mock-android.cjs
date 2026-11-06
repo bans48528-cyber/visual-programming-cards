@@ -69,6 +69,18 @@ module.exports = function mockAndroid() {
           if(bytes[15]!==bytes.slice(0,15).reduce((a,b)=>(a+b)&255,0)) throw new Error('Invalid program frame');
           const seq=bytes[5],op=bytes[6];
           if(control.respondC2?.(bytes)===true)return;
+          // Default fixture is the exact App-bundled firmware; individual OTA tests
+          // override respondC2 above for older/unknown/corrupt devices.
+          if((op===0x60||op===0x56)&&window.XiaobaiFirmwareBundle){
+            const {release}=await XiaobaiFirmwareBundle.load(),f=release.firmware;
+            let data;
+            if(op===0x60){const info=new Uint8Array(60),d=new DataView(info.buffer);
+              d.setUint32(0,0x31494258,true);d.setUint16(4,f.protocol,true);d.setUint16(6,f.boardId,true);d.setUint32(8,f.minBootVersion,true);d.setUint32(12,f.version,true);info[16]=0;info[17]=1;
+              d.setUint32(20,f.imageSize,true);info.set(XiaobaiOtaProtocol.unhex(f.imageSha256),28);data=[bytes[7],...info.slice(bytes[7]*6,bytes[7]*6+6)];
+            }else{const uid=Uint8Array.from({length:12},(_,i)=>i+1);data=[bytes[7],...uid.slice(bytes[7]*6,bytes[7]*6+6)];}
+            const packet=[0x5a,0x98,0x97,10,0xd2,seq,op,0,...data];packet.push(packet.reduce((s,v)=>s+v,0)&255,0xa5);
+            setTimeout(()=>control.feed(String.fromCharCode(...packet)),control.ackDelay||5);return;
+          }
           if(op>=0x52&&op<=0x57){
             const packet=[0x5a,0x98,0x97,0x0a,0xd2,seq,op,2,...Array(7).fill(0)];
             packet.push(packet.reduce((sum,value)=>sum+value,0)&255,0xa5);
@@ -78,9 +90,9 @@ module.exports = function mockAndroid() {
           if(op===1) control.mode=4;
           if(op===2) control.mode=3;
           if(control.writeError) throw new Error(control.writeError);
-          if(op===4||[0x10,0x20,0x30,0x43,0x51].includes(op)) {
-            if(!control.suppressAck) setTimeout(()=>{
-              const data=[seq,op,0,...(op===4?[control.mode||0,10,20,30,0x3c,0x0f,0]:op===0x43?[bytes[7],bytes[8],0,0,0,0,0]:[0,0,0,0,0,0,0])];
+          if(op===4||[0x10,0x20,0x30,0x32,0x33,0x43,0x51].includes(op)) {
+            if(!control.suppressAck&&!(op===0x32&&control.deferTilt)) setTimeout(()=>{
+              const data=[seq,op,0,...(op===0x33?[1,1,1,0,0,0,0]:op===4?[control.mode||0,10,20,30,0x3c,0x0f,0]:op===0x43?[bytes[7],bytes[8],0,0,0,0,0]:[0,0,0,0,0,0,0])];
               const packet=[0x5a,0x98,0x97,0x0a,0xd2,...data];
               packet.push(packet.reduce((sum,value)=>sum+value,0)&255,0xa5);
               control.feed(String.fromCharCode(...packet));

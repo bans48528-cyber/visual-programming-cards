@@ -144,6 +144,7 @@
   Object.assign(CardModelHooks,{
     checkpoint:()=>CardHome.checkpoint(),
     async deactivate(old){
+      await window.CardOta?.cancelForModelChange?.();
       cancelDrag();closeParamEditor();old.deactivate?.();
       const bluetooth=window.CardBluetooth,connection=bluetooth?.remoteConnection?.();
       // Stop/cancel first, then retire the transport. Each old connection retains its own ID.

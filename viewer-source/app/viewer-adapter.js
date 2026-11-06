@@ -5,6 +5,7 @@ import {applyCustomParts} from './custom-assemblies.mjs';
 import {prepareSettingsPage,connectSettingsPage} from './settings-navigation.js';
 import {disableStudLogos} from './viewer-policy.js';
 import {applyToolbarIcons} from './toolbar.js';
+import {optimizeViewerRenderer,installViewerPerformance,flushViewerFrame} from './viewer-performance.js';
 disableStudLogos();
 const overlay=document.createElement('div');overlay.id='viewer-message';overlay.textContent='正在读取本地模型…';document.body.append(overlay);
 window.viewerDiagnostics={ready:false,errors:[],warnings:[],loads:0};
@@ -27,7 +28,7 @@ try{
     },idToTextureUrl:id=>'/library/textures/'+normalize(id).split('/').map(encodeURIComponent).join('/'),
     onError:error=>failure('模型加载失败：'+(error.subModel||'')+' '+(error.message||'')),
     onWarning:warning=>window.viewerDiagnostics.warnings.push(warning.message||String(warning))};
-    RealLoader.call(this,()=>{if(window.viewerDiagnostics.errors.length)return;onLoad();window.viewerDiagnostics.ready=true;overlay.hidden=true;document.body.dataset.ready='true';window.parent.postMessage({source:'building-viewer',type:'ready',visit:window.viewerVisit},location.origin);},null,config);
+    RealLoader.call(this,()=>{if(window.viewerDiagnostics.errors.length)return;onLoad();flushViewerFrame(window.manager);window.viewerDiagnostics.ready=true;overlay.hidden=true;document.body.dataset.ready='true';window.parent.postMessage({source:'building-viewer',type:'ready',visit:window.viewerVisit},location.origin);},null,config);
   }
   LocalLoader.prototype=Object.create(RealLoader.prototype);LocalLoader.prototype.constructor=LocalLoader;Object.assign(LocalLoader,RealLoader);
   LocalLoader.prototype.load=function(id){
@@ -44,13 +45,14 @@ try{
   THREE.WebGLRenderer=function(...args){
     const renderer=new RealRenderer(...args),setRatio=renderer.setPixelRatio.bind(renderer),render=renderer.render.bind(renderer);
     renderer.setPixelRatio=ratio=>setRatio(Math.min(2,ratio||1));
+    optimizeViewerRenderer(renderer);
     renderer.render=(scene,camera)=>{render(scene,camera);if(scene.type==='Scene')window.viewerDiagnostics.lastRender={triangles:renderer.info.render.triangles,camera:camera.position.toArray(),zoom:camera.zoom,width:renderer.domElement.width,height:renderer.domElement.height};};
     renderer.domElement.addEventListener('webglcontextlost',event=>{event.preventDefault();failure('图形上下文已中断，请返回首页重新打开模型。');});return renderer;
   };
   THREE.WebGLRenderer.prototype=RealRenderer.prototype;
   window.addEventListener('error',event=>failure(event.message));
   if(location.pathname==='/instructions.html'){
-    prepareSettingsPage();window.model=record.modelId;window.main();connectSettingsPage(window.manager,record);applyToolbarIcons(window.manager);
+    prepareSettingsPage();installViewerPerformance();window.model=record.modelId;window.main();connectSettingsPage(window.manager,record);applyToolbarIcons(window.manager);
   }
   else window.startOriginalViewer();
 }catch(error){failure(error.message||String(error));}

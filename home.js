@@ -29,7 +29,7 @@
   const modelExamples = () => (model.examples || []).map(example => ({...example,items:example.items.map(exampleItem)}));
   const home = document.createElement("section");
   home.className = "home-screen";
-  home.setAttribute("aria-label", "小白编程主页");
+  home.setAttribute("aria-label", "Drluck CodeLab主页");
   home.innerHTML = `<nav class="home-sidebar" aria-label="主页导航">
     <button class="home-nav" data-view="files" role="tab"><img src="assets/home-icon-file.png" alt=""><span>我的作品</span></button>
     <span class="home-local">保存在此设备</span>
@@ -165,7 +165,7 @@
       const previousResumeKey = session.resumeKey;
       companionSession = {...session, template: false, projectId: project.id, resumeKey: project.id};
       document.querySelector(".brand-title").textContent = project.name;
-      document.title = `${project.name} · 小白编程`;
+      document.title = `${project.name} · Drluck CodeLab`;
       setStatus("作品已保存");
       companionEvent('saved', {...companionDetail(), previousResumeKey});
     });
@@ -193,7 +193,7 @@
       project.updated = Date.now();
       if (persist()) {
         document.querySelector(".brand-title").textContent = project.name;
-        document.title = `${project.name} · 小白编程`;
+        document.title = `${project.name} · Drluck CodeLab`;
         setStatus("作品已保存");
       }
     });
@@ -241,7 +241,7 @@
     renderProgram();renderPalette();commitHistory();
     programCanvas.scrollLeft = 0;programCanvas.scrollTop = 0;
     document.querySelector(".brand-title").textContent = project.name;
-    document.title = `${project.name} · 小白编程`;
+    document.title = `${project.name} · Drluck CodeLab`;
     if (navigate) location.hash = "editor";
     if (companionSession) companionEvent('opened', companionDetail());
   }
@@ -278,7 +278,7 @@
       renderProgram();renderPalette();commitHistory();
       programCanvas.scrollLeft=0;programCanvas.scrollTop=0;
       document.querySelector('.brand-title').textContent=template.name;
-      document.title=`${template.name} · 小白编程`;
+      document.title=`${template.name} · Drluck CodeLab`;
       location.hash='editor';
       companionEvent('opened', companionDetail());
       return true;
@@ -380,7 +380,7 @@
     closeParamEditor();
     const reveal=()=>{home.hidden=false;document.body.classList.add("home-open");};
     if(home.hidden&&location.hash!=="#bluetooth"&&!CardModelSession.switching)CardPageTransition.run(document.querySelector(".app"),home,reveal,()=>{},-1);else reveal();
-    document.title="小白编程";render();
+    document.title="Drluck CodeLab";render();
     if (returning) {
       companionEvent('closed', {...companionDetail(returning), reason});
       if (returning.onReturn) CardPageTransition.idle().then(() => {

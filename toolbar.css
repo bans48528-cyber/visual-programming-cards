@@ -128,5 +128,48 @@
   font-size: 13px;
   font-weight: 700;
   color: currentColor;
+  white-space: nowrap;
 }
 .execution-button.execution-compile:disabled { opacity: .55; }
+
+/* Ring motion adapted from UI Ball LDRS (Griffin Johnston, MIT).
+   License: assets/licenses/ldrs-MIT.txt. Both shapes stay local/offline. */
+.execution-run.is-running { position: relative; color: #1b2736; }
+.execution-button.execution-compile.is-running:disabled { opacity: 1; }
+.execution-run > span { position: relative; z-index: 1; }
+.execution-ring {
+  --execution-ring-stroke: 10;
+  display: none;
+  position: absolute;
+  inset: 3px;
+  width: calc(100% - 6px);
+  height: calc(100% - 6px);
+  color: #8a6500;
+  overflow: visible;
+  pointer-events: none;
+  transform-origin: center;
+}
+.execution-ring circle { fill: none; stroke: currentColor; stroke-width: var(--execution-ring-stroke); }
+.execution-ring-track { opacity: .27; }
+.execution-ring-arc { stroke-linecap: round; stroke-dasharray: 1 200; stroke-dashoffset: 0; }
+.execution-run.is-running > .execution-ring { display: block; animation: execution-ring-turn 3s linear infinite; }
+.execution-run.is-running .execution-ring-arc { animation: execution-ring-stretch 2.25s ease-in-out infinite; }
+.execution-pause { transition: background-color 120ms ease-out; }
+.execution-pause.is-program-active { background: #dc3545; }
+.execution-pause.is-program-active > span { background: #fff; }
+@keyframes execution-ring-turn { to { transform: rotate(360deg); } }
+@keyframes execution-ring-stretch {
+  0% { stroke-dasharray: 0 150; stroke-dashoffset: 0; }
+  50% { stroke-dasharray: 75 150; stroke-dashoffset: -25; }
+  100% { stroke-dashoffset: -99; }
+}
+@media (max-width: 600px), (max-height: 500px) {
+  /* Preserve a clear center for the existing three-character run label. */
+  .execution-ring { --execution-ring-stroke: 7; inset: 1.5px; width: calc(100% - 3px); height: calc(100% - 3px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .execution-run.is-running > .execution-ring,
+  .execution-run.is-running .execution-ring-arc { animation: none; }
+  .execution-ring-arc { stroke-dasharray: 50 100; stroke-dashoffset: 0; }
+  .execution-pause { transition: none; }
+}

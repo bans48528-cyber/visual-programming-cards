@@ -66,6 +66,7 @@
     }
   }
   function suspend() {
+    window.CardOta?.cancelForBackground?.();
     window.CardProgram?.stop("应用进入后台，程序停止").catch(()=>{});
     (window.CardModelSession ? window.CardModelSession.current.remote?.close?.() : window.CardRemote?.close());
     cancelDrag();
@@ -79,6 +80,7 @@
     closeParamEditor();
   }
   async function back(app) {
+    if(window.CardOta?.back?.())return;
     if(window.CardLearnedCommands?.back())return;
     if(window.CardBuildings?.back())return;
     const dialog = document.querySelector('dialog[open]');

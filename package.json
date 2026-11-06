@@ -6,9 +6,9 @@
     "build:web": "node scripts/build-web.cjs",
     "android:sync": "npm run build:web && cap sync android",
     "android:build": "npm run android:sync && node scripts/build-android.cjs",
-    "test": "node tests/lbs2206-runner.spec.cjs && node tests/lbs2206-protocol.spec.cjs && node tests/device-models.spec.cjs && node tests/device-preferences.spec.cjs && node tests/xiaobai-protocol.spec.cjs && node tests/xiaobai-runner.spec.cjs && node tests/xiaobai-matrix.spec.cjs && node tests/xiaobai-ui.spec.cjs && node tests/remote-control.spec.cjs && node tests/transport.spec.cjs",
+    "test": "node tests/lbs2206-runner.spec.cjs && node tests/lbs2206-protocol.spec.cjs && node tests/device-models.spec.cjs && node tests/device-preferences.spec.cjs && node tests/xiaobai-protocol.spec.cjs && node tests/xiaobai-runner.spec.cjs && node tests/xiaobai-matrix.spec.cjs && node tests/xiaobai-tilt.spec.cjs && node tests/xiaobai-ui.spec.cjs && node tests/remote-control.spec.cjs && node tests/transport.spec.cjs",
     "test:transitions": "node tests/page-transitions.spec.cjs && node tests/remote-navigation.spec.cjs",
-    "test:buildings": "node tests/building-guide.spec.cjs && node tests/building-books.spec.cjs && node tests/building-books-preview.spec.cjs && node tests/building-preload.spec.cjs && node tests/buildings.spec.cjs && node tests/building-touch.spec.cjs && node tests/building-toolbar.spec.cjs",
+    "test:buildings": "node tests/building-loading.spec.cjs && node tests/building-guide.spec.cjs && node tests/building-books.spec.cjs && node tests/building-books-preview.spec.cjs && node tests/building-preload.spec.cjs && node tests/buildings.spec.cjs && node tests/building-touch.spec.cjs && node tests/building-toolbar.spec.cjs",
     "test:ui": "node tests/home.spec.cjs && node tests/blocks.spec.cjs && node tests/drag-response.spec.cjs && node tests/palette-swipe.spec.cjs && node tests/block-sounds.spec.cjs && node tests/device-models-ui.spec.cjs",
     "test:android": "node tests/android.spec.cjs",
     "test:keypad": "node tests/number-keypad.spec.cjs",
@@ -20,7 +20,11 @@
     "test:spark": "node tests/spark-ai.spec.cjs && node tests/spark-ai-ui.spec.cjs",
     "test:tc01": "node tests/tc01.spec.cjs && node tests/tc01-ui.spec.cjs",
     "test:learned": "node --test tests/xiaobai-learned-recovery.spec.cjs && node tests/xiaobai-learned-commands.spec.cjs && node tests/xiaobai-learned-runner.spec.cjs && node tests/xiaobai-native-frames.spec.cjs && node tests/xiaobai-learned-ui.spec.cjs",
-    "test:guides": "node tests/companion-sessions.spec.cjs && node tests/usage-guide.spec.cjs && node tests/building-direct-program.spec.cjs"
+    "test:guides": "node tests/companion-sessions.spec.cjs && node tests/usage-guide.spec.cjs && node tests/building-direct-program.spec.cjs",
+    "test:tilt": "node tests/xiaobai-tilt.spec.cjs && node tests/xiaobai-native-frames.spec.cjs && node tests/xiaobai-eye-tilt.spec.cjs && node tests/xiaobai-app-flow.spec.cjs",
+    "test:ota": "node tests/xiaobai-ota-package.spec.cjs && node tests/xiaobai-ota-native.spec.cjs && node tests/xiaobai-native-frames.spec.cjs && node tests/xiaobai-ota-startup.spec.cjs && node tests/xiaobai-ota-session.spec.cjs && node tests/xiaobai-ota-ui.spec.cjs",
+    "test:ota:interop": "node tests/xiaobai-ota-c-interop.spec.cjs",
+    "test:firmware": "node tests/xiaobai-firmware-bundle.spec.cjs && node tests/xiaobai-firmware.spec.cjs && node tests/xiaobai-firmware-recovery.spec.cjs && node tests/xiaobai-firmware-actions.spec.cjs && node tests/xiaobai-firmware-identity.spec.cjs && node tests/bluetooth-name-source.spec.cjs && node tests/xiaobai-ota-ui.spec.cjs"
   },
   "dependencies": {
     "@capacitor/android": "8.5.2",

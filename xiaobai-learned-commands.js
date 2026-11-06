@@ -41,6 +41,7 @@
     }
     publicTask(task){return{task:task.task,slot:task.slot,replace:task.replace,stage:task.stage,phase:task.phase,terminal:task.terminal,error:task.error||'',state:task.state};}
     emit(){const snapshot=this.getSnapshot();this.onChange(snapshot);for(const listener of this.listeners)listener(snapshot);}
+    requireFirmware(){if(this.link.firmwareGate&&!this.link.firmwareGate.snapshot().ready)throw failure('请先完成主控固件核对或更新，再学习和运行。','FIRMWARE_REQUIRED');}
     session(){
       if(this.disposed||this.link.closed||!this.link.subscribed)throw failure('请先连接小白并订阅设备反馈。','DISCONNECTED');
       if(this.link.mode!==MODE.PROGRAM||!this.link.heartbeatTimer)throw failure('请先进入编程模式。','MODE');
@@ -60,7 +61,7 @@
       }catch(error){if(error.code==='EXHAUSTED')throw error;throw failure('无法可靠保存设备任务编号，已取消发送。','STORAGE');}
     }
     deviceNumber(kind){if(!this.uid)throw failure('尚未读取设备稳定标识。','UID');return this.allocate(`xiaobai:${this.uid}:counter:${kind}`);}
-    request(op,args,ms,match){this.session();return this.link.request(this.link.nextSeq(),op,args,ms,match);}
+    request(op,args,ms,match){this.session();if(op===OP.LEARN_COMMAND||op===OP.WAIT_LEARNED||(op===OP.DECLARE_RUN&&args?.[4]===1))this.requireFirmware();return this.link.request(this.link.nextSeq(),op,args,ms,match);}
     matchId(id,slot=null){return(data,result)=>result===2||(read32(data)===id&&(slot===null||data[4]===slot));}
     pause(ms,epoch){
       return new Promise((resolve,reject)=>{
@@ -164,7 +165,7 @@
       },ms);
     }
     async learn(slot,{replace=false}={}){
-      slotNumber(slot);this.session();
+      slotNumber(slot);this.session();this.requireFirmware();
       if(this.busy)throw failure('学习与程序运行不能同时进行。','BUSY');
       this.preparingLearn=true;this.emit();const epoch=this.epoch;
       try{
@@ -214,6 +215,7 @@
     }
     dismissLearning(){if(this.learning&&!this.learning.terminal)throw failure('请先取消当前学习。','BUSY');this.learning=null;this.emit();}
     async prepareRun(program){
+      this.requireFirmware();
       this.session();if(this.busy)throw failure('请先完成或取消口令学习。','BUSY');
       const used=references(program),epoch=this.epoch;this.preparedNeedsLearned=used.length>0;this.preparingRun=true;this.emit();
       try{
@@ -227,7 +229,7 @@
       }catch(error){if(epoch===this.epoch){this.preparingRun=false;this.emit();}throw error;}
     }
     async beginRun(){
-      this.session();if(!this.preparingRun||this.run)throw failure('程序尚未通过口令检查。','BUSY');
+      this.session();this.requireFirmware();if(!this.preparingRun||this.run)throw failure('程序尚未通过口令检查。','BUSY');
       const epoch=this.epoch;
       try{
         if(this.legacy&&!this.uid){this.run={id:0,legacy:true};return this.run;}
@@ -267,6 +269,7 @@
       },1000);
     }
     wait(slot){
+      this.requireFirmware();
       slotNumber(slot);this.session();
       if(!this.run||this.run.legacy||this.capability!=='supported')return Promise.reject(failure('自学习口令等待尚未准备好。','UNSUPPORTED'));
       if(this.waiting)return Promise.reject(failure('已有口令等待任务。','BUSY'));

@@ -10,14 +10,19 @@
     block?.classList.add('is-executing');
   }
   function render() {
-    run.disabled=Boolean(active||starting||stopping||window.CardBluetooth?.busy||window.CardModelSession?.switching);
+    run.disabled=Boolean(active||starting||stopping||window.CardOta?.busy||window.CardBluetooth?.busy||window.CardModelSession?.switching);
     document.body.classList.toggle('program-running',Boolean(active));
+    const reported=window.CardModelSession?.current.execution.reportsLifecycle;
+    const phase=window.CardBluetooth?.executionPhase;
+    const connected=window.CardBluetooth?.connected!==false;
+    const running=reported?connected&&phase==='running':Boolean(active);
+    const stopActive=running||Boolean(stopping)||Boolean(reported&&connected&&['stopping','unknown'].includes(phase));
+    run.classList.toggle('is-running',running);
+    stop.classList.toggle('is-program-active',stopActive);
     run.setAttribute('aria-label','运行程序');run.title='运行程序';
     stop.setAttribute('aria-label','停止程序');stop.title=window.CardModelSession?.current.execution.kind==='compiled'?'取消上传并请求设备暂停':'停止程序并刹停电机';
     run.classList.add('execution-compile');
     window.dispatchEvent(new Event('card-program-state'));
-    const reported=window.CardModelSession?.current.execution.reportsLifecycle;
-    const phase=window.CardBluetooth?.executionPhase;
     run.querySelector('span').textContent=reported?({uploading:'发送中','awaiting-start':'待确认',running:'运行中',stopping:'待停止',unknown:'待确认'}[phase]||(active||starting?'准备中':'运行')):(active?'运行中':starting?'准备中':'运行');
   }
   async function halt(reason='程序已停止') {
@@ -29,7 +34,7 @@
     }finally{stopping--;render();}
   }
   async function start() {
-    if(active||starting||stopping||window.CardBluetooth?.busy||window.CardModelSession?.switching||window.CardModelSession?.selected===false)return;
+    if(active||starting||stopping||window.CardOta?.busy||window.CardBluetooth?.busy||window.CardModelSession?.switching||window.CardModelSession?.selected===false)return;
     const scope=window.CardModelSession?.capture();
     const model=scope?.model;
     const ticket=++generation;
@@ -42,8 +47,12 @@
       const snapshot=(spec||XiaobaiRunner).validate(program);
       await (model ? model.remote?.close?.() : window.CardRemote?.close());
       if(!valid()||document.hidden||location.hash!=='#editor')return;
+      const firmware=window.CardBluetooth?.firmware;
+      if(firmware?.hasRecovery?.()&&!window.CardBluetooth?.connected&&!await firmware.ensureReady({interactive:true,reason:'run'}))return;
       const connection=window.CardBluetooth?.remoteConnection?.();
       if(!connection){notice('请先连接'+(model?.name||'小白')+'。');location.hash='bluetooth';return;}
+      if(connection.ensureFirmware&&!await connection.ensureFirmware({interactive:true,reason:'run'}))return;
+      if(!valid()||document.hidden||location.hash!=='#editor')return;
       const options={connection,signal:scope?.signal,
         isCurrent:()=>(!scope||scope.isCurrent())&&window.CardBluetooth?.remoteConnection?.()?.id===connection.id,
         onProgress:text=>{if(valid()){run.querySelector('span').textContent=text;notice(text+'…');}},
@@ -73,6 +82,9 @@
     const alreadyStopping=Boolean(active||connection?.learned?.getSnapshot().busy||window.CardBluetooth?.busy);
     stopping++;render();
     try {
+      // Only the user's stop button cancels OTA. CardProgram.stop() is also used
+      // internally when OTA quiesces the existing program before taking the link.
+      if(window.CardOta?.busy)await window.CardBluetooth?.firmware?.cancel({reason:'程序已停止，升级已取消。'});
       await halt();await (scope?scope.model.remote?.close?.():window.CardRemote?.close());
       if(scope&&!scope.isCurrent())return;
       if(connection&&connection.id===window.CardBluetooth?.remoteConnection?.()?.id){if(!alreadyStopping)await connection.stopProgram();if((!scope||scope.isCurrent())&&!connection.stopNeedsConfirmation)notice('已发送停止程序指令。');}
@@ -91,7 +103,7 @@
   window.addEventListener('xiaobai-program-abort',event=>{
     const detail=event?.detail||{};
     const reasons={1:'设备心跳中断，程序已停止。',2:'蓝牙已断开，程序已停止。',3:'设备按键中止了程序。',
-      4:'设备模式已切换，程序已停止。',5:'收到语音停止口令，程序已停止。',6:'语音设备异常或等待超时，程序已停止。'};
+      4:'设备模式已切换，程序已停止。',5:'收到语音停止口令，程序已停止。',6:'语音设备异常或等待超时，程序已停止。',7:'加速度传感器不可用，程序已停止。'};
     cancel(detail.reason || (detail.code===2&&reasons[detail.data?.[0]]) || '设备已退出编程模式，程序已停止。');
   });
   window.CardProgram={stop:halt,refresh:render,get running(){return Boolean(active||starting||stopping);}};

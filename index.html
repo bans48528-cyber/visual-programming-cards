@@ -3,7 +3,10 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>小白编程</title>
+  <title>Drluck CodeLab</title>
+  <meta name="application-name" content="Drluck CodeLab">
+  <link rel="icon" type="image/png" sizes="192x192" href="assets/branding/drluck-codelab-192.png">
+  <link rel="apple-touch-icon" href="assets/branding/drluck-codelab.png">
   <script>
     // Restore the canvas color before its first paint.
     try {
@@ -28,6 +31,7 @@
   <link rel="stylesheet" href="lbs2206.css">
   <link rel="stylesheet" href="tc01.css">
   <link rel="stylesheet" href="page-transitions.css">
+  <link rel="stylesheet" href="xiaobai-ota.css">
 </head>
 <!-- Keep editor measurable but hidden until home.js selects the initial route. -->
 <body class="home-open">
@@ -35,7 +39,7 @@
     <header class="topbar">
       <div class="brand">
         <button class="btn home-return" id="homeBtn" type="button" title="返回主页" aria-label="返回主页"><img src="assets/toolbar/home.svg" alt="" draggable="false"></button>
-        <div class="brand-title">小白编程</div>
+        <div class="brand-title">Drluck CodeLab</div>
       </div>
       <output id="deviceStatus" class="device-status" data-state="disconnected" role="status" aria-live="polite" aria-atomic="true">设备未连接</output>
       <div class="toolbar" aria-label="程序操作">
@@ -58,7 +62,7 @@
         </div>
         <div class="execution-controls" role="group" aria-label="程序运行控制">
           <button class="execution-button execution-pause" id="pauseProgramBtn" type="button" aria-label="暂停程序" title="暂停程序（尚未接入硬件）"><span aria-hidden="true"></span></button>
-          <button class="execution-button execution-run" id="runProgramBtn" type="button" aria-label="发送并运行程序" title="发送并运行程序（尚未接入硬件）"><span aria-hidden="true"></span></button>
+          <button class="execution-button execution-run" id="runProgramBtn" type="button" aria-label="发送并运行程序" title="发送并运行程序（尚未接入硬件）"><span aria-hidden="true"></span><svg class="execution-ring" viewBox="0 0 100 100" aria-hidden="true" focusable="false"><circle class="execution-ring-track" cx="50" cy="50" r="45" pathLength="100"/><circle class="execution-ring-arc" cx="50" cy="50" r="45" pathLength="100"/></svg></button>
           <output class="execution-notice" id="executionNotice" role="status" hidden></output>
         </div>
       </section>
@@ -106,6 +110,10 @@
   <script src="home.js?v=skip-blank-save-15"></script>
   <script src="spark-protocol.js"></script>
   <script src="xiaobai-protocol.js"></script>
+  <script src="xiaobai-ota-protocol.js"></script>
+  <script src="xiaobai-ota.js"></script>
+  <script src="xiaobai-firmware-bundle.js"></script>
+  <script src="xiaobai-firmware.js"></script>
   <script src="xiaobai-learned-commands.js"></script>
   <script src="xiaobai-device-preferences.js"></script>
   <script src="bluetooth-page.js"></script>
@@ -124,5 +132,6 @@
   <script src="spark-ai-adapter.js"></script>
   <script src="tc01-ui.js"></script>
   <script src="device-picker.js"></script>
+  <script src="xiaobai-ota-ui.js"></script>
 </body>
 </html>

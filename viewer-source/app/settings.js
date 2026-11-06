@@ -40,6 +40,12 @@ document.body.dataset.ready='true';
 
 mountSettingsIllustrations(form);
 function selected(){for(const label of form.querySelectorAll('label'))label.classList.toggle('is-selected',label.querySelector('input').checked);}
+// Explicit classes keep selected/focus styling usable on Chrome 92 (no :has).
+form.addEventListener('focusin',event=>{
+ const input=event.target;
+ if(input instanceof HTMLInputElement&&input.matches(':focus-visible'))input.closest('label').classList.add('is-focus-visible');
+});
+form.addEventListener('focusout',event=>event.target.closest('label')?.classList.remove('is-focus-visible'));
 selected();form.addEventListener('change',()=>{
  selected();if(params.get('embedded')==='1')parent.postMessage({source:'viewer-settings',type:'change',values:Object.fromEntries(Object.keys(choices).map(k=>[k,LDR.Options[k]]))},location.origin);
 });

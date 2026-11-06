@@ -19,7 +19,8 @@ const block={id:'eye-matrix',params:{leftPattern:left,rightPattern:right}};
     assert.throws(()=>matrixChunks(1,bad,right));
     assert.throws(()=>validate([{...block,params:{leftPattern:bad,rightPattern:right}}]));
   }
-  assert.throws(()=>validate([{id:'tilt-wait',params:{direction:'left'}}]),/尚未提供/);
+  assert.doesNotThrow(()=>validate([{id:'tilt-wait',params:{direction:'left'}}]));
+  assert.throws(()=>validate([{id:'tilt-wait',params:{direction:'sideways'}}]),/倾倒方向无效/);
   const calls=[];let release;
   const connection={async enterProgram(){},cancelPending(){release?.();},async stopProgram(){calls.push('stop');},
     async action(op,args,blocking,timeout){calls.push([op,args,blocking,timeout]);if(args[1]===0)await new Promise(r=>release=r);}};

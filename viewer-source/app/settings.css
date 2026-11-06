@@ -85,7 +85,7 @@ fieldset:nth-child(3) .choices { grid-template-columns: repeat(4, minmax(0, 1fr)
   touch-action: manipulation;
 }
 .choice:hover { border-color: #b0c9e4; background: #f5f9ff; }
-.choice.is-selected, .choice:has(input:checked) {
+.choice.is-selected {
   border-color: #2186f5;
   background: #edf5ff;
   box-shadow: inset 0 0 0 1px #2186f5;
@@ -104,17 +104,29 @@ fieldset:nth-child(3) .choices { grid-template-columns: repeat(4, minmax(0, 1fr)
   clip-path: inset(50%);
   white-space: nowrap;
 }
-.choice:has(input:focus-visible), #settings-back:focus-visible { outline: 3px solid #83b9f7; outline-offset: 3px; }
+.choice.is-focus-visible, #settings-back:focus-visible { outline: 3px solid #83b9f7; outline-offset: 3px; }
 .choice-preview { display: block; width: 100%; height: 100%; min-width: 0; min-height: 0; pointer-events: none; }
 .choice > span { min-width: 0; align-self: stretch; display: flex; align-items: center; justify-content: center; }
 .choice strong { display: block; font-size: 14px; font-weight: 600; line-height: 1.35; overflow-wrap: anywhere; text-wrap: balance; }
 .choice small { display: none; }
-.choices:has(input[type="checkbox"]) .choice { grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr); grid-template-rows: minmax(0, 1fr); gap: 16px; text-align: left; }
-.choices:has(input[type="checkbox"]) .choice-preview { align-self: start; height: calc(100% - 2.7em - 8px); }
-.choices:has(input[type="checkbox"]) .choice > span { display: block; align-self: center; }
-.choices:has(input[type="checkbox"]) .choice small { display: block; max-width: 200px; margin-top: 6px; color: #7a899a; font-size: 12px; line-height: 1.55; }
+.choices-stud .choice { grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr); grid-template-rows: minmax(0, 1fr); gap: 16px; text-align: left; }
+.choices-stud .choice-preview { align-self: start; height: calc(100% - 2.7em - 8px); }
+.choices-stud .choice > span { display: block; align-self: center; }
+.choices-stud .choice small { display: block; max-width: 200px; margin-top: 6px; color: #7a899a; font-size: 12px; line-height: 1.55; }
 
-/* Fit all four groups on landscape phones; the artwork shares the available height. */
+/* Keep two balanced rows on landscape phones and tablets, including the M5.
+   vh is the Chrome 92 fallback; svh refines it on newer WebViews. */
+@media (orientation: landscape) {
+  #settings-form {
+    height: calc(100vh - var(--header-height) - var(--page-gap) - var(--panel-padding) * 2 - 2px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+    height: calc(100svh - var(--header-height) - var(--page-gap) - var(--panel-padding) * 2 - 2px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+    max-height: 560px;
+    grid-template-rows: repeat(2, minmax(0, 1fr));
+  }
+  fieldset, .choices { min-height: 0; }
+  .choice { min-height: 44px; }
+}
+/* Compact spacing is only needed on short landscape screens. */
 @media (orientation: landscape) and (max-height: 600px) {
   :root {
     --header-height: 48px;
@@ -124,33 +136,30 @@ fieldset:nth-child(3) .choices { grid-template-columns: repeat(4, minmax(0, 1fr)
     --legend-height: 24px;
   }
   main { border-radius: 18px; }
-  #settings-form {
-    height: calc(100svh - var(--header-height) - var(--page-gap) - var(--panel-padding) * 2 - 2px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
-    grid-template-rows: repeat(2, minmax(0, 1fr));
-  }
   fieldset { min-height: 0; }
   .choices { min-height: 0; gap: 6px; }
   .choice { min-height: 44px; padding: 7px 5px; gap: 5px; border-radius: 11px; }
-  .choices:has(input[type="checkbox"]) .choice-preview { height: calc(100% - 2.7em - 5px); }
+  .choices-stud .choice-preview { height: calc(100% - 2.7em - 5px); }
   .choice strong { font-size: clamp(12px, 1.85vw, 15px); }
-  .choices:has(input[type="checkbox"]) .choice { gap: 10px; }
+  .choices-stud .choice { gap: 10px; }
 }
 @media (orientation: landscape) and (max-height: 340px) {
   :root { --header-height: 44px; --page-gap: 8px; --panel-padding: 8px; --group-gap: 8px; --legend-height: 21px; }
   .compact-title { font-size: 16px; }
   legend { font-size: 13px; line-height: 18px; }
   .choice { padding: 4px; gap: 3px; border-radius: 9px; font-size: 12px; }
-  .choices:has(input[type="checkbox"]) .choice-preview { height: calc(100% - 2.7em - 3px); }
+  .choices-stud .choice-preview { height: calc(100% - 2.7em - 3px); }
   .choice strong { font-size: 12px; }
-  .choices:has(input[type="checkbox"]) .choice small { display: none; }
+  .choices-stud .choice small { display: none; }
 }
-@media (max-width: 580px) and (orientation: portrait) {
+@media (max-width: 760px) and (orientation: portrait) {
   :root { --page-gap: 12px; --panel-padding: 16px; --group-gap: 22px; }
   .header-inner { grid-template-columns: auto 1fr; gap: 8px; }
   .compact-title { display: none; }
   #settings-form { grid-template-columns: 1fr; }
   fieldset:nth-child(3) .choices { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .choice { min-height: 112px; padding: 10px 8px; }
-  .choices:has(input[type="checkbox"]) .choice { min-height: 100px; }
+  .choices-stud .choice { min-height: 100px; }
+  .choices-stud .choice-preview { align-self: center; height: 100%; }
 }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition: none !important; scroll-behavior: auto !important; } }

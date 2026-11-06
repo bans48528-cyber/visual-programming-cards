@@ -15,7 +15,7 @@ window.CardBluetoothPage = (() => {
         <div class="bt-hero-state" role="status"><i aria-hidden="true"></i><span>尚未连接</span></div><p class="bt-hero-note">打开主机电源，保持在手机附近</p></aside>
       <section class="bt-device-panel" aria-label="蓝牙设备"><div class="bt-section-header"><div><h2>附近设备 <span class="bt-device-count"></span></h2><span class="bt-scan-description">优先连接你的默认设备</span></div><button class="bt-button bt-search" type="button">扫描设备</button></div>
         <p class="bt-message" role="status" aria-live="polite">有默认设备时，APP 会优先自动连接。</p>
-        <div class="bt-results"><section class="bt-current" hidden aria-label="当前连接"><div><span class="bt-eyebrow">当前设备</span><h2></h2><p role="status"></p></div><div class="bt-device-actions"><button class="bt-button bt-rename-current" type="button" aria-label="重命名当前设备" title="重命名">⋯</button><button class="bt-button" id="btDisconnect" type="button">断开</button></div></section>
+        <div class="bt-results"><section class="bt-current" hidden aria-label="当前连接"><div><span class="bt-eyebrow">当前设备</span><h2></h2><p role="status"></p><p class="bt-current-name-source" hidden></p></div><div class="bt-device-actions"><button class="bt-button bt-rename-current" type="button" aria-label="重命名当前设备" title="重命名">⋯</button><button class="bt-button" id="btDisconnect" type="button">断开</button></div></section>
         <ul class="bt-list" aria-label="扫描结果"></ul><div class="bt-empty"><span class="bt-radar" aria-hidden="true"></span><strong>尚未扫描</strong><span>打开主机电源后开始扫描</span></div></div>
       </section></main>
       <footer class="bt-footer"><p class="bt-stage-note"></p><button type="button" class="bt-help">连接帮助 <span aria-hidden="true">›</span></button></footer>
@@ -49,7 +49,7 @@ window.CardBluetoothPage = (() => {
     page.querySelector('.bt-device-count').textContent=count||'';
     page.querySelector('.bt-current').classList.toggle('is-pending',connecting&&!connected);
   }
-  function device(row,entry,{name,isDefault=false}={}) {
+  function device(row,entry,{name,isDefault=false,nameInfo=null}={}) {
     row.classList.toggle('is-default',isDefault);
     const title=row.querySelector('strong');title.textContent=name;
     if(isDefault){const badge=document.createElement('span');badge.className='bt-default-badge';badge.textContent='默认';title.append(badge);}
@@ -58,11 +58,19 @@ window.CardBluetoothPage = (() => {
     if(!signal){signal=document.createElement('span');signal.className='bt-signal';row.prepend(signal);}
     signal.replaceChildren(...Array.from({length:4},(_,i)=>{const bar=document.createElement('i');bar.style.height=`${5+i*4}px`;bar.classList.toggle('lit',i<level);return bar;}));
     signal.setAttribute('aria-label',`信号${['','较弱','一般','良好','很强'][level]}`);
-    row.querySelector('small').textContent=`${entry.name||entry.deviceId.slice(-8)} · 信号${['','较弱','一般','良好','很强'][level]}`;
-    row.title=`${entry.name||''} · ${entry.deviceId} · ${entry.rssi} dBm`;
+    const info=nameInfo||window.XiaobaiDevicePreferences?.describeName(entry,name!==entry.name?name:'');
+    row.querySelector('small').textContent=`${info?.description||entry.name||entry.deviceId.slice(-8)} · 信号${['','较弱','一般','良好','很强'][level]}`;
+    row.title=`${info?.description||entry.name||''} · ${entry.deviceId} · ${entry.rssi} dBm`;
+    row.dataset.nameSource=info?.source||'unknown';
     const rename=row.querySelector('.bt-rename');
     if(rename){rename.textContent='⋯';rename.setAttribute('aria-label',`重命名 ${name}`);rename.title='重命名';row.querySelector('.bt-device-actions').append(rename);}
   }
+  function nameDetails(page,entry,info){
+    const line=page.querySelector('.bt-current-name-source');if(!line)return;
+    line.hidden=!entry||!info;line.textContent=info?.description||'';
+    line.dataset.nameSource=info?.source||'unknown';
+    if(info)line.title=`广播原名：${JSON.stringify(info.advertisedName)}；系统缓存：${JSON.stringify(info.cachedName)}`;
+  }
   function closePanels(page){page.querySelectorAll('dialog[open]').forEach(dialog=>dialog.close('cancel'));}
-  return {create,status,device,closePanels};
+  return {create,status,device,nameDetails,closePanels};
 })();

@@ -8,9 +8,17 @@
   const OP = Object.freeze({ENTER_PROGRAM:1, ENTER_REMOTE:2, HEARTBEAT:3, QUERY_STATUS:4, STOP_PROGRAM:5,
     MOTOR_TIME:0x10, MOTOR_RUN:0x11, MOTOR_STOP:0x12, MOTOR_POWER:0x13,
     MOVE_TIME:0x20, MOVE_RUN:0x21, MOVE_STOP:0x22, MOVE_POWER:0x23,
-    WAIT_IR:0x30, READ_IR:0x31, SHOW_EYE:0x40, SHOW_NUM:0x41, SHOW_OFF:0x42, SHOW_MATRIX:0x43,
+    WAIT_IR:0x30, READ_IR:0x31, WAIT_TILT:0x32, READ_TILT:0x33, SHOW_EYE:0x40, SHOW_NUM:0x41, SHOW_OFF:0x42, SHOW_MATRIX:0x43,
     PLAY_VOICE:0x50, WAIT_VOICE:0x51, QUERY_LEARNED:0x52, LEARN_COMMAND:0x53,
     CANCEL_LEARNING:0x54, WAIT_LEARNED:0x55, READ_UID:0x56, DECLARE_RUN:0x57});
+  const TILT = Object.freeze({UNKNOWN:0, UPRIGHT:1, FORWARD:2, BACKWARD:3, LEFT:4, RIGHT:5, INVERTED:6});
+  function instructionError(opcode,result) {
+    if(opcode===OP.WAIT_TILT||opcode===OP.READ_TILT){
+      if(result===0x02)return '设备暂不支持倾倒指令，请更新小白主控固件。';
+      if(result===0x0a)return '加速度传感器不可用，请检查主机传感器和接线。';
+    }
+    return `设备拒绝指令 ${opcode.toString(16)}（错误 ${result}）。`;
+  }
   function frame(type, data) {
     if (!Number.isInteger(type) || type<0 || type>255 || !Array.isArray(data) || data.length>10 ||
         data.some(value=>!Number.isInteger(value)||value<0||value>255)) throw new Error('无效的小白指令。');
@@ -68,7 +76,7 @@
     subscribe(listener){this.eventListeners.add(listener);return()=>this.eventListeners.delete(listener);}
     onLifecycle(listener){this.lifecycleListeners.add(listener);return()=>this.lifecycleListeners.delete(listener);}
     lifecycle(reason){for(const listener of this.lifecycleListeners)listener(reason);}
-    async write(bytes,guard=()=>true) {
+    async write(bytes,guard=()=>true,beforeWrite=()=>{}) {
       const task=this.queue.then(async()=>{
         if(this.closed) throw new Error('蓝牙连接已断开。');
         if(!guard()) return false;
@@ -84,7 +92,7 @@
         if(this.closed||!guard()) return false;
         // Leave a full turn-around gap after each completed write and notification.
         // Partial notifications also reset lastReceive; no request bypasses the guard.
-        try{await this.transport.write(bytes);}finally{this.lastWrite=Date.now();}
+        try{beforeWrite();await this.transport.write(bytes);}finally{this.lastWrite=Date.now();}
         return true;
       });
       this.queue=task.catch(()=>{});return task;
@@ -98,15 +106,15 @@
         if(event.code===1&&event.data[0]===MODE.PROGRAM&&this.desiredMode===MODE.PROGRAM)this.programModeObservedAt=Date.now();
         if(event.code===2||(event.code===1&&event.data[0]!==MODE.PROGRAM&&(this.mode===MODE.PROGRAM||this.desiredMode===MODE.PROGRAM))) {
           this.modeVersion++;this.desiredMode=null;this.modeEntry=null;
-          this.mode=event.code===1?event.data[0]:null;this.stopHeartbeat();this.rejectPending(new Error('设备已退出编程模式，程序已停止。'));
+          this.mode=event.code===1?event.data[0]:null;this.stopHeartbeat();this.rejectPending(new Error(event.code===2&&event.data[0]===7?'加速度传感器不可用，程序已停止。':'设备已退出编程模式，程序已停止。'));
         } else if(event.code===1) this.mode=event.data[0];
         for(const listener of this.eventListeners)listener(event);
         this.onEvent(event);return;
       }
       const [seq,opcode,result]=data,key=`${seq}:${opcode}`,pending=this.pending.get(key);
-      if(!pending||pending.match&&!pending.match(data.slice(3),result)) return;
+      if(!pending||!pending.sent||pending.match&&!pending.match(data.slice(3),result)) return;
       this.pending.delete(key);clearTimeout(pending.timer);
-      if(result){const error=new Error(`设备拒绝指令 ${opcode.toString(16)}（错误 ${result}）。`);error.result=result;error.opcode=opcode;error.data=Array.from(data.slice(3));pending.reject(error);}
+      if(result){const error=new Error(instructionError(opcode,result));error.result=result;error.opcode=opcode;error.data=Array.from(data.slice(3));pending.reject(error);}
       else pending.resolve(data.slice(3));
     }
     rejectPending(error) {this.actionVersion++;for(const pending of this.pending.values()){clearTimeout(pending.timer);pending.reject(error);}this.pending.clear();}
@@ -115,10 +123,10 @@
       const key=`${seq}:${opcode}`;
       if(this.pending.has(key)) throw new Error('同一设备指令仍在等待回报。');
       let timer,entry;
-      const answer=new Promise((resolve,reject)=>{entry={resolve,reject,timer:null,match};this.pending.set(key,entry);});
+      const answer=new Promise((resolve,reject)=>{entry={resolve,reject,timer:null,match,sent:false};this.pending.set(key,entry);});
       answer.catch(()=>{});
       if(timeout) {timer=setTimeout(()=>{const pending=this.pending.get(key);if(pending===entry){this.pending.delete(key);const error=new Error('设备未返回指令完成消息。');error.code='TIMEOUT';pending.reject(error);}},timeout);entry.timer=timer;}
-      try {await this.write(command(seq,opcode,args),()=>this.pending.get(key)===entry);return await answer;}
+      try {await this.write(command(seq,opcode,args),()=>this.pending.get(key)===entry,()=>{entry.sent=true;});return await answer;}
       catch(error) {const pending=this.pending.get(key);if(pending===entry){this.pending.delete(key);clearTimeout(timer);pending.reject(error);}answer.catch(()=>{});throw error;}
     }
     async probe() {return this.request(0,OP.QUERY_STATUS,[],1200);}
@@ -172,12 +180,21 @@
     }
     async action(opcode,args=[],blocking=false,timeout=0){
       if(this.mode!==MODE.PROGRAM) throw new Error('设备未处于编程模式。');
+      if(this.firmwareGate&&!this.firmwareGate.snapshot().ready&&![OP.MOTOR_STOP,OP.MOVE_STOP,OP.STOP_PROGRAM].includes(opcode))throw new Error('请先完成主控固件核对。');
       const seq=this.nextSeq();
       if(blocking)return this.request(seq,opcode,args,timeout);
       const version=this.actionVersion;
       return this.write(command(seq,opcode,args),()=>version===this.actionVersion);
     }
+    // Explicit diagnostics only: execution waits for WAIT_TILT DONE, never polls posture.
+    async readTilt(){
+      const data=await this.action(OP.READ_TILT,[],true,1500);
+      if(data.length!==7||data[0]>TILT.INVERTED||data[1]>1||data[2]!==1||data.slice(3).some(Boolean))
+        throw new Error('设备返回的倾倒状态无效。');
+      if(!data[1])throw new Error('加速度传感器不可用，请检查主机传感器和接线。');
+      return {state:data[0],ready:true,physicalIrCount:data[2]};
+    }
     close(){this.closed=true;this.subscribed=false;this.modeVersion++;this.desiredMode=null;this.modeEntry=null;this.lifecycle('蓝牙连接已断开。');this.stopHeartbeat();this.rejectPending(new Error('蓝牙连接已断开。'));this.transport.close();}
   }
-  return {MODE,OP,frame,command,milliseconds,matrixChunks,Receiver,Link};
+  return {MODE,OP,TILT,frame,command,milliseconds,matrixChunks,Receiver,Link};
 });

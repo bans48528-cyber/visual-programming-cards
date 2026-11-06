@@ -14,17 +14,18 @@ const server=http.createServer((req,res)=>{
   res.setHeader('Content-Type',types[path.extname(file)]||'application/octet-stream');fs.createReadStream(file).pipe(res);
 });
 const corners=[0,7,56,63];
-const unsupported=/尚未提供.*通信协议/;
+const invalidDirection=/倾倒方向无效/;
 const block=(id,params={},children)=>({id,params,...(children?{children}:{})});
 function protocolGuard(){
-  const additions=[block('tilt-wait',{direction:'forward'})];
+  for(const direction of ['forward','backward','left','right'])assert.doesNotThrow(()=>validate([block('tilt-wait',{direction})]));
+  const additions=[block('tilt-wait',{direction:'sideways'})];
   for(const addition of additions)for(const nested of [false,true]){
     const calls=[];
     const connection={enterProgram(){calls.push('enter');},action(){calls.push('action');},stopProgram(){calls.push('stop');},cancelPending(){calls.push('cancel');}};
     // A valid motor block ahead of the new block must not start either.
     const program=[block('motor-forward-continuous',{port:'L'}),nested?block('loop-count',{count:2},[addition]):addition];
-    assert.throws(()=>validate(program),unsupported);
-    assert.throws(()=>new Runner(connection).run(program),unsupported);
+    assert.throws(()=>validate(program),invalidDirection);
+    assert.throws(()=>new Runner(connection).run(program),invalidDirection);
     assert.deepEqual(calls,[],'preflight rejects before entering a mode or sending a device action');
   }
 }

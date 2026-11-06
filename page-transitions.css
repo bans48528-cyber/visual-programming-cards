@@ -7,6 +7,51 @@
 .building-loading{position:absolute;inset:0;display:grid;place-content:center;text-align:center;gap:12px;padding:24px;background:#f7f9fc;color:#56718a;font:16px system-ui}
 .building-loading[hidden]{display:none}
 .building-loading-back{position:absolute;left:16px;top:16px;border:0;border-radius:12px;background:white;color:#25405a;font:inherit;padding:10px 16px;cursor:pointer}
-.building-loading-spinner{width:28px;height:28px;justify-self:center;border:3px solid #dce8f3;border-top-color:#168beb;border-radius:50%;animation:building-spinner .8s linear infinite}
-@keyframes building-spinner{to{transform:rotate(360deg)}}
-@media(prefers-reduced-motion:reduce){.building-loading-spinner{animation:none}}
+/* UI Ball LDRS Grid (MIT): assets/licenses/ldrs-MIT.txt. Offline 75px / 1.5s variant. */
+.building-loading-spinner{
+ --building-grid-size:75px;--building-grid-speed:1.5s;
+ box-sizing:content-box;display:inline-flex;align-items:center;justify-content:center;
+ width:var(--building-grid-size);height:calc(var(--building-grid-size) * .8);
+ padding:18px;justify-self:center;border-radius:18px;background:#0872cc;color:#fff;
+}
+.building-loading-spinner[hidden]{display:none}
+.building-loading-grid{
+ --building-grid-dot:calc(var(--building-grid-size) * .1);
+ position:relative;display:flex;align-items:center;justify-content:flex-start;
+ width:calc(var(--building-grid-size) * .64);height:calc(var(--building-grid-size) * .64);
+}
+.building-loading-dot{
+ position:absolute;bottom:calc(var(--grid-bottom) + var(--building-grid-dot) / 2);
+ right:calc(var(--grid-right) + var(--building-grid-dot) / 2);
+ display:flex;align-items:center;justify-content:flex-start;
+ width:var(--building-grid-dot);height:var(--building-grid-dot);
+ opacity:var(--grid-scale);backface-visibility:hidden;
+}
+.building-loading-dot::before{
+ content:"";width:100%;height:100%;border-radius:50%;background:currentColor;
+ transform:scale(var(--grid-scale));
+}
+.building-viewer[open] .building-loading:not([hidden]) .building-loading-spinner:not([hidden]) .building-loading-dot{
+ animation:building-grid-jump var(--building-grid-speed) ease-in-out infinite;
+ animation-delay:calc(var(--building-grid-speed) * var(--grid-delay));will-change:transform;
+}
+.building-loading-dot:nth-child(1){--grid-bottom:24%;--grid-right:-35%;--grid-delay:-.48;--grid-scale:.94}
+.building-loading-dot:nth-child(2){--grid-bottom:16%;--grid-right:-6%;--grid-delay:-.4;--grid-scale:.96}
+.building-loading-dot:nth-child(3){--grid-bottom:8%;--grid-right:23%;--grid-delay:-.32;--grid-scale:.98}
+.building-loading-dot:nth-child(4){--grid-bottom:-1%;--grid-right:51%;--grid-delay:-.24;--grid-scale:1}
+.building-loading-dot:nth-child(5){--grid-bottom:38%;--grid-right:-17.5%;--grid-delay:-.4;--grid-scale:.9}
+.building-loading-dot:nth-child(6){--grid-bottom:30%;--grid-right:10%;--grid-delay:-.32;--grid-scale:.92}
+.building-loading-dot:nth-child(7){--grid-bottom:22%;--grid-right:39%;--grid-delay:-.24;--grid-scale:.94}
+.building-loading-dot:nth-child(8){--grid-bottom:14%;--grid-right:67%;--grid-delay:-.16;--grid-scale:.96}
+.building-loading-dot:nth-child(9){--grid-bottom:53%;--grid-right:-.8%;--grid-delay:-.32;--grid-scale:.86}
+.building-loading-dot:nth-child(10){--grid-bottom:44.5%;--grid-right:27%;--grid-delay:-.24;--grid-scale:.88}
+.building-loading-dot:nth-child(11){--grid-bottom:36%;--grid-right:55.7%;--grid-delay:-.16;--grid-scale:.9}
+.building-loading-dot:nth-child(12){--grid-bottom:28.7%;--grid-right:84.3%;--grid-delay:-.08;--grid-scale:.92}
+.building-loading-dot:nth-child(13){--grid-bottom:66.8%;--grid-right:15%;--grid-delay:-.24;--grid-scale:.82}
+.building-loading-dot:nth-child(14){--grid-bottom:58.8%;--grid-right:43%;--grid-delay:-.16;--grid-scale:.84}
+.building-loading-dot:nth-child(15){--grid-bottom:50%;--grid-right:72%;--grid-delay:-.08;--grid-scale:.86}
+.building-loading-dot:nth-child(16){--grid-bottom:42%;--grid-right:100%;--grid-delay:0;--grid-scale:.88}
+@keyframes building-grid-jump{0%,100%{transform:translateY(120%)}50%{transform:translateY(-120%)}}
+@media(prefers-reduced-motion:reduce){
+ .building-viewer[open] .building-loading:not([hidden]) .building-loading-spinner:not([hidden]) .building-loading-dot{animation:none;will-change:auto}
+}

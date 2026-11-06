@@ -5,6 +5,9 @@ const {spawnSync} = require('node:child_process');
 const {createHash} = require('node:crypto');
 const root = path.resolve(__dirname, '..');
 const env = {...process.env};
+(async()=>{
+const gate=require('./check-firmware-release.cjs');
+const release=await gate.checkRelease({repo:root});
 // Optional local tool cache; standard JAVA_HOME/ANDROID_HOME always take priority.
 const cache = path.join(os.homedir(), '.cache', 'cards-android');
 if (!env.JAVA_HOME && fs.existsSync(path.join(cache, 'jdk-ms'))) {
@@ -26,8 +29,13 @@ if (result.error) throw result.error;
 if (result.status !== 0) process.exit(result.status || 1);
 const output = path.join(root, 'artifacts');
 fs.mkdirSync(output, {recursive: true});
-const name = 'xiaobai-1.2.4-debug.apk';
+const nativeApk=path.join(root,'android/app/build/outputs/apk/debug/app-debug.apk');
+await gate.checkApk(nativeApk,{repo:root,env});
+const name = `drluck-codelab-${release.app.versionName}-debug.apk`;
 fs.copyFileSync(path.join(root, 'android/app/build/outputs/apk/debug/app-debug.apk'), path.join(output, name));
 const hash = createHash('sha256').update(fs.readFileSync(path.join(output, name))).digest('hex');
 fs.writeFileSync(path.join(output, `${name}.sha256`), `${hash}  ${name}\n`);
 console.log(`APK: ${path.join(output, name)}\nSHA256: ${hash}`);
+
+console.log(`Fixed firmware release: ${release.manifestSha256}`);
+})().catch(error=>{console.error('Android build rejected: '+error.message);process.exitCode=1;});
