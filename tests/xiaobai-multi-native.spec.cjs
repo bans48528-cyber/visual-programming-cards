@@ -68,6 +68,60 @@ for(const group of [0,1,4])for(const id of [1,0xffffffff]){
   for(const state of [2,3,5,6])valid.push(observer(15,group,condition,id,[state]));
  }
 }
+// V2 controls are validated independently from the published V1 vocabulary.
+const frameV2=(kind,group=0,op=0,task=0,args=[])=>mutate(frame(kind,group,op,task,args),5,2);
+for(let mask=0;mask<=15;mask++)valid.push(frameV2(18,0,0,0,[mask]));
+for(const kind of [7,8,9])valid.push(frameV2(kind));
+valid.push(frameV2(10,0,0,0,[8]));
+for(const group of [1,4])for(const task of [1,0xffffffff]) {
+ for(const kind of [5,6,16,17])valid.push(frameV2(kind,group,0,task));
+ for(const [op,args] of actions) {
+  if(op===0x30 || op===0x32 || op===0x34 && args[0]<3)continue;
+  valid.push(frameV2(4,group,op,task,args));
+ }
+ for(const op of [0x34,0x50,0x51,0x55])for(const state of [1,2,3,4,5,6,7,8])
+  valid.push(frameV2(10,group,op,task,[state]));
+}
+for(const kind of [1,2,3,11,12,13,14,15,19,20,21,255]) {
+ check(false,frameV2(kind),'V2 unsupported request kind '+kind);
+ check(false,frameV2(kind,1,0,1),'V2 unsupported script kind '+kind);
+}
+for(const [op,args] of actions) {
+ const supported=op!==0x30 && op!==0x32 && !(op===0x34 && args[0]<3);
+ check(supported,frameV2(4,1,op,1,args),'V2 action vocabulary '+op+' '+args);
+ check(false,frameV2(4,1,op,0,args),'V2 zero action task');
+ check(false,frameV2(4,1,op,1,[...args,0]),'V2 action padding');
+ if(args.length)check(false,frameV2(4,1,op,1,args.slice(0,-1)),'V2 short action');
+}
+for(const kind of [5,6,16,17]) {
+ for(const group of [0,5,255])check(false,frameV2(kind,group,0,1),'V2 script group fence');
+ check(false,frameV2(kind,1,0,0),'V2 nonzero script fence');
+ check(false,frameV2(kind,1,1,1),'V2 fence opcode');
+ check(false,frameV2(kind,1,0,1,[0]),'V2 fence padding');
+}
+check(false,frame(6,1,0,1),'V1 END has no task fence');
+check(false,frameV2(6,1),'V2 END requires a task fence');
+check(false,frame(18,0,0,0,[0]),'V1 START requires an initial script');
+for(let kind=0;kind<256;kind++)check([7,8,9].includes(kind),frameV2(kind),'V2 zero-field control kind '+kind);
+for(let value=0;value<256;value++) {
+ check(value<=15,frameV2(18,0,0,0,[value]),'V2 START mask '+value);
+ check(value===3 || value===4,frameV2(4,1,0x34,1,[value]),'V2 real motion wait '+value);
+ check(value>=1 && value<=8,frameV2(10,1,0x51,1,[value]),'V2 true wait ACK state '+value);
+ check(value===8,frameV2(10,0,0,0,[value]),'V2 global ACK only ABORT '+value);
+ check(value>=1 && value<=8,frameV2(10,1,0x41,1,[value]),'V2 asynchronous action error can be ACKed '+value);
+ check(false,frameV2(10,1,0x30,1,[value]),'V2 removed device condition has no ACK '+value);
+}
+for(const bytes of [frameV2(18,1,0,0,[0]),frameV2(18,0,1,0,[0]),frameV2(18,0,0,1,[0]),
+ frameV2(18),frameV2(18,0,0,0,[0,0]),frameV2(7,1),frameV2(8,0,1),frameV2(9,0,0,1)])
+ check(false,bytes,'V2 exact session shape');
+for(const b of valid.filter(b=>b[5]===2)) {
+ for(const half of [9,13]) {
+  let zero=[...b];for(let i=half;i<half+4;i++)zero=mutate(zero,i,0);
+  check(false,zero,'V2 both identity words must be nonzero');
+ }
+ check(false,mutate(b,5,3),'V2 rejects future wire version');
+}
+
 for(const b of valid){
   check(true,b,'valid exact request');
   for(const [index,value] of [[0,0],[1,0x98],[2,0x97],[3,15],[4,0xd4],[5,0],[b.length-1,0]])check(false,mutate(b,index,value),'invalid envelope '+index);
@@ -165,19 +219,23 @@ public final class MultiProgramNativeTest {
 ${methods}
  static byte[] fromHex(String value){byte[] b=new byte[value.length()/2];for(int i=0;i<b.length;i++)b[i]=(byte)Integer.parseInt(value.substring(i*2,i*2+2),16);return b;}
  static byte[] matrix(){return fromHex("${Buffer.from(frame(4,1,0x43,1,Array.from({length:16},(_,i)=>i*17))).toString('hex')}");}
+ static byte[] matrix(int version){
+  byte[] b=matrix();b[5]=(byte)version;int sum=0;
+  for(int i=0;i<b.length-2;i++)sum+=b[i]&255;b[b.length-2]=(byte)sum;return b;
+ }
  static void freshClock(){SystemClock.now=0;Build.VERSION.SDK_INT=33;}
  public static void main(String[] args)throws Exception {
   java.io.BufferedReader input=new java.io.BufferedReader(new java.io.InputStreamReader(System.in));String line;int frames=0;
   while((line=input.readLine())!=null){String[] c=line.split("\\t",-1);check(MultiProgramFrame.valid(fromHex(c[1]))==c[0].equals("accept"),c[2]);frames++;}
   check(!MultiProgramFrame.valid(null),"null frame");
-  for(int api:new int[]{28,33})for(int properties:new int[]{0,8})for(int mtu:new int[]{23,24,40,247}){
+  for(int version:new int[]{1,2})for(int api:new int[]{28,33})for(int properties:new int[]{0,8})for(int mtu:new int[]{23,24,40,247}){
    freshClock();Build.VERSION.SDK_INT=api;MultiProgramNativeTest t=new MultiProgramNativeTest();t.negotiatedMtu=mtu;t.writeCharacteristic.properties=properties;
-   PluginCall call=new PluginCall();byte[] bytes=matrix();BluetoothGatt source=t.gatt;t.beginProgramWrite(call,bytes);bytes[0]=0; // immutable send copy
+   PluginCall call=new PluginCall();byte[] bytes=matrix(version);BluetoothGatt source=t.gatt;t.beginProgramWrite(call,bytes);bytes[0]=0; // immutable send copy
    check(call.resolves==0&&t.operationCall==call,"not resolved before any chunk");t.main.advance(0);
    if(mtu==23||mtu==24){check(call.resolves==0&&t.operationCall==call&&source.writes.size()==1,"first chunk retains operation");t.main.advance(39);check(source.writes.size()==1,"40ms guard preserved");}
    t.main.advance(80);check(call.resolves==1&&call.rejects==0&&t.operationCall==null&&t.beginCount==1,"one resolve after complete frame");
    java.io.ByteArrayOutputStream joined=new java.io.ByteArrayOutputStream();for(byte[] chunk:source.writes){check(chunk.length<=mtu-3,"negotiated MTU per chunk");joined.write(chunk);}
-   check(Arrays.equals(joined.toByteArray(),matrix()),"all bytes contiguous and exact");
+   check(Arrays.equals(joined.toByteArray(),matrix(version)),"both protocol versions stay contiguous and exact");
    for(int type:source.types)check(type==(properties==8?2:1),"response and NO_RESPONSE both use callback path");
    t.main.advance(500);check(call.resolves==1&&t.closes==0,"old watchdog cannot close completed transfer");
   }
@@ -192,11 +250,13 @@ ${methods}
    java.io.ByteArrayOutputStream joined=new java.io.ByteArrayOutputStream();for(byte[] chunk:firstSource.writes)joined.write(chunk);check(Arrays.equals(joined.toByteArray(),matrix()),"RX courtesy never drops or interleaves frame bytes");
   }
   freshClock();MultiProgramNativeTest courtesyNoCallback=new MultiProgramNativeTest();courtesyNoCallback.gatt.autoAck=false;courtesyNoCallback.lastNotificationAt=0;PluginCall noCallbackCall=new PluginCall();courtesyNoCallback.beginProgramWrite(noCallbackCall,matrix());courtesyNoCallback.main.advance(40);check(courtesyNoCallback.gatt.writes.size()==1&&noCallbackCall.resolves==0,"bounded courtesy does not manufacture a GATT callback");courtesyNoCallback.main.advance(499);check(noCallbackCall.resolves==0&&courtesyNoCallback.closes==0,"original500ms callback budget is not shortened or faked");courtesyNoCallback.main.advance(1);check(courtesyNoCallback.closes==1&&noCallbackCall.rejects==1,"missing callback still closes at exactly500ms from actual dispatch");
-  freshClock();MultiProgramNativeTest stale=new MultiProgramNativeTest();stale.gatt.autoAck=false;PluginCall oldCall=new PluginCall();stale.beginProgramWrite(oldCall,matrix());stale.main.advance(0);BluetoothGatt oldGatt=stale.gatt;MultiProgramFrame.Transfer oldTransfer=stale.programWrite;long oldToken=oldTransfer.token();Runnable oldPump=stale.programPump;
-  stale.closeConnection("cancel");stale.gatt=stale.new BluetoothGatt();stale.gatt.autoAck=false;stale.connectionId="epoch-b";stale.gattGeneration++;PluginCall current=new PluginCall();stale.beginProgramWrite(current,matrix());stale.main.advance(0);
+  for(int protocolVersion:new int[]{1,2}){
+  freshClock();MultiProgramNativeTest stale=new MultiProgramNativeTest();stale.gatt.autoAck=false;PluginCall oldCall=new PluginCall();stale.beginProgramWrite(oldCall,matrix(protocolVersion));stale.main.advance(0);BluetoothGatt oldGatt=stale.gatt;MultiProgramFrame.Transfer oldTransfer=stale.programWrite;long oldToken=oldTransfer.token();Runnable oldPump=stale.programPump;
+  stale.closeConnection("cancel");stale.gatt=stale.new BluetoothGatt();stale.gatt.autoAck=false;stale.connectionId="epoch-b";stale.gattGeneration++;PluginCall current=new PluginCall();stale.beginProgramWrite(current,matrix(protocolVersion));stale.main.advance(0);
   oldPump.run();stale.finishProgramChunk(oldGatt,stale.writeCharacteristic,0,oldTransfer,oldToken,oldCall);check(stale.gatt.writes.size()==1&&current.resolves==0&&stale.operationCall==current,"old epoch/pump/callback cannot advance new transfer");
   MultiProgramFrame.Transfer currentTransfer=stale.programWrite;long firstToken=currentTransfer.token();stale.finishProgramChunk(stale.gatt,stale.writeCharacteristic,0,currentTransfer,firstToken,current);stale.main.advance(40);
   stale.finishProgramChunk(stale.gatt,stale.writeCharacteristic,0,currentTransfer,firstToken,current);stale.finishProgramChunk(stale.gatt,stale.writeCharacteristic,133,currentTransfer,firstToken,current);check(current.resolves==0&&stale.closes==1,"old chunk success/failure cannot affect later chunk");stale.finishProgramChunk(stale.gatt,stale.writeCharacteristic,0,currentTransfer,currentTransfer.token(),current);stale.main.advance(0);check(current.resolves==1,"current token completes frame once");
+  }
   freshClock();MultiProgramNativeTest background=new MultiProgramNativeTest();PluginCall bgCall=new PluginCall();background.beginProgramWrite(bgCall,matrix());background.main.advance(0);background.foreground=false;background.main.advance(40);check(bgCall.rejects==1&&background.closes==1,"background aborts remaining chunks");
   freshClock();MultiProgramNativeTest reject=new MultiProgramNativeTest();reject.gatt.accepted=false;PluginCall rejected=new PluginCall();reject.beginProgramWrite(rejected,matrix());reject.main.advance(0);check(rejected.rejects==1&&reject.closes==1,"GATT rejection closes frame");
   freshClock();MultiProgramNativeTest fail=new MultiProgramNativeTest();fail.gatt.status=133;PluginCall failed=new PluginCall();fail.beginProgramWrite(failed,matrix());fail.main.advance(0);check(failed.rejects==1&&fail.closes==1,"GATT callback failure closes frame");

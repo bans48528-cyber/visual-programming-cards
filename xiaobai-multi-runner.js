@@ -1,11 +1,10 @@
 /* Phone-side program counters; hardware ownership lives in the C4 device session. */
 (function(root, factory) {
   const api = factory(typeof module === 'object' && module.exports ? require('./xiaobai-runner.js') : root.XiaobaiRunner,
-    typeof module === 'object' && module.exports ? require('./xiaobai-protocol.js') : root.XiaobaiProtocol,
-    typeof module === 'object' && module.exports ? require('./xiaobai-condition-protocol.js') : root.XiaobaiConditionProtocol);
+    typeof module === 'object' && module.exports ? require('./xiaobai-protocol.js') : root.XiaobaiProtocol);
   if (typeof module === 'object' && module.exports) module.exports = api;
   else root.XiaobaiMultiProgram = api;
-})(globalThis, function(Legacy, P, Conditions) {
+})(globalThis, function(Legacy, P) {
   'use strict';
   let owner = null;
   const Flow=Legacy.controlFlow;
@@ -19,13 +18,13 @@
     const seen = new Set();
     const visit = items => Array.isArray(items) && items.some(item => {
       if (!item || typeof item !== 'object' || seen.has(item)) return false;
-      seen.add(item); return item.id === 'send-message' || visit(item.children);
+      seen.add(item); return ['send-message','send-message-wait'].includes(item.id) || visit(item.children);
     });
     return (snapshot?.groups || []).some(group => group.trigger?.type === 'message' || visit(group.items));
   }
   function validationItem(item) {
     const copy = {...item};
-    if (item.id === 'send-message') { copy.id = 'wait-time'; copy.params = {duration: .001}; }
+    if (['send-message','send-message-wait'].includes(item.id)) { copy.id = 'wait-time'; copy.params = {duration: .001}; }
     if (Array.isArray(item.children)) copy.children = item.children.map(validationItem);
     return copy;
   }
@@ -49,7 +48,7 @@
           try {
             unique(item?.uid); if (++count > 1000) throw failure('本次运行合计最多1000块积木。', 'BLOCK_LIMIT');
             if (item.children) visit(item.children,current,depth+1);
-            if (item.id === 'send-message' && !messageNumber(item.params?.message)) throw failure('发送消息请选择消息1至6。','MESSAGE');
+            if (['send-message','send-message-wait'].includes(item.id) && !messageNumber(item.params?.message)) throw failure('发送消息请选择消息1至6。','MESSAGE');
             // Validation-only substitution; the immutable executable snapshot
             // still contains send-message, and never executes this wait.
             Legacy.validate([validationItem(item)]);
@@ -59,7 +58,7 @@
       visit(group.items);
       observerBudget+=Flow.validateLoops(group.items).maxObserverDepth;
       if(observerBudget>16)throw failure('本次运行最多同时启用16个条件观察器。','OBSERVER_LIMIT');
-      if(!group.items.length)throw Object.assign(failure('请先在开始头后连接积木。','EMPTY'),{groupId:group.groupId});
+
     }
     if (snapshot.manualGroupId !== undefined && (typeof snapshot.manualGroupId !== 'string' || !snapshot.groups.some(group=>group.groupId===snapshot.manualGroupId)))
       throw failure('手动运行的程序组不存在。','MANUAL_GROUP');
@@ -71,7 +70,7 @@
   function releaseSupports(metadata) {
     const target = metadata?.firmware;
     return Boolean(metadata?.bound && target?.boardId === 258 && target.protocol === 1 &&
-      Legacy.supportsCompactStart(target.version));
+      target.version === 0x020300);
   }
   function releaseUsesLegacy(metadata) {
     const target = metadata?.firmware;
@@ -80,10 +79,15 @@
   }
   function releaseAllows(metadata, firmware) {
     const state = typeof firmware?.snapshot === 'function' ? firmware.snapshot() : firmware;
-    return releaseSupports(metadata) && Legacy.compactProgramReady(state, metadata.firmware.version);
+    return releaseSupports(metadata) && streamReady(state, metadata.firmware.version);
+  }
+  function streamReady(state,target=state?.targetVersion) {
+    const actual=state?.actual;
+    return Boolean(target===0x020300&&state?.ready&&state.currentVersion===target&&state.targetVersion===target&&
+      state.epoch&&actual?.epoch===state.epoch&&actual.info?.version===target&&actual.info.mode===0&&actual.info.imageValid);
   }
   function requireProgramReady(connection) {
-    if (!Legacy.compactProgramReady(connection?.firmware?.snapshot?.()))
+    if (!streamReady(connection?.firmware?.snapshot?.()))
       throw failure('请先进入编程模式并核对本 App 对应的主控版本。', 'FIRMWARE');
     return true;
   }
@@ -100,7 +104,7 @@
     if (['motor-forward','motor-reverse'].includes(id)) { opcode=O.MOTOR_TIME;args=[motor,id.includes('reverse')?2:1,...milliseconds(p.duration)];timeoutMs=p.duration*1000+5000; }
     else if (['motor-forward-continuous','motor-reverse-continuous'].includes(id)) { opcode=O.MOTOR_RUN;args=[motor,id.includes('reverse')?2:1]; }
     else if (id==='motor-stop') { opcode=O.MOTOR_STOP;args=[motor]; }
-    else if (id==='motor-power') { opcode=O.MOTOR_POWER;args=[Number(p.power)]; }
+    else if (id==='motor-power') { context.comboPower=Number(p.power);opcode=O.MOTOR_POWER;args=[context.comboPower]; }
     else if (move[id]) { opcode=O.MOVE_TIME;args=[move[id],...milliseconds(p.duration)];timeoutMs=p.duration*1000+5000; }
     else if (id==='combo-continuous') { opcode=O.MOVE_RUN;args=[{advance:1,left:2,right:3,retreat:4}[p.direction]]; }
     else if (id==='combo-stop') { opcode=O.MOVE_STOP;args=[]; }
@@ -121,226 +125,206 @@
     return {opcode,args,timeoutMs};
   }
   class SessionCoordinator {
-    constructor(connection, {createClient,isCurrent=()=>true,onStep=()=>{},onGroupState=()=>{},signal} = {}) {
-      this.connection=connection;this.createClient=createClient || (options=>connection.multiProgram.createClient(options));
-      this.isCurrent=isCurrent;this.onStep=onStep;this.onGroupState=onGroupState;this.signal=signal;
-      this.cancelled=false;this.error=null;this.client=null;this.waiters=new Set();this.states=new Map();
-      this.done=null;this.stopPromise=null;this.preparedLearned=false;
-      this.taskContexts=new Map();this.leaseContexts=new Map();this.finished=false;this.observers=null;this.observerContexts=new Map();
-      this.messageRecords=new Map();this.messageWorkers=new Set();this.messageScheduling=false;
+    constructor(connection,{createClient,isCurrent=()=>true,onStep=()=>{},onGroupState=()=>{},onActivity=()=>{},signal}={}){
+      this.connection=connection;this.createClient=createClient||(options=>connection.multiProgram.createClient(options));
+      this.isCurrent=isCurrent;this.onStep=onStep;this.onGroupState=onGroupState;this.onActivity=onActivity;this.signal=signal;
+      this.cancelled=false;this.initialized=false;this.records=new Map();this.jobs=new Set();this.shared={comboPower:3};
+      this.waiters=new Set();this.error=null;this.preparedLearned=false;this.taskContexts=new Map();
     }
-    check() {
-      if (this.error) throw this.error;
-      if (this.cancelled||this.signal?.aborted||!this.isCurrent()) throw failure('多组程序已取消，不能在重连后续跑。','CANCELLED');
+    check(context){
+      if(this.error)throw this.error;
+      if(this.cancelled||this.signal?.aborted||!this.isCurrent()||context?.cancelled)
+        throw failure('这次脚本运行已取消。','CANCELLED');
     }
-    state(group, state) { this.states.set(group.groupId,state);if(!this.cancelled&&this.isCurrent())this.onGroupState(group.groupId,state); }
-    delay(ms) {
-      this.check();return new Promise((resolve,reject)=>{
-        const wake=()=>{clearTimeout(timer);this.waiters.delete(wake);try{this.check();resolve();}catch(error){reject(error);}};
-        const timer=setTimeout(wake,ms);this.waiters.add(wake);
+    report(){
+      const active=[...this.records.values()].filter(record=>record.context&&!record.context.finished&&!record.context.cancelled).map(record=>record.group.groupId);
+      this.onActivity({active,outputs:this.client?.sensor?.flags?this.client.sensor.flags>>4&7:0,waiting:!active.length});
+    }
+    delay(ms,context){
+      this.check(context);
+      return new Promise((resolve,reject)=>{
+        const cancel=()=>{
+          try{this.check(context);}catch(error){clearTimeout(timer);this.waiters.delete(cancel);reject(error);}
+        };
+        const timer=setTimeout(()=>{
+          this.waiters.delete(cancel);try{this.check(context);resolve();}catch(error){reject(error);}
+        },ms);
+        this.waiters.add(cancel);
       });
     }
-    awaitControl(promise) {
-      const pending=Promise.resolve(promise);pending.catch(()=>{});
-      this.check();
+    awaitCancellable(pending,context){
       return new Promise((resolve,reject)=>{
         let settled=false;
-        const finish=(fn,value)=>{if(settled)return;settled=true;this.waiters.delete(wake);fn(value);};
-        const wake=()=>{try{this.check();}catch(error){finish(reject,error);}};
-        this.waiters.add(wake);
-        pending.then(value=>finish(resolve,value),error=>finish(reject,error));
+        const finish=(callback,value)=>{if(settled)return;settled=true;this.waiters.delete(wake);callback(value);};
+        const wake=()=>{try{this.check(context);}catch(error){finish(reject,error);}};
+        this.waiters.add(wake);wake();
+        Promise.resolve(pending).then(value=>finish(resolve,value),error=>finish(reject,error));
       });
     }
-    fail(error) {
-      if(this.finished)return Promise.resolve();
-      if(error && !error.blockUid) {
-        const key=`${error.group ?? error.groupToken}:${error.task}`;
-        const original=this.leaseContexts.get(key)||this.taskContexts.get(key);
-        if(original)Object.assign(error,original);
+    sensor(context,condition){
+      this.check(context);const sensor=this.client.sensor;
+      if(!sensor||Date.now()-sensor.receivedAt>600)throw failure('传感器数据未就绪或已过期。','SENSOR_STALE');
+      if(condition.kind==='infrared'){
+        if(!(sensor.flags&8))throw failure('红外传感器未就绪。','SENSOR');
+        return condition.comparison==='greater'?sensor.ir>condition.threshold:sensor.ir<condition.threshold;
       }
-      if (!this.error) this.error=error instanceof Error?error:failure(String(error));
-      this.cancelled=true;this.observers?.cancel(this.error);for(const wake of [...this.waiters])wake();
-      return this.stopDevice();
+      if(!(sensor.flags&1))throw failure('加速度传感器未就绪。','SENSOR');
+      if(condition.kind==='tilt')return sensor.tilt===P.TILT_DIRECTIONS[condition.direction];
+      if(condition.state==='still')return Boolean(sensor.flags&2);
+      if(condition.state==='shaking')return Boolean(sensor.flags&4);
+      return false;
     }
-    stopDevice() {
-      if (!this.stopPromise) this.stopPromise=Promise.resolve().then(()=>this.client?.stop(this.error?.message||'程序已停止。'));
-      // Every caller may observe the rejection; prevent unhandled late failures.
+    async awaitSensor(context,condition){
+      while(!this.client.sensor){await this.delay(35,context);}
+      while(!this.sensor(context,condition))await this.delay(35,context);
+    }
+    async loop(group,context,item,path){
+      const p=item.params||{},started=Date.now();let rounds=0;
+      while(true){
+        this.check(context);
+        if(item.id==='loop-count'&&rounds>=p.count)return;
+        if(item.id==='loop-time'&&Date.now()-started>=p.duration*1000)return;
+        if(item.id==='loop-infrared'&&this.sensor(context,{kind:'infrared',comparison:p.comparison,threshold:p.threshold}))return;
+        if(item.id==='loop-tilt'&&this.sensor(context,{kind:'tilt',direction:p.direction}))return;
+        await this.sequence(group,context,item.children,path);rounds++;
+        await this.delay(0,context);
+      }
+    }
+    async sequence(group,context,items,parent=[]){
+      for(let index=0;index<items.length;index++){
+        this.check(context);const item=items[index],path=[...parent,index],p=item.params||{};
+        context.current={item,path};this.onStep(item,path,group.groupId);
+        try{
+          if(Flow.isLoop(item))await this.loop(group,context,item,path);
+          else if(item.id==='wait-time')await this.delay(p.duration*1000,context);
+          else if(item.id==='send-message'||item.id==='send-message-wait'){
+            const pending=this.dispatchMessage(p.message);
+            if(item.id==='send-message-wait')await this.awaitCancellable(Promise.all(pending),context);
+          }else if(item.id==='infrared-wait')await this.awaitSensor(context,{kind:'infrared',comparison:p.comparison,threshold:p.threshold});
+          else if(item.id==='tilt-wait')await this.awaitSensor(context,{kind:'tilt',direction:p.direction});
+          else if(item.id==='motion-wait'&&['still','shaking'].includes(p.state))
+            await this.awaitSensor(context,{kind:'motion',state:p.state});
+          else{
+            const action=command(item,this.shared);
+            await this.client.action(context.token,action.opcode,action.args,{invocationId:context.invocationId,
+              guard:()=>!context.cancelled&&this.records.get(group.groupId)?.context===context,
+              timeoutMs:action.timeoutMs,onDispatched:message=>{
+                this.taskContexts.set(message.task,{groupId:group.groupId,blockUid:item.uid,path:path.slice()});
+                for(const [oldId] of this.taskContexts){
+                  if(this.taskContexts.size<=64)break;
+                  if(!this.client.records?.has(oldId)&&oldId!==this.client.audioTask)this.taskContexts.delete(oldId);
+                }
+              }});
+            // Timed motor blocks wait locally; device timing protects each output
+            // independently and cannot stop an output replaced by a newer command.
+            if(['motor-forward','motor-reverse','combo-forward','combo-backward','combo-turn-left','combo-turn-right'].includes(item.id))
+              await this.delay(p.duration*1000,context);
+          }
+          this.check(context);await this.delay(0,context);
+        }catch(error){
+          if(!error.groupId)Object.assign(error,{groupId:group.groupId,blockUid:item.uid,path});
+          throw error;
+        }
+      }
+    }
+    cancelContext(record){
+      if(!record.context||record.context.finished)return;
+      record.context.cancelled=true;
+      for(const wake of [...this.waiters])wake();
+    }
+    launch(record){
+      this.check();this.cancelContext(record);
+      const context={token:record.token,cancelled:false,finished:false,invocationId:0};
+      record.context=context;this.onGroupState(record.group.groupId,'STARTING');this.report();
+      const work=Promise.resolve().then(async()=>{
+        this.check(context);
+        context.invocationId=record.initialInvocationId||await this.client.beginGroup(record.token);
+        record.initialInvocationId=0;this.check(context);
+        this.onGroupState(record.group.groupId,'RUNNING');
+        await this.sequence(record.group,context,record.group.items);this.check(context);
+        await this.client.finishGroup(record.token,context.invocationId);
+      }).catch(async error=>{
+        if(context.cancelled||this.cancelled||error.code==='CANCELLED')return;
+        await this.fail(error);throw error;
+      }).finally(()=>{
+        context.finished=true;this.jobs.delete(work);
+        if(record.context===context){this.onGroupState(record.group.groupId,'IDLE');this.report();}
+      });
+      work.catch(()=>{});this.jobs.add(work);record.promise=work;return work;
+    }
+    dispatchMessage(message){
+      this.check();if(!messageNumber(message))throw failure('消息编号无效。','MESSAGE');
+      return [...this.records.values()].filter(record=>record.group.trigger?.type==='message'&&record.group.trigger.message===message)
+        .map(record=>this.launch(record));
+    }
+    async toggleGroup(groupId){
+      this.check();const record=this.records.get(groupId);
+      if(!record)throw failure('找不到这个程序组。','GROUP');
+      if(record.context&&!record.context.finished&&!record.context.cancelled){
+        const previous=record.context;this.cancelContext(record);
+        try{await this.client.endGroup(record.token);}catch(error){if(record.context===previous||error.code!=='CANCELLED')throw error;}
+        if(record.context===previous)this.onGroupState(groupId,'IDLE');
+        this.report();return {state:'stopped'};
+      }
+      this.launch(record);return {state:'running'};
+    }
+    async execute(snapshot){
+      this.check();await this.connection.enterProgram();this.check();
+      if(this.connection.ensureFirmware&&!await this.connection.ensureFirmware({interactive:false,reason:'run'}))throw failure('主控版本未匹配。','FIRMWARE');
+      requireProgramReady(this.connection);
+      if(this.connection.learned){
+        this.preparedLearned=true;await this.connection.learned.prepareRun(snapshot.groups.flatMap(group=>group.items));
+      }else if(snapshot.groups.some(group=>hasLearned(group.items)))throw failure('设备未提供口令学习状态。','UNSUPPORTED');
+      this.check();
+      this.client=this.createClient({onAbort:error=>this.fail(error).catch(()=>{}),onSensor:()=>this.report()});
+      this.records=new Map(snapshot.groups.map((group,index)=>[group.groupId,{group,token:index+1,initialInvocationId:snapshot.launchOrder.includes(group.groupId)?index+1:0,context:null}]));
+      const abort=()=>this.fail(failure('设备连接或型号已变化。','CANCELLED')).catch(()=>{});
+      this.abort=abort;this.signal?.addEventListener('abort',abort,{once:true});
+      await this.client.open(snapshot.groups.length,{initialGroups:snapshot.launchOrder.map(id=>this.records.get(id).token)});
+      this.initialized=true;
+      const needsSensor=snapshot.groups.some(group=>needsSensorValues(group.items));
+      if(needsSensor){
+        const until=Date.now()+1500;
+        while(!this.client.sensor&&Date.now()<until)await this.delay(30);
+        if(!this.client.sensor)throw failure('没有收到主机传感器数据。','SENSOR_STALE');
+      }
+      const initial=snapshot.launchOrder.map(id=>this.launch(this.records.get(id)));
+      await Promise.all(initial);
+      while(this.jobs.size){await Promise.all([...this.jobs]);this.check();}
+      this.check();
+      return {state:'idle',sessionOpen:true,groups:snapshot.launchOrder.slice()};
+    }
+    run(input){
+      if(this.done)throw failure('这个运行会话已经启动。','USED');
+      if(owner)throw failure('已有其他作品正在运行。','BUSY');
+      const snapshot=validateSnapshot(input);this.snapshot=snapshot;owner=this;
+      this.done=this.execute(snapshot).catch(async error=>{await this.fail(error);throw error;});return this.done;
+    }
+    async fail(error){
+      if(this.error)return this.stopPromise;
+      if(error.task&&!error.groupId)Object.assign(error,this.taskContexts.get(error.task)||{});
+      this.error=error;this.cancelled=true;
+      await this.stop(error.message);
+    }
+    stop(reason='程序已停止。'){
+      if(this.stopPromise)return this.stopPromise;
+      this.cancelled=true;for(const record of this.records.values())this.cancelContext(record);
+      for(const wake of [...this.waiters])wake();
+      this.stopPromise=(async()=>{
+        try{await this.client?.stop(reason);}
+        finally{
+          this.initialized=false;this.client?.dispose();this.signal?.removeEventListener('abort',this.abort);
+          if(this.preparedLearned)this.connection.learned?.stop(reason);
+          for(const record of this.records.values())this.onGroupState(record.group.groupId,'IDLE');
+          if(owner===this)owner=null;this.report();
+        }
+      })();
       this.stopPromise.catch(()=>{});return this.stopPromise;
     }
-    async stop(reason='程序已停止。') {
-      await this.fail(failure(reason,'CANCELLED')).catch(error=>{this.stopError=error;});
-      if(this.done)await this.done.catch(()=>{});
-      if(this.stopError)throw this.stopError;
-    }
-    async observe(group,context,item,path){
-      try{
-        const handle=await this.observers.arm(context.token,Conditions.condition(item),context.invocationId ? {runId:context.invocationId} : undefined);
-        const key=context.invocationId ? `${context.token}:${context.invocationId}:${handle.id}` : `${context.token}:${handle.id}`;
-        this.observerContexts.set(key,{groupId:group.groupId,blockUid:item.uid,path:path.slice()});
-        return {get matched(){return handle.matched;},check:()=>handle.check(),refresh:()=>handle.refresh(),close:async options=>{
-          try{return await handle.close(options);}finally{this.observerContexts.delete(key);}
-        }};
-      }catch(error){if(!error.groupId)Object.assign(error,{groupId:group.groupId,blockUid:item.uid,path:path.slice()});throw error;}
-    }
-    async sequence(group, context, items, parentPath=[]) {
-      for (let index=0;index<items.length;index++) {
-        this.check();const item=items[index],path=[...parentPath,index];context.current={item,path};
-        this.onStep(item,path,group.groupId);
-        const p=item.params||{};
-        try {
-          if(Flow.isLoop(item)) {
-            await Flow.runLoop(item,()=>this.sequence(group,context,item.children,path),{check:()=>this.check(),delay:ms=>this.delay(ms),observe:loop=>this.observe(group,context,loop,path)});
-          } else if(item.id==='wait-time') { this.state(group,'WAIT_TIMER');await this.delay(p.duration*1000); }
-          else if(item.id==='send-message') this.dispatchMessage(p.message);
-          else {
-            const action=command(item,context);this.state(group,'WAIT_DEVICE');
-            const remember=info=>{
-              if(!info?.task||this.finished)return;
-              const key=`${context.token}:${info.task}`,original={groupId:group.groupId,blockUid:item.uid,path:path.slice()};
-              this.taskContexts.set(key,original);
-              if(info.state===4&&[P.OP.MOTOR_RUN,P.OP.MOVE_RUN,P.OP.PLAY_VOICE].includes(action.opcode))this.leaseContexts.set(key,original);
-              if([3,5,6,7,8].includes(info.state))this.leaseContexts.delete(key);
-              while(this.taskContexts.size>64)this.taskContexts.delete(this.taskContexts.keys().next().value);
-            };
-            const pending=this.client.action(context.token,action.opcode,action.args,{timeoutMs:action.timeoutMs,onDispatched:remember,onAccepted:remember,onState:remember,
-              ...(context.invocationId ? {invocationId:context.invocationId} : {})});
-            if(context.invocationId)await this.awaitControl(pending);else await pending;
-          }
-          this.check();this.state(group,'RUNNING');await this.delay(0);
-        } catch(error) {
-          if(!error.groupId&&!Object.prototype.hasOwnProperty.call(error,'group'))Object.assign(error,{groupId:group.groupId,blockUid:item.uid,path});throw error;
-        }
-      }
-    }
-    dispatchMessage(message) {
-      this.check();
-      if(!messageNumber(message))throw failure('消息编号须为1至6。','MESSAGE');
-      if(!this.messageScheduling)throw failure('消息运行尚未准备或已结束。','UNSUPPORTED');
-      const recipients=[...this.messageRecords.values()].filter(record=>record.group.trigger?.message===message && record.phase==='IDLE');
-      this.reserveGroups(recipients); return recipients.length;
-    }
-    reserveGroups(records) {
-      this.check();
-      const claimed=records.filter(record=>record.phase==='IDLE');
-      // Reserve every matching listener before callbacks, BEGIN or another
-      // sender can execute. Busy messages never create a queued copy.
-      for(const record of claimed){record.phase='STARTING';record.queued=true;this.states.set(record.group.groupId,'STARTING');}
-      for(const record of claimed){
-        const work=Promise.resolve().then(()=>this.invokeGroup(record)).catch(async error=>{
-          await this.fail(error).catch(()=>{});throw error;
-        }).finally(()=>this.messageWorkers.delete(work));
-        this.messageWorkers.add(work);work.catch(()=>{});
-      }
-      return claimed.length;
-    }
-    async invokeGroup(record) {
-      const group=record.group,context={token:record.token,comboPower:3};record.queued=false;
-      try{
-        this.check();this.state(group,'STARTING');
-        // START already activated initial groups. Only later message dispatches send BEGIN.
-        const initialInvocationId=record.initialInvocationId;record.initialInvocationId=0;
-        const invocationId=initialInvocationId||await this.awaitControl(this.client.beginGroup(context.token));this.check();
-        if(!Number.isInteger(invocationId)||invocationId<1||invocationId>0xffffffff||invocationId<=record.lastInvocationId)
-          throw failure('主控返回了无效或重复的程序组运行编号。','INVOCATION');
-        record.lastInvocationId=invocationId;context.invocationId=invocationId;record.context=context;record.invocations++;
-        record.phase='RUNNING';this.state(group,'RUNNING');
-        await this.sequence(group,context,group.items);this.check();
-        record.phase='FINISHING';this.state(group,'FINISHING');
-        const reply=await this.awaitControl(this.client.finishGroup(context.token,invocationId));this.check();
-        if(reply?.state!==3 || (reply.group!==undefined&&reply.group!==context.token) || (reply.task!==undefined&&reply.task!==invocationId))
-          throw failure('主控尚未确认本轮程序组完成。','FINISH_UNCONFIRMED');
-        if(this.observers){
-          if(typeof this.observers.retireGroup!=='function')throw failure('条件观察器尚不支持按运行轮次清理。','OBSERVER_UNSUPPORTED');
-          await this.observers.retireGroup(context.token,invocationId);
-        }
-        for(const [key,value] of this.observerContexts)if(value.groupId===group.groupId)this.observerContexts.delete(key);
-        for(const [key,value] of this.leaseContexts)if(value.groupId===group.groupId)this.leaseContexts.delete(key);
-        this.check();record.context=null;record.phase='IDLE';this.state(group,'IDLE');
-      }catch(error){if(!error.groupId)Object.assign(error,{groupId:group.groupId});throw error;}
-    }
-    async runMessageGroups(snapshot) {
-      this.messageRecords=new Map(snapshot.groups.map((group,index)=>[group.groupId,{group,token:index+1,phase:'IDLE',queued:false,lastInvocationId:0,initialInvocationId:snapshot.launchOrder.includes(group.groupId)?index+1:0,invocations:0,context:null}]));
-      for(const record of this.messageRecords.values())this.state(record.group,'IDLE');
-      this.messageScheduling=true;
-      this.reserveGroups(snapshot.launchOrder.map(id=>this.messageRecords.get(id)));
-      while(this.messageWorkers.size){
-        const results=await Promise.allSettled([...this.messageWorkers]);
-        const rejected=results.find(result=>result.status==='rejected');if(rejected)throw this.error||rejected.reason;
-        this.check();
-      }
-      this.messageScheduling=false;this.check();
-      return [...this.messageRecords.values()].filter(record=>record.invocations).map(record=>record.group.groupId);
-    }
-    run(input) {
-      if(this.done)throw failure('此运行快照已使用，请重新运行。','USED');
-      const snapshot=validateSnapshot(input);this.snapshot=snapshot;
-      if(owner)throw failure('已有运行会话，不能追加或重启程序组。','BUSY');
-      owner=this;this.done=this.execute(snapshot);return this.done;
-    }
-    async execute(snapshot) {
-      const abort=()=>{this.fail(failure('设备或型号连接已变化，全部程序停止。','CANCELLED')).catch(()=>{});};
-      this.signal?.addEventListener('abort',abort,{once:true});
-      let workers=[];
-      const executionGroups=snapshot.groups;
-      try {
-        if(this.connection.learned?.getSnapshot?.().busy || this.connection.learned?.busy)throw failure('请先结束口令学习或其他运行任务。','BUSY');
-        this.check();await this.connection.enterProgram();this.check();
-        if(this.connection.ensureFirmware&&!await this.connection.ensureFirmware({interactive:false,reason:'run'}))throw failure('主控固件尚未匹配。','FIRMWARE');
-        this.check();
-        requireProgramReady(this.connection);
-        for(const group of snapshot.groups){
-          try { Legacy.requireFeatureFirmware(group.items,this.connection); }
-          catch(error){Object.assign(error,{groupId:group.groupId});throw error;}
-        }
-        // Reserve learning/run ownership before START; query only referenced learned slots.
-        // Retain the existing
-        // local learning/run mutex without sending the legacy DECLARE_RUN opcode.
-        if(this.connection.learned) {
-          if(this.connection.learned.getSnapshot?.().busy || this.connection.learned.busy)throw failure('请先结束口令学习或其他运行任务。','BUSY');
-          const items=snapshot.groups.flatMap(group=>group.items);
-          this.preparedLearned=true;
-          try { await this.connection.learned.prepareRun(items); }
-          catch(error) {
-            if(error.path?.length) {
-              let offset=error.path[0];
-              for(const group of snapshot.groups) { if(offset<group.items.length){const path=[offset,...error.path.slice(1)];let item;let list=group.items;for(const i of path){item=list[i];list=item?.children||[];}Object.assign(error,{groupId:group.groupId,blockUid:item?.uid,path});break;}offset-=group.items.length; }
-            }
-            throw error;
-          }
-        } else if(snapshot.groups.some(group=>hasLearned(group.items)))throw failure('设备未提供学习状态查询，不能运行自学习口令块。','UNSUPPORTED');
-        this.check();this.client=this.createClient({onAbort:error=>{if(!this.finished)this.fail(error).catch(()=>{});}});
-        if(typeof this.client.beginGroup!=='function'||typeof this.client.finishGroup!=='function')throw failure('当前连接未提供多组运行所需的程序任务。','UNSUPPORTED');
-        const initialGroups=snapshot.launchOrder.map(id=>snapshot.groups.findIndex(group=>group.groupId===id)+1);
-        await this.client.open(executionGroups.length,{initialGroups});this.check();
-        if(snapshot.groups.some(group=>Legacy.hasConditional(group.items))){
-          if(!this.connection.conditionObservers?.createClient)throw failure('连接未提供独立条件观察器。','OBSERVER_UNSUPPORTED');
-          this.observers=this.connection.conditionObservers.createClient({sessionLo:this.client.sessionLo,sessionHi:this.client.sessionHi,reusable:true,isCurrent:()=>!this.cancelled&&this.isCurrent(),onFault:error=>{
-            const original=this.observerContexts.get(`${error.group}:${error.runId}:${error.observerId??error.id??error.task}`);
-            if(original)Object.assign(error,original);this.fail(error).catch(()=>{});
-          }});
-        }
-        const ran=await this.runMessageGroups(snapshot);this.check();await this.client.close();this.check();
-        return {state:'completed',groups:ran};
-      } catch(error) {
-        await this.fail(error).catch(stopError=>{
-          const original=this.error||error;original.stopError=stopError;original.stopUnconfirmed=true;
-          original.message+='；停止尚未确认，已关闭本地连接，请检查设备是否停止。';
-        });
-        await Promise.allSettled([...workers,...this.messageWorkers]);throw this.error||error;
-      } finally {
-        this.finished=true;this.messageScheduling=false;
-        for(const record of this.messageRecords.values()){record.queued=false;record.context=null;if(this.cancelled)record.phase='CANCELLED';}
-        this.messageWorkers.clear();
-        this.signal?.removeEventListener('abort',abort);
-        for(const wake of [...this.waiters])wake();
-        this.observers?.dispose();this.observerContexts.clear();
-        this.client?.dispose?.('运行会话已结束。');
-        this.taskContexts.clear();this.leaseContexts.clear();
-        if(this.preparedLearned)this.connection.learned?.stop('运行会话已结束。');
-        if(owner===this)owner=null;
-      }
-    }
+    get running(){return [...this.records.values()].some(record=>record.context&&!record.context.finished&&!record.context.cancelled);}
   }
-  function hasLearned(items) { return items.some(item=>item.id==='self-learned-wait'||hasLearned(item.children||[])); }
+  function hasLearned(items){return items.some(item=>item.id==='self-learned-wait'||hasLearned(item.children||[]));}
+  function needsSensorValues(items){return items.some(item=>['infrared-wait','tilt-wait','loop-infrared','loop-tilt'].includes(item.id)||
+    item.id==='motion-wait'&&['still','shaking'].includes(item.params.state)||needsSensorValues(item.children||[]));}
   return {validateSnapshot,hasMessages,requireProgramReady,releaseSupports,releaseUsesLegacy,releaseAllows,command,SessionCoordinator};
 });

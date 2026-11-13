@@ -74,6 +74,11 @@
               value:option.value,label:`${option.label}消息 ${option.value}`,bubble:`${option.label}${option.value}`,color:option.color
             }))
           } } },
+          { id: "send-message-wait", label: "发送消息并等待", type: "logic", paramsSchema: { message: {
+            label:"消息",type:"select",default:1,options:messageColors.map(option=>({
+              value:option.value,label:`${option.label}消息 ${option.value}`,bubble:`等待 · ${option.label}${option.value}`,color:option.color
+            }))
+          } } },
           { id: "wait-time", label: "等待时间", type: "logic", kind: "action", paramsSchema: { duration: durationParam("等待时间") } },
           {
             id: "infrared-wait", label: "等待红外", type: "logic",
@@ -126,7 +131,7 @@
   Object.values(categories).forEach(group => group.cards.forEach(card => {
     const entry = { artStyle: "fitted" };
     if (["eye-expression", "display-number"].includes(card.id)) entry.paletteArtIcon = artwork + card.id;
-    else if (!["eye-matrix", "send-message"].includes(card.id)) entry.artIcon = artwork + (conditionArtwork[card.id] || (card.kind === "loop" ? "loop" : card.id));
+    else if (!["eye-matrix", "send-message", "send-message-wait"].includes(card.id)) entry.artIcon = artwork + (conditionArtwork[card.id] || (card.kind === "loop" ? "loop" : card.id));
     if (card.id === "combo-continuous") {
       entry.artIcons = Object.fromEntries(
         ["advance", "retreat", "left", "right"].map(direction => [direction, artwork + "combo-continuous-" + direction]));

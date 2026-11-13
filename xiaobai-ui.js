@@ -29,21 +29,24 @@
   }
   function render() {
     window.CardEditor?.setExecutionLocked?.(Boolean(active||starting||stopping));
+    window.CardCanvas?.setRunControlsEnabled?.(Boolean(active?.initialized&&!active.cancelled&&!stopping));
     const checking=checkingFirmware();
-    run.disabled=Boolean(active||starting||stopping||(!checking&&(window.CardOta?.busy||window.CardBluetooth?.busy))||window.CardModelSession?.switching);
+    const ownRunBusy=Boolean(active?.toggleGroup&&active.preparedLearned&&
+      window.CardBluetooth?.remoteConnection?.()?.id===active.connection?.id);
+    run.disabled=Boolean((active&&!active.toggleGroup)||starting||stopping||(!checking&&(window.CardOta?.busy||(window.CardBluetooth?.busy&&!ownRunBusy)))||window.CardModelSession?.switching);
     document.body.classList.toggle('program-running',Boolean(active));
     const reported=window.CardModelSession?.current.execution.reportsLifecycle;
     const phase=window.CardBluetooth?.executionPhase;
     const connected=window.CardBluetooth?.connected!==false;
-    const running=reported?connected&&phase==='running':Boolean(active);
-    const stopActive=running||Boolean(stopping)||Boolean(reported&&connected&&['stopping','unknown'].includes(phase));
+    const running=reported?connected&&phase==='running':Boolean(active?.toggleGroup?active.running:active);
+    const stopActive=running||Boolean(active?.initialized)||Boolean(stopping)||Boolean(reported&&connected&&['stopping','unknown'].includes(phase));
     run.classList.toggle('is-running',running);
     stop.classList.toggle('is-program-active',stopActive);
     run.setAttribute('aria-label',checking?'查看主控核对状态':'运行程序');run.title=checking?'正在核对主控固件，点击查看状态':'运行程序';
     stop.setAttribute('aria-label','停止程序');stop.title=window.CardModelSession?.current.execution.kind==='compiled'?'取消上传并请求设备暂停':'停止程序并刹停电机';
     run.classList.add('execution-compile');
     window.dispatchEvent(new Event('card-program-state'));
-    run.querySelector('span').textContent=checking&&!active&&!starting&&!stopping?'核对中':reported?({uploading:'发送中','awaiting-start':'待确认',running:'运行中',stopping:'待停止',unknown:'待确认'}[phase]||(active||starting?'准备中':'运行')):(active?'运行中':starting?'准备中':'运行');
+    run.querySelector('span').textContent=checking&&!active&&!starting&&!stopping?'核对中':reported?({uploading:'发送中','awaiting-start':'待确认',running:'运行中',stopping:'待停止',unknown:'待确认'}[phase]||(active||starting?'准备中':'运行')):(active?.toggleGroup?(active.running?'运行中':'重新运行'):active?'运行中':starting?'准备中':'运行');
   }
   async function halt(reason='程序已停止') {
     stopping++;generation++;const previous=active;active=null;starting=false;highlight(null);render();
@@ -55,7 +58,14 @@
   }
   async function start(groupId=null) {
     if(typeof groupId!=='string')groupId=null;
-    if(active||starting||stopping||window.CardModelSession?.switching||window.CardModelSession?.selected===false)return;
+    if(starting||stopping||window.CardModelSession?.switching||window.CardModelSession?.selected===false)return;
+    if(active){
+      if(!active.toggleGroup)return;
+      try{
+        if(groupId){await active.toggleGroup(groupId);render();return;}
+        await halt('重新开始程序。');
+      }catch(error){notice(error.message||'程序操作失败。');return;}
+    }
     const checking=checkingFirmware();
     if(checking){
       notice('正在核对主控应用版本。完成后请再次点击运行。');
@@ -67,7 +77,7 @@
     const model=scope?.model;
     const ticket=++generation;
     const valid=()=>ticket===generation&&(!scope||scope.isCurrent());
-    let failedPath=null,failedGroupId=null,failedBlockUid=null;
+    let failedPath=null,failedGroupId=null,failedBlockUid=null,sessionOpen=false;
     activeBlockUid=null;multiRunning=false;
     highlight(null);starting=true;render();
     try {
@@ -97,6 +107,10 @@
       if(multiPinned&&(!connection.multiProgram||!XiaobaiMultiProgram.releaseAllows(pin,connection.firmware||firmware)))throw new Error('请先进入编程模式并核对本 App 对应的主控版本。');
       const options={connection,signal:scope?.signal,
         isCurrent:()=>(!scope||scope.isCurrent())&&window.CardBluetooth?.remoteConnection?.()?.id===connection.id,
+        onActivity:()=>{if(valid()){
+          if(active?.cancelled){const error=active.error;active=null;highlight(null);if(error)notice(error.message);}
+          render();
+        }},
         onProgress:text=>{if(valid()){run.querySelector('span').textContent=text;notice(text+'…');}},
         onStep:(item,path,runningGroupId=activeGroupId)=>{if(valid()){activeBlockUid=item.uid||null;run.title='正在执行：'+(cardById[item.id]?.label||item.id);highlight(path,runningGroupId,activeBlockUid);}},
         onGroupState:(id,state)=>{if(valid()&&(state==='DONE'||state==='IDLE')){groupMarks.get(id)?.classList.remove('is-executing');groupMarks.delete(id);}}
@@ -104,7 +118,9 @@
       const execution=multiPinned?new XiaobaiMultiProgram.SessionCoordinator(connection,options):spec?DeviceModels.createExecution(spec,options):new XiaobaiRunner.Runner(connection,options);
       active=execution;starting=false;render();notice(spec?.reportsLifecycle?'正在准备上传完整程序。':'正在运行'+(model?.name||'小白')+'程序。');
       const result=await execution.run(snapshot);
-      if(valid())notice(spec?.completionMessage || (spec?.reportsLifecycle?(result?.state==='completed'?'设备执行完成':'设备已停止'):spec?.kind&&spec.kind!=='stream'?'程序已发送到设备，请查看设备运行状态。':'程序执行完成，电机已停止。'));
+      sessionOpen=Boolean(result?.sessionOpen);
+      if(sessionOpen&&valid())notice('脚本已执行完，可以继续触发消息或点击程序组。');
+      else if(valid())notice(spec?.completionMessage || (spec?.reportsLifecycle?(result?.state==='completed'?'设备执行完成':'设备已停止'):spec?.kind&&spec.kind!=='stream'?'程序已发送到设备，请查看设备运行状态。':'程序执行完成，电机已停止。'));
     }catch(error){if(valid()){
       failedPath=error.path||null;failedGroupId=error.groupId||activeGroupId;failedBlockUid=error.blockUid||null;notice(error.message||'运行失败');
       if(failedPath){
@@ -113,7 +129,7 @@
         else block?.scrollIntoView?.({block:'nearest',inline:'nearest'});
       }
     }}
-    finally{if(valid()){active=null;starting=false;highlight(null);if(failedPath)highlight(failedPath,failedGroupId,failedBlockUid);render();}}
+    finally{if(valid()){if(!sessionOpen)active=null;starting=false;highlight(null);if(failedPath)highlight(failedPath,failedGroupId,failedBlockUid);render();}}
   }
   window.addEventListener('device-execution-state',event=>{
     if(event.detail.modelId!==window.CardModelSession?.current.id||window.CardModelSession.switching)return;
@@ -150,6 +166,6 @@
       4:'设备模式已切换，程序已停止。',5:'收到语音停止口令，程序已停止。',6:'语音设备异常或等待超时，程序已停止。',7:'加速度传感器不可用，程序已停止。'};
     cancel(detail.reason || (detail.code===2&&reasons[detail.data?.[0]]) || '设备已退出编程模式，程序已停止。');
   });
-  window.CardProgram={stop:halt,runGroup:groupId=>start(groupId),refresh:render,get running(){return Boolean(active||starting||stopping);}};
+  window.CardProgram={stop:halt,runGroup:groupId=>start(groupId),refresh:render,get canToggleGroups(){return Boolean(active?.initialized&&!active.cancelled&&!stopping);},get running(){return Boolean(active||starting||stopping);}};
   render();
 })();

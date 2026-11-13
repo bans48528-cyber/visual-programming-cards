@@ -73,7 +73,7 @@ test('all headed groups use immutable UID snapshots sorted by code-unit group id
   assert.deepEqual(copy(f.editor.getRunSnapshot().launchOrder), ['g-A', 'g-a', 'g-z'], 'array reorder and coordinates never determine launch order');
 });
 
-test('explicit head and selected head snapshots stay independent of other runnable groups', () => {
+test('manual head snapshots retain all listeners while selecting one initial group', () => {
   const f = appFixture();
   assert.deepEqual(copy(f.editor.getRunSnapshot({groupId: 'g-a'}).launchOrder), ['g-a']);
   assert.deepEqual(copy(f.editor.getRunSnapshot({all: false}).launchOrder), ['g-b']);
@@ -85,9 +85,9 @@ test('explicit head and selected head snapshots stay independent of other runnab
   assert.throws(() => f.editor.getRunSnapshot({groupId: 'loose'}), /开始头/);
 });
 
-test('preflight enforces the whole run budget and rejects empty starts or corrupt identities', () => {
+test('preflight enforces the whole run budget and accepts empty script bodies', () => {
   const f = appFixture(state([group('empty', [])]));
-  assert.throws(() => f.editor.getRunSnapshot(), error => /还没有积木/.test(error.message) && error.groupId === 'empty');
+  assert.equal(f.editor.getRunSnapshot().groups[0].items.length, 0);
   f.doc = state(Array.from({length: 5}, (_, i) => group(`g${i}`)));
   assert.throws(() => f.editor.getRunSnapshot(), /4/);
   const nodes = n => Array.from({length: n}, (_, i) => item(`n${i}`));

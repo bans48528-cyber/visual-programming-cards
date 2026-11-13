@@ -27,7 +27,8 @@
     "test:ota:interop": "node tests/xiaobai-ota-c-interop.spec.cjs",
     "test:firmware": "node tests/xiaobai-firmware-bundle.spec.cjs && node tests/xiaobai-firmware.spec.cjs && node tests/xiaobai-firmware-recovery.spec.cjs && node tests/xiaobai-firmware-actions.spec.cjs && node tests/xiaobai-firmware-identity.spec.cjs && node tests/bluetooth-name-source.spec.cjs && node tests/xiaobai-ota-ui.spec.cjs",
     "test:canvas": "node --test tests/canvas-workspace.spec.cjs tests/free-canvas-run.spec.cjs && node tests/canvas-snap-legality.spec.cjs && node tests/free-canvas-storage.spec.cjs",
-    "test:multi": "node --test tests/multi-snapshot.spec.cjs tests/multi-ui.spec.cjs tests/xiaobai-multi-protocol.spec.cjs tests/xiaobai-multi-runner.spec.cjs tests/xiaobai-multi-interop.spec.cjs && node tests/xiaobai-multi-native.spec.cjs"
+    "test:multi": "npm run test:wedo && node tests/xiaobai-multi-native.spec.cjs",
+    "test:wedo": "node --test tests/wedo-stream.spec.cjs tests/wedo-ui.spec.cjs tests/multi-snapshot.spec.cjs tests/message-workspace.spec.cjs tests/free-canvas-run.spec.cjs && node tests/wedo-editor.spec.cjs"
   },
   "dependencies": {
     "@capacitor/android": "8.5.2",

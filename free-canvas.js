@@ -53,7 +53,7 @@
     if (!M) throw new Error('CanvasWorkspace must load before FreeCanvas');
     const area = adapter.area, viewport = adapter.viewport, chain = adapter.chain;
     const palette = adapter.palette, library = adapter.library;
-    let doc = M.create(), gesture = null, frame = 0, destroyed = false, suppressClick = 0, protectControlsUntil = 0, editingLocked = false;
+    let doc = M.create(), gesture = null, frame = 0, destroyed = false, suppressClick = 0, protectControlsUntil = 0, editingLocked = false, runControlsEnabled = false;
     let selected = new Set(), pointers = new Map(), elements = new Map(), groupElements = new Map();
     let slots = [], liveSlot = null, projection = null, wrapPreview = null;
     const subscriptions = [];
@@ -175,9 +175,10 @@
       area.classList.toggle('is-editing-locked', editingLocked);
       palette?.setAttribute('aria-disabled', String(editingLocked));
       for (const el of chain.querySelectorAll('.free-canvas-start, .param-bubble')) {
-        el.setAttribute('aria-disabled', String(editingLocked));
+        const locked = editingLocked && !(runControlsEnabled && el.classList.contains('free-canvas-start'));
+        el.setAttribute('aria-disabled', String(locked));
         if (el.matches('button')) el.disabled = editingLocked;
-        else if (el.classList.contains('free-canvas-start')) el.tabIndex = editingLocked ? -1 : 0;
+        else if (el.classList.contains('free-canvas-start')) el.tabIndex = locked ? -1 : 0;
       }
     }
     function setEditingLocked(locked) {
@@ -496,7 +497,11 @@
         g.source = 'palette'; g.cardId = card?.dataset.cardId;
         g.scrollStart = palette.scrollLeft; if (!card || editingLocked) g.browse = true;
       } else if (node || head) {
-        if (editingLocked) { g.type = 'locked'; return; }
+        if (editingLocked) {
+          g.type = 'locked';
+          if(runControlsEnabled&&head&&!event.target.closest('.head-param-trigger'))g.runGroupId=head.dataset.groupId;
+          return;
+        }
         g.source = 'canvas'; g.groupId = (head || node).dataset.groupId;
         g.nodeId = node?.dataset.nodeUid; g.whole = !!head;
         if (event.ctrlKey || event.metaKey || event.shiftKey) { select(g.groupId, { toggle: true }); g.selectionOnly = true; return; }
@@ -545,7 +550,11 @@
       if (!g) return;
       if (g.type === 'pinch') { protectControlsUntil = performance.now() + 500; if (!pointers.size) { gesture = null; slots = collectSlots(); emit('viewport', true); } return; }
       if (event.pointerId !== g.pointerId) return;
-      if (g.type === 'locked') { cleanupVisuals(); gesture = null; return; }
+      if (g.type === 'locked') {
+        cleanupVisuals(); gesture = null; suppressClick = performance.now()+500;
+        if(g.runGroupId&&distance(g.start,point(event))<8)adapter.onRun?.(g.runGroupId);
+        return;
+      }
       if (g.active) {
         g.current = point(event); tick(); const target = liveSlot, drop = g.dropzone;
         const connector = { x: g.current.x - g.offset.x, y: g.multi ? g.current.y : g.current.y - g.offset.y + g.ghostAnchor * doc.viewport.scale };
@@ -587,7 +596,10 @@
       if (!viewport.contains(event.target) && !palette?.contains(event.target)) return;
       if (event.target.closest('.param-popover')) return;
       stop(event);
-      if (editingLocked) return;
+      if (editingLocked) {
+        if(runControlsEnabled&&event.detail===0){const head=event.target.closest('.free-canvas-start');if(head&&!event.target.closest('.head-param-trigger'))adapter.onRun?.(head.dataset.groupId);}
+        return;
+      }
       if (event.detail !== 0 || performance.now() < suppressClick) return;
       const node = event.target.closest('[data-node-uid]'), head = event.target.closest('.free-canvas-start');
       if (head) {
@@ -624,7 +636,7 @@
         event.preventDefault(); cancel(); const ids = new Set(selected);
         doc.groups = doc.groups.filter(group => !ids.has(group.id)); doc.selectedGroupId = null; selected.clear(); render(); emit('delete');
       }
-      if (!editingLocked && (event.key === 'Enter' || event.key === ' ') && event.target.closest('.free-canvas-start')) {
+      if ((event.key === 'Enter' || event.key === ' ') && event.target.closest('.free-canvas-start') && (!editingLocked || runControlsEnabled && !event.target.closest('.head-param-trigger'))) {
         stop(event); const head = event.target.closest('.free-canvas-start');
         if (event.target.closest('.head-param-trigger')) adapter.onHeadParam?.(head.dataset.groupId,event.target.closest('.head-param-trigger'));
         else adapter.onRun?.(head.dataset.groupId);
@@ -632,6 +644,10 @@
     });
     if (controls) listen(controls, 'click', event => { const action = event.target.closest('[data-canvas-action]')?.dataset.canvasAction; if (action === 'fit') fit(); if (action === 'reset') resetZoom(); });
     const api = {
+      setRunControlsEnabled(enabled) {
+        runControlsEnabled = adapter.model?.()?.id === 'xiaobai' && Boolean(enabled);
+        syncEditingLock(); return runControlsEnabled;
+      },
       getDocument: () => editingLocked ? M.clone(doc) : doc,
       load(value, options = {}) { if (editingLocked && !options.force) return M.clone(doc); cancel(); doc = M.normalize(value); selected = new Set(doc.selectedGroupId ? [doc.selectedGroupId] : []); if (options.render !== false) render(); return doc; },
       render, layout, add, select, cancel, fit, resetZoom, focusNode, getSelectedGroup, commitExternal,

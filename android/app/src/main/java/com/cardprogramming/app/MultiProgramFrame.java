@@ -10,12 +10,14 @@ final class MultiProgramFrame {
     static boolean valid(byte[] b) {
         if(b==null || b.length<MIN_PAYLOAD+7 || b.length>MAX_PAYLOAD+7 ||
            u(b[0])!=0x5a || u(b[1])!=0x97 || u(b[2])!=0x98 ||
-           u(b[3])!=b.length-7 || u(b[4])!=0xc4 || u(b[b.length-1])!=0xa5 || u(b[5])!=1) return false;
+           u(b[3])!=b.length-7 || u(b[4])!=0xc4 || u(b[b.length-1])!=0xa5 ||
+           (u(b[5])!=1 && u(b[5])!=2)) return false;
         int sum=0;
         for(int i=0;i<b.length-2;i++)sum+=u(b[i]);
         if((sum&255)!=u(b[b.length-2]) || !nonzero(b,9,8)) return false;
         int kind=u(b[6]), group=u(b[7]), op=u(b[8]), n=b.length-23;
         boolean task=nonzero(b,17,4), session=group==0 && op==0;
+        if(u(b[5])==2) return validStream(b,kind,group,op,n,task,session);
         switch(kind) {
             case 1: return session && task && n==0; // CAPS
             case 2: return session && task && (n==9 || n==10 && u(b[30])==1) && u(b[29])>=1 && u(b[29])<=15; // OPEN, optional reusable flag
@@ -50,6 +52,35 @@ final class MultiProgramFrame {
             default: return false;
         }
     }
+    /** Version 2 shares the envelope while keeping a smaller request vocabulary. */
+    private static boolean validStream(byte[] b,int kind,int group,int op,int n,
+                                       boolean task,boolean session) {
+        // Every stream request belongs to a nonzero run and connection token.
+        if(!nonzero(b,9,4) || !nonzero(b,13,4)) return false;
+        boolean script=group>=1 && group<=4;
+        switch(kind) {
+            case 4:
+                if(!script || !task || op==0x30 || op==0x32) return false;
+                if(op==0x34) return n==1 && range(b,21,3,4);
+                return action(b,op,n);
+            case 5: // Query a real device wait or playback result.
+            case 6: // Retire this script's pending wait with a fresh task fence.
+            case 16: // Begin or replace a script activation.
+            case 17: // The script completed while its outputs may remain active.
+                return script && op==0 && task && n==0;
+            case 7: case 8: case 9:
+                return session && !task && n==0;
+            case 10:
+                if(n!=1 || !range(b,21,1,8)) return false;
+                if(session && !task) return u(b[21])==8;
+                return script && task && actionOpcode(op) && op!=0x30 && op!=0x32;
+            case 18:
+                return session && !task && n==1 && range(b,21,0,15);
+            default:
+                return false;
+        }
+    }
+
     private static int u(byte value){return value&255;}
     private static boolean nonzero(byte[] b,int at,int count){int value=0;for(int i=at;i<at+count;i++)value|=b[i];return value!=0;}
     private static boolean duration(byte[] b,int at){return nonzero(b,at,4) && (b[at+3]&0x80)==0;}

@@ -1,15 +1,15 @@
 {
   "app": {
     "applicationId": "com.xiaobai.remote",
-    "versionCode": 37,
-    "versionName": "1.2.31"
+    "versionCode": 38,
+    "versionName": "1.3.0"
   },
   "firmware": {
     "boardId": 258,
-    "imageSha256": "7a88de8c7a02d182b40836643a4185981244f2c4aa17000608d3251b4041572e",
+    "imageSha256": "dac5283194bceba70e5ab454262dcea9f2f45e06abdb5e3810e94a9d6a6b5e5b",
     "layoutId": 2,
     "protocol": 1,
-    "version": 131587
+    "version": 131840
   },
   "schemaVersion": 2
 }

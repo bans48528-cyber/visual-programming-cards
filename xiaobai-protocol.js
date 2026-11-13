@@ -131,7 +131,10 @@
             if(normal>=0)this.writeJobs.unshift(this.writeJobs.splice(normal,1)[0]);
           }
           const candidate=this.writeJobs[0],programming=[0xc2,0xc4].includes(candidate.bytes[4]);
-          const gap=programming?Math.max(40,this.minWriteMs):this.minWriteMs;
+          // Streamed programming shares one logical-frame budget across groups.
+          // Urgent STOP/heartbeat/ACK keep the short physical frame guard.
+          const streamed=candidate.bytes[4]===0xc4&&candidate.bytes[5]===2&&candidate.priority>2;
+          const gap=programming?Math.max(streamed?100:40,this.minWriteMs):this.minWriteMs;
           const now=Date.now();
           // RX quiet is only a courtesy bounded by enqueue time, never an
           // indefinitely renewed prerequisite. Urgent safety/ACK skips it.

@@ -372,7 +372,7 @@
     }
 
     function createCardIcon(card, item = null) {
-      if (card.id === 'send-message') {
+      if (['send-message','send-message-wait'].includes(card.id)) {
         const icon = document.createElement('span'); icon.className = 'card-icon message-card-icon';
         const selected = CardModelSession.current.messageColors?.find(option => option.value === getParamValue(card,item,'message'));
         const image = document.createElement('img');
@@ -959,7 +959,7 @@
       const panel = document.createElement("div");
       panel.className = "param-editor-panel";
       panel.classList.toggle("loop-param-editor", card.kind === "loop");
-      if (card.id === 'send-message') {
+      if (['send-message','send-message-wait'].includes(card.id)) {
         panel.classList.add('message-param-editor');
         panel.append(createMessageOptions(getParamValue(card,item,'message'),value=>setActiveParamValue('message',value)));
         return panel;
@@ -1661,16 +1661,17 @@
       const doc = canvasController.getDocument();
       const xiaobai = CardModelSession.current.id === 'xiaobai';
       const headedGroups = doc.groups.filter(group => group.startId);
+      const requestedGroupId = options.groupId ?? (options.all === false ? doc.selectedGroupId : undefined);
       if (xiaobai && headedGroups.length > 4) throw new Error('小白作品最多支持 4 个开始头，请先移除多余的开始头。');
       let groups;
       if (options.groupId !== undefined && options.groupId !== null) {
         const group = doc.groups.find(candidate => candidate.id === options.groupId);
         if (!group?.startId) throw new Error('请选择一个带开始头的程序组。');
-        groups = [group];
+        groups = xiaobai ? headedGroups : [group];
       } else if (options.all === false) {
         const group = doc.groups.find(candidate => candidate.id === doc.selectedGroupId);
         if (!group?.startId) throw new Error('请选择一个带开始头的程序组。');
-        groups = [group];
+        groups = xiaobai ? headedGroups : [group];
       } else groups = doc.groups.filter(group => group.startId);
       if (!groups.length) throw new Error('请先放入带开始头的程序组。');
       if (groups.length > 4) throw new Error('一次最多运行 4 个程序组。');
@@ -1709,9 +1710,9 @@
         schemaVersion: 1,
         modelId: CardModelSession.current.id,
         projectId: window.CardHome?.activeProjectId || null,
-        launchOrder: groups.map(group => group.id),
+        launchOrder: requestedGroupId == null ? groups.map(group => group.id) : [requestedGroupId],
         groups: groups.map(group => {
-          if (!group.items.length) {
+          if (!group.items.length && !xiaobai) {
             const error = new Error('开始头后还没有积木，请先添加程序。');
             error.groupId = group.id; error.blockUid = group.startId; throw error;
           }
@@ -1719,7 +1720,7 @@
             ...(group.trigger === undefined ? {} : {trigger:copyValue(group.trigger)}) };
         })
       };
-      if (xiaobai && options.groupId != null) snapshot.manualGroupId = options.groupId;
+      if (xiaobai && requestedGroupId != null) snapshot.manualGroupId = requestedGroupId;
       function freeze(value) {
         if (value && typeof value === 'object') { Object.values(value).forEach(freeze); Object.freeze(value); }
         return value;

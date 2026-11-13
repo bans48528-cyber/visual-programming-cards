@@ -1,0 +1,72 @@
+{
+  "hardware": false,
+  "app": {
+    "applicationId": "com.xiaobai.remote",
+    "versionCode": 38,
+    "versionName": "1.3.0"
+  },
+  "firmware": {
+    "appBase": 134230016,
+    "asset": "assets/firmware/xiaobai_py32_2.3.0_l2_dac5283194bceba70e5ab454262dcea9f2f45e06abdb5e3810e94a9d6a6b5e5b_pe05d49ca791a71ed.ota",
+    "boardId": 258,
+    "erasePage": 128,
+    "format": 2,
+    "imageSha256": "dac5283194bceba70e5ab454262dcea9f2f45e06abdb5e3810e94a9d6a6b5e5b",
+    "imageSize": 50004,
+    "layoutId": 2,
+    "minBootVersion": 131072,
+    "packageSha256": "e05d49ca791a71ed855ec75039f8b4ae20748874d70ab8649598c88dad782cef",
+    "packageSize": 50132,
+    "protocol": 1,
+    "version": 131840,
+    "versionName": "2.3.0"
+  },
+  "manifestSha256": "585df4db030dde6851ff20ce56014c3d492becc27c519485a30b30aa38731621",
+  "apk": {
+    "file": "drluck-codelab-1.3.0-debug.apk",
+    "size": 39984015,
+    "sha256": "0a5695258a4bc0e2d6f93a45151f088310c335337089bb7f6a3fc30762246064",
+    "sourceAssetsExact": true
+  },
+  "sourceSha256": {
+    "app.js": "37924b4e4f4b7343b1821bee1f4cd5c200257ff3389ee4c1b57494370b70812d",
+    "free-canvas.js": "65c445685d620e650fdb036ff5f2e6a1a3938b82659b9f27d0f07ef24af56655",
+    "xiaobai-model.js": "98b5161bc5d74f2b383b8cfe31801f2345469950b2991dff6b2a7b18da9bcd58",
+    "xiaobai-multi-protocol.js": "fbc153ac5bc16cf7057087e86241c7ae00cd6767408ae9e1c61ddceb3ca9a223",
+    "xiaobai-multi-runner.js": "fd6b0beb8a329dfb46329e65fec4e080e91cf668931b059fc1e97c95eed77b13",
+    "xiaobai-protocol.js": "e021a3c57cdad323a145e561343d44a57275d857900048577b95c81637779674",
+    "xiaobai-ui.js": "ff37623e7263677ddc6f98adb496e85f256cea589dbe8178e105be6258c5beab",
+    "xiaobai-firmware-bundle.js": "529bd7aaa12d93742d7200627b14060243499ad8a1ba3390188da7a22b09815e",
+    "android/app/src/main/java/com/cardprogramming/app/MultiProgramFrame.java": "7eb28c6bbbd4f303b88c72af2d1f79e60d8c3649623d00ae8567260eed4b4fe3"
+  },
+  "tests": {
+    "runtimeUiSnapshotWorkspaceCanvas": {
+      "passed": 40,
+      "failed": 0
+    },
+    "editorBrowser": {
+      "passed": 3,
+      "failed": 0,
+      "cases": [
+        "XiaoBai desktop 1280x800",
+        "XiaoBai mobile 844x390 save/reopen",
+        "other-model head stays locked"
+      ]
+    },
+    "native": {
+      "frames": 20341,
+      "assertions": 20724,
+      "passed": true
+    },
+    "firmwareGate": {
+      "assertions": 63,
+      "passed": true
+    },
+    "productionCBridge": {
+      "passed": true,
+      "steps": 13,
+      "wireRows": 59,
+      "hardware": false
+    }
+  }
+}
