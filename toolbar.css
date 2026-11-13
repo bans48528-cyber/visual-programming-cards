@@ -59,6 +59,7 @@
 /* Editor controls float over the canvas; the former header no longer takes space. */
 .app { grid-template-rows: minmax(0, 1fr); }
 .topbar {
+  --editor-more-room: calc(100vw - 306px);
   position: absolute; left: 14px; top: 14px; z-index: 12;
   width: auto; height: auto; padding: 4px; border: 1px solid rgba(170,197,223,.4); gap: 2px;
   display: flex; align-items: center; justify-content: flex-start;
@@ -69,8 +70,6 @@
 .topbar .brand-title,
 .topbar .device-status,
 .topbar .remote-entry,
-.topbar #undoBtn,
-.topbar #redoBtn,
 .topbar #clearBtn { display: none !important; }
 .topbar .toolbar { display: flex; gap: 2px; pointer-events: none; }
 .topbar .btn, .bluetooth-button { pointer-events: auto; background: rgba(255,255,255,.94); border-radius: 8px; box-shadow: 0 2px 6px rgba(17,24,32,.12); }
@@ -82,13 +81,16 @@
 .topbar .btn img, .topbar .bluetooth-icon { width: 24px; height: 24px; }
 .topbar #homeBtn { --editor-tool-icon: url("assets/toolbar/home.svg"); }
 .topbar #saveBtn { --editor-tool-icon: url("assets/toolbar/save.svg"); }
-.topbar #homeBtn img, .topbar #saveBtn img { opacity: 0; }
-.topbar #homeBtn::before, .topbar #saveBtn::before {
+.topbar #undoBtn, .topbar #redoBtn { --editor-tool-icon: url("assets/toolbar/undo.svg"); }
+.topbar #homeBtn img, .topbar #saveBtn img, .topbar #undoBtn img, .topbar #redoBtn img { opacity: 0; }
+.topbar #homeBtn::before, .topbar #saveBtn::before, .topbar #undoBtn::before, .topbar #redoBtn::before {
   content: ""; position: absolute; inset: 10px; background: currentColor;
   mask: var(--editor-tool-icon) center / contain no-repeat;
   -webkit-mask: var(--editor-tool-icon) center / contain no-repeat; pointer-events: none;
 }
 .topbar #saveBtn::before { mask-size: 32px 32px; -webkit-mask-size: 32px 32px; }
+.topbar #redoBtn::before { transform: scaleX(-1); }
+.topbar .btn svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; pointer-events: none; }
 .topbar #bluetoothBtn:not(.is-connected):not(.is-connecting) { color: #70869a; }
 .topbar .btn:hover:not(:disabled) { background: #f0f6fc; }
 .topbar .btn:active:not(:disabled) { background: #e5eff9; transform: translateY(1px) scale(.94); }
@@ -97,9 +99,22 @@
   .topbar .btn { transition: none; }
   .topbar .btn:active:not(:disabled) { transform: none; }
 }
-.topbar #saveBtn { order: 1; }
-.topbar #bluetoothBtn { order: 2; }
-.topbar #canvasBackgroundBtn { order: 3; }
+.topbar .toolbar { min-width: 0; gap: 0; }
+.topbar .editor-more-tools {
+  display: flex; align-items: center; flex: 0 1 auto; gap: 2px;
+  width: 0; max-width: var(--editor-more-room); height: 44px; margin: 0; padding: 0;
+  overflow: hidden; visibility: hidden; pointer-events: none; touch-action: pan-x;
+  scrollbar-width: none;
+  transition: width 180ms cubic-bezier(.16,1,.3,1);
+}
+.topbar .editor-more-tools[hidden] { display: none; }
+.topbar .editor-more-tools::-webkit-scrollbar { display: none; }
+.topbar .editor-more-tools > .btn:first-child { margin-left: 8px; }
+.topbar.is-expanded .editor-more-tools { width: 282px; overflow-x: auto; visibility: visible; pointer-events: auto; }
+.topbar .editor-tools-toggle { margin-left: 2px; color: #70869a; }
+.topbar .editor-tools-toggle svg { transition: transform 150ms ease-out; }
+.topbar.is-expanded .editor-tools-toggle svg { transform: rotate(180deg); }
+@media (prefers-reduced-motion: reduce) { .topbar .editor-tools-toggle svg, .topbar .editor-more-tools { transition: none; } }
 .topbar .canvas-background-icon {
   width: 22px; height: 22px; border: 1.5px solid #70869a; border-radius: 50%;
   background: linear-gradient(90deg, #f5f8fc 50%, #1b2736 50%);
@@ -115,7 +130,8 @@
 
 @media (max-width: 600px), (max-height: 500px) {
   .app { grid-template-rows: minmax(0, 1fr); }
-  .topbar { left: 10px; top: 10px; padding: 4px; }
+  /* Reserve the right-side run/stop controls; very narrow screens scroll only the extra tools. */
+  .topbar { --editor-more-room: calc(100vw - 278px); left: 10px; top: 10px; padding: 4px; }
   .execution-controls { top: 10px; right: 10px; bottom: auto; gap: 7px; }
   .execution-button { width: 46.4px; height: 46.4px; }
 }

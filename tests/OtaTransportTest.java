@@ -19,17 +19,40 @@ public final class OtaTransportTest {
         byte[] info=frame(0x60,0x12345678L,new byte[0]);
         check(hex(info).equals("58424f5401600000785634125112bc46"),"independent IEEE CRC32 golden INFO");
         check(OtaTransport.validRequest(info),"INFO accepted");
+        byte[] goldenUid=frame(0x65,511,new byte[0]);
+        check(hex(goldenUid).equals("58424f5401650000ff010000fe096a45"),"authoritative C GET_UID request511");
+        byte[] goldenReply=bytes("58424f5401e50d00ff010000e2935aa100a0a1a2a3a4a5a6a7a8a9aaab");
+        check(OtaTransport.validRequest(goldenUid)&&OtaTransport.validFrame(goldenReply),"authoritative C UID reply CRC");
         check(!OtaTransport.validRequest(null),"null rejected");
         for(int i=0;i<info.length;i++) {byte[] bad=info.clone();bad[i]^=1;check(!OtaTransport.validRequest(bad),"CRC envelope mutation "+i);}
         check(!OtaTransport.validRequest(frame(0x60,0,new byte[0])),"zero request ID");
-        for(int cmd=0;cmd<256;cmd++)check(OtaTransport.validRequest(frame(cmd,1,new byte[0]))==(cmd==0x60||cmd==0x64),"empty payload opcode "+cmd);
+        for(int cmd=0;cmd<256;cmd++)check(OtaTransport.validRequest(frame(cmd,1,new byte[0]))==(cmd==0x60||cmd==0x64||cmd==0x65),"empty payload opcode "+cmd);
         for(int size=0;size<=160;size++)check(OtaTransport.validRequest(frame(0x62,1,new byte[size]))==(size==128),"BEGIN manifest exact "+size);
         for(int size=0;size<=160;size++)check(OtaTransport.validRequest(frame(0x63,1,new byte[size]))==(size>=5&&size<=132),"DATA bound "+size);
         byte[] full=new byte[132];put(full,0,128);for(int i=4;i<full.length;i++)full[i]=(byte)i;
         byte[] data=frame(0x63,0xffffffffL,full), ack=frame(0xe3,0xffffffffL,new byte[]{0,0,1,0,0});
         check(OtaTransport.validRequest(data),"max uint32 id signed bytes");
-        for(long offset:new long[]{1,127,129,0xb000,0xffffffffL}) {byte[] p=full.clone();put(p,0,offset);check(!OtaTransport.validRequest(frame(0x63,1,p)),"unaligned/outside offset "+offset);}
+        for(long offset:new long[]{1,127,129,OtaLayout.OTA_APP_CAPACITY,0xffffffffL}) {byte[] p=full.clone();put(p,0,offset);check(!OtaTransport.validRequest(frame(0x63,1,p)),"unaligned/outside offset "+offset);}
+        byte[] extended=full.clone();put(extended,0,0xb000);check(OtaTransport.validRequest(frame(0x63,1,extended)),"compact capacity extends beyond legacy limit");
+        put(extended,0,OtaLayout.OTA_APP_CAPACITY-128);check(OtaTransport.validRequest(frame(0x63,1,extended)),"compact final full page accepted");
         byte[] last=new byte[]{0,(byte)0xaf,0,0,1};check(OtaTransport.validRequest(frame(0x63,1,last)),"last aligned capacity page allowed");
+        for(int schema:new int[]{1,2}) {
+            OtaTransport responseGate=new OtaTransport();responseGate.begin();responseGate.prepare(info);responseGate.markSent();
+            byte[] payload=new byte[schema==1?61:73];payload[5]=(byte)schema;
+            byte[] reply=frame(0xe0,0x12345678L,payload);
+            List<byte[]> received=responseGate.receive(reply,1000);
+            check(received.size()==1&&Arrays.equals(received.get(0),reply),"wire v1 carries schema "+schema+" INFO payload");
+        }
+        OtaTransport probe=new OtaTransport();probe.begin(true);
+        check(probe.prepare(info).length==1,"probe INFO accepted");probe.markSent();probe.receive(frame(0xe0,0x12345678L,new byte[]{0}),1);
+        byte[] uid=frame(0x65,77,new byte[0]);check(OtaTransport.validRequest(uid),"GET_UID empty accepted");
+        check(!OtaTransport.validRequest(frame(0x65,77,new byte[]{0})),"GET_UID payload forbidden");
+        check(probe.prepare(uid).length==1,"probe UID accepted");probe.markSent();
+        check(probe.receive(frame(0xe5,78,new byte[13]),2).isEmpty(),"wrong UID request ID never retires outstanding request");
+        check(probe.receive(frame(0xe5,77,new byte[13]),3).size()==1,"matched UID envelope forwarded");
+        for(int cmd:new int[]{0x62,0x63,0x64}){byte[] payload=cmd==0x62?new byte[128]:cmd==0x63?new byte[5]:new byte[0];
+            rejected(()->probe.prepare(frame(cmd,9,payload)),"read-only never sends write or jump opcode "+cmd);}
+        probe.close();probe.begin();check(probe.prepare(frame(0x64,5,new byte[0])).length==1,"fresh trusted lease retains FINISH");
         OtaTransport t=new OtaTransport();
         rejected(()->t.prepare(info),"closed gate rejects");
         t.begin();check(t.active(),"begin exclusive");

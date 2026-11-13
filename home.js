@@ -125,9 +125,21 @@
     catch (error) {storageReadable = false;setStatus(error.message);home.querySelector('.home-error').hidden=false;home.querySelector('.home-error').textContent=error.message;}
   }
   readProjects();
+  const isFreeCanvasState = state => state?.schemaVersion === 2 && state?.kind === 'free-canvas' && Array.isArray(state.groups);
+  const groupHasContent = group => Boolean(group?.items?.length || (typeof group?.startId === 'string' && group.startId));
+  // Normalize only the in-memory editor/preview view. Stored older documents stay intact until saved.
+  const workspaceState = state => isFreeCanvasState(state) ? CanvasWorkspace.normalize(state) : state;
   function isBlankState(state) {
-    if (Array.isArray(state)) return state.length === 0;
-    return !(state?.program?.length || state?.stagedGroups?.length);
+    if (isFreeCanvasState(state)) return !workspaceState(state).groups.some(groupHasContent);
+    return DeviceModels.blank(state);
+  }
+  function rejectLegacyProject() {
+    const message = '这是旧版作品，原数据已保留。请新建自由画布作品。';
+    if (home.hidden || location.hash === '#editor') { location.hash = 'home'; showHome(); }
+    setStatus(message);
+    const error = home.querySelector('.home-error');
+    error.hidden = false; error.textContent = message;
+    return false;
   }
   function rejectBlankSave() {
     setStatus("程序为空，未保存");
@@ -138,8 +150,8 @@
     if (companionSession?.template) return true;
     if (workspaceProjectId !== activeId) return false;
     const project = projects.find(p => p.id === activeId);
-    if (!project || project.modelId !== model.id) return false;
-    const state = serializeWorkspaceState();
+    if (!project || project.modelId !== model.id || !isFreeCanvasState(project.state)) return false;
+    const state = workspaceState(serializeWorkspaceState());
     if (isBlankState(state)) return true;
     project.state = state; project.updated = Date.now();
     if (persist()) setStatus("作品已保存");
@@ -151,7 +163,7 @@
     if (isBlankState(serializeWorkspaceState())) return rejectBlankSave();
     ask("另存作品", session.name, name => {
       if (companionSession !== session || model.id !== session.modelId || home.hidden === false) return;
-      const state = serializeWorkspaceState();
+      const state = workspaceState(serializeWorkspaceState());
       if (isBlankState(state)) { rejectBlankSave(); return; }
       const project = {
         id: crypto.randomUUID(), modelId: model.id, name, updated: Date.now(),
@@ -175,8 +187,8 @@
     if (companionSession?.template) return saveCompanion();
     if (workspaceProjectId !== activeId) return false;
     const project = projects.find(p => p.id === activeId);
-    if (!project || project.modelId !== model.id) return false;
-    const state = serializeWorkspaceState();
+    if (!project || project.modelId !== model.id || !isFreeCanvasState(project.state)) return false;
+    const state = workspaceState(serializeWorkspaceState());
     if (isBlankState(state)) return rejectBlankSave();
     project.state = state; project.updated = Date.now();
     if (!project.needsName) {
@@ -189,7 +201,7 @@
       project.name = name;
       project.needsName = false;
       project.draft = false;
-      project.state = serializeWorkspaceState();
+      project.state = workspaceState(serializeWorkspaceState());
       project.updated = Date.now();
       if (persist()) {
         document.querySelector(".brand-title").textContent = project.name;
@@ -201,6 +213,7 @@
   }
   window.CardHome = {
     get modelId() {return model.id;},
+    get activeProjectId() {return companionSession?.projectId || (companionSession?.template ? null : workspaceProjectId);},
     get activeModelId() {return companionSession?.modelId || projects.find(p=>p.id===activeId)?.modelId;},
     checkpoint() {if (!home.hidden || companionSession?.template) return;saveActive();if (!persist()) throw new Error('草稿保存失败，未切换设备。');},
     useModel(next) {
@@ -220,12 +233,15 @@
       }
       const project = projects.find(p => p.id === activeId);
       if (!project) return false;
-      applyWorkspaceState(clone(project.state));renderProgram();renderPalette();commitHistory();setStatus("已读取作品");
+      if (!isFreeCanvasState(project.state)) return rejectLegacyProject();
+      applyWorkspaceState(clone(workspaceState(project.state)));renderProgram();renderPalette();commitHistory();setStatus("已读取作品");
       return true;
     }
   };
   function enter(project, navigate = true) {
-    if (project.modelId !== model.id) {setStatus("作品所属型号不匹配。");return;}
+    if (project.modelId !== model.id) {setStatus("作品所属型号不匹配。");return false;}
+    if (!isFreeCanvasState(project.state)) return rejectLegacyProject();
+    if (storageReadable) home.querySelector('.home-error').hidden = true;
     companionVersion++;closeCompanion('project-change');
     if (typeof project.companionId === 'string') companionSession = {
       id: project.companionId, guideId: typeof project.guideId === 'string' ? project.guideId : null,
@@ -236,7 +252,7 @@
     try { store.setActive(activeId); } catch { /* Saving reports storage failures. */ }
     const showEditor=()=>{home.hidden=true;document.body.classList.remove("home-open");};
     if(navigate&&!home.hidden)CardPageTransition.run(home,document.querySelector(".app"),showEditor);else showEditor();
-    applyWorkspaceState(clone(project.state));
+    applyWorkspaceState(clone(workspaceState(project.state)));
     historySnapshots = [];historyIndex = -1;
     renderProgram();renderPalette();commitHistory();
     programCanvas.scrollLeft = 0;programCanvas.scrollTop = 0;
@@ -244,6 +260,7 @@
     document.title = `${project.name} · Drluck CodeLab`;
     if (navigate) location.hash = "editor";
     if (companionSession) companionEvent('opened', companionDetail());
+    return true;
   }
   window.CardCompanionPrograms = {
     get isActive() { return Boolean(companionSession); },
@@ -252,10 +269,10 @@
     async open(template) {
       if (!template || typeof template.id !== 'string' || !template.id || typeof template.name !== 'string' ||
           template.modelId !== model.id || CardModelSession.switching ||
-          !(Array.isArray(template.state) || Array.isArray(template.state?.program))) {
+          !(isFreeCanvasState(template.state) || Array.isArray(template.state) || Array.isArray(template.state?.program))) {
         throw new Error('配套程序无效或不属于当前设备型号。');
       }
-      const state = clone(template.state), ticket = ++companionVersion, scope = CardModelSession.capture();
+      const state = clone(workspaceState(template.state)), ticket = ++companionVersion, scope = CardModelSession.capture();
       await window.CardProgram?.stop('已打开造型配套程序');
       await CardPageTransition.idle();
       if (ticket !== companionVersion || !scope.isCurrent() || document.hidden) return false;
@@ -290,29 +307,51 @@
       saveActive();location.hash='home';showHome('cancel');return true;
     }
   };
-  function create(name, state = {program: [], stagedGroups: []}) {
+  function newProjectState() {
+    const state = CanvasWorkspace.create(), groupId = CanvasWorkspace.uid('group');
+    // Seed only a genuinely new project; reopening an empty/detached document
+    // must preserve the user's saved structure and canvas view.
+    state.groups.push({
+      id: groupId, startId: CanvasWorkspace.uid('start'), items: [],
+      x: Math.max(24, Math.min(80, programCanvas.clientWidth * .12)),
+      y: Math.max(112, programCanvas.clientHeight * .45)
+    });
+    state.selectedGroupId = groupId;
+    return state;
+  }
+  function create(name, state = newProjectState()) {
     const project = {id: crypto.randomUUID(), modelId: model.id, name, updated: Date.now(), state: clone(state), needsName: true, draft: isBlankState(state)};
     projects.unshift(project);
     if (project.draft || persist()) enter(project);
   }
-  function preview(items, includeStart = false) {
-    const wrap = document.createElement("div");wrap.className = "home-preview";
+  function previewSequence(items, includeStart = false, trigger = null) {
     const sequence = document.createElement("div");sequence.className = "home-preview-chain";
     if (includeStart) {
       const start = document.createElement("div");
       start.className = "block start";
+      const message = model.messageColors?.find(option => option.value === trigger?.message && trigger.type === 'message');
+      if (message) start.classList.add('message-start');
       start.setAttribute("aria-hidden", "true");
       const icon = document.createElement("img");
       icon.className = "start-art-icon";
-      icon.classList.toggle("model-art-icon", model.artStyle === "fitted");
-      icon.src = model.startIcon || "assets/blocks/start.svg";
+      icon.classList.toggle("model-art-icon", !message && model.artStyle === "fitted");
+      icon.src = message ? message.openIcon || model.messageStartIcon : model.startIcon || "assets/blocks/start.svg";
       icon.alt = "";
       icon.draggable = false;
       start.append(icon);
+      if (message) {
+        const bubble = document.createElement('span'); bubble.className = 'param-bubble option-dropdown-trigger';
+        bubble.append(createDropdownArtwork()); start.append(bubble);
+      }
       sequence.append(start);
     }
-    items.forEach(item => sequence.appendChild(createStagedPreviewNode(item)));
+    (items || []).forEach(item => sequence.appendChild(createPreviewNode(item)));
     sequence.querySelectorAll("[data-node-path], [data-mode]").forEach(el => {delete el.dataset.nodePath;delete el.dataset.mode;});
+    return sequence;
+  }
+  function preview(items, includeStart = false) {
+    const wrap = document.createElement("div");wrap.className = "home-preview";
+    const sequence = previewSequence(items, includeStart);
     const layout = BlockLayout.sequence(sequence);
     wrap.append(sequence);
     requestAnimationFrame(() => {
@@ -323,15 +362,49 @@
     });
     return wrap;
   }
+  function previewWorkspace(state) {
+    if (!isFreeCanvasState(state)) return preview(Array.isArray(state) ? state : state?.program || [], true);
+    state = workspaceState(state);
+    const wrap = document.createElement('div');wrap.className = 'home-preview home-preview-workspace';
+    const layout = document.createElement('div');layout.className = 'home-preview-layout';
+    Object.assign(layout.style, {position: 'absolute', transformOrigin: 'left top'});
+    const boxes = [];
+    const addGroup = group => {
+      if (!groupHasContent(group)) return;
+      const sequence = previewSequence(group.items, Boolean(group.startId), group.trigger);
+      sequence.dataset.groupId = group.id;
+      const size = BlockLayout.sequence(sequence);
+      const x = Number.isFinite(group.x) ? group.x : 0;
+      // Saved y is the outside connector baseline, including the extra beams of nested loops.
+      const y = (Number.isFinite(group.y) ? group.y : 0) - size.anchor;
+      Object.assign(sequence.style, {left: `${x}px`, top: `${y}px`});
+      boxes.push({sequence, x, y, width: size.advance + 8, height: size.height});
+      layout.append(sequence);
+    };
+    state.groups.forEach(addGroup);
+    wrap.append(layout);
+    if (!boxes.length) return wrap;
+    const left = Math.min(...boxes.map(box => box.x)), top = Math.min(...boxes.map(box => box.y));
+    const width = Math.max(...boxes.map(box => box.x + box.width)) - left;
+    const height = Math.max(...boxes.map(box => box.y + box.height)) - top;
+    boxes.forEach(box => Object.assign(box.sequence.style, {left: `${box.x - left}px`, top: `${box.y - top}px`}));
+    Object.assign(layout.style, {width: `${width}px`, height: `${height}px`});
+    requestAnimationFrame(() => {
+      const availableWidth = Math.max(1, wrap.clientWidth - 12), availableHeight = wrap.clientHeight || 110;
+      const scale = Math.min(1, availableWidth / width, availableHeight / height);
+      layout.style.transform = `scale(${scale})`;
+      layout.style.left = `${Math.max(0, (wrap.clientWidth - width * scale) / 2)}px`;
+      layout.style.top = `${Math.max(0, (availableHeight - height * scale) / 2)}px`;
+    });
+    return wrap;
+  }
   function card(project, index) {
     const article = document.createElement("article");article.className = "home-card";
     article.style.setProperty("--thumb-color", ["#edf5ff","#fff5dc","#eef8f3","#f3edff"][index%4]);
     const open = document.createElement("button");open.className = "home-card-open";
     open.setAttribute("aria-label", `打开：${project.name}`);
     const thumb = document.createElement("div");thumb.className = "home-thumb";
-    const state = project.state;
-    const items = (Array.isArray(state) ? state : state.program || []);
-    thumb.append(preview(items, true));
+    thumb.append(previewWorkspace(project.state));
     const text = document.createElement("div");text.className = "home-card-text";
     const name = document.createElement("strong");name.textContent = project.name;
     const meta = document.createElement("small");
@@ -379,7 +452,7 @@
     // Notify after home rendering, so the viewer can restore the existing album safely.
     companionSession = null;
     const active = projects.find(project => project.id === activeId);
-    if (active?.draft && isBlankState(active.state)) {
+    if (active?.draft && isFreeCanvasState(active.state) && isBlankState(active.state)) {
       projects = projects.filter(project => project.id !== active.id);
       activeId = null;
       try { store.setActive(null); } catch { /* No saved blank project remains. */ }

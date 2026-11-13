@@ -19,6 +19,15 @@ function contract(firmwareRoot){
   values[name]=result;return result;
  }
  for(const name of definitions.keys())resolve(name);
+ // Wire framing and INFO payload schema are deliberately independent.
+ const schema=values.OTA_INFO_VERSION??1;
+ if(values.OTA_PROTOCOL_VERSION!==1||![1,2].includes(schema)||
+    values.OTA_INFO_SIZE!==(schema===2?72:60)||values.OTA_INFO_PARTS!==(schema===2?12:10))
+  throw new Error('Unsupported OTA wire/INFO schema contract');
+ if(schema===2&&(values.OTA_APP_BASE!==0x08003000||values.OTA_APP_LIMIT!==0x0800ff00||
+    values.OTA_LEGACY_APP_BASE!==0x08004000||values.OTA_LEGACY_APP_LIMIT!==0x0800f000||
+    values.OTA_META_BASE!==0x0800ff00||values.OTA_LAYOUT_ID!==2||values.OTA_PAGE_SIZE!==128))
+  throw new Error('Compact/legacy OTA layout contract is inconsistent');
  const source=fs.readFileSync(path.join(firmwareRoot,'Shared/Ota_PublicKey.h'),'utf8'),initializer=source.match(/g_ota_public_key\s*\[64\]\s*=\s*\{([\s\S]*?)\}/)?.[1];
  if(!initializer)throw new Error('Public key initializer missing');
  const key=[...initializer.matchAll(/0x([0-9a-f]{2})/gi)].map(m=>m[1].toLowerCase()).join('');

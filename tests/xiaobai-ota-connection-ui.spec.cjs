@@ -11,18 +11,18 @@ async function create(browser){
  const c=await browser.newContext({viewport:{width:751,height:360},hasTouch:true});
  await c.addInitScript(()=>localStorage.setItem('cardDefaultModelV1','xiaobai'));
  await c.addInitScript(mockAndroid);
- await c.addInitScript(mockFirmware,{target,appAvailable:false,imageValid:false,holdDataAck:true,pending:{boardId:target.boardId,version:target.version,imageSize:target.imageSize,imageSha256:target.imageSha256}});
+ await c.addInitScript(mockFirmware,{target,appAvailable:false,imageValid:false,holdDataAck:true,pending:{...target}});
  await c.addInitScript(()=>{
-  const bridge=Capacitor,previous=bridge.nativePromise.bind(bridge),emit=mockBle.emit.bind(mockBle);let count=0;
+  const bridge=Capacitor,previous=bridge.nativePromise.bind(bridge),emit=mockBle.emit.bind(mockBle);let count=0;const probeIds=new Set();
   window.recoveryUiHooks={info:[],blockInfo:true,rawConnecting:false,beginPending:false,calls:[],events:[],failAt:''};
   window.addEventListener('xiaobai-ota-connection-change',event=>recoveryUiHooks.events.push({...event.detail}));
-  mockBle.emit=(name,data)=>{if(name==='otaNotification'&&recoveryUiHooks.blockInfo){recoveryUiHooks.info.push({name,data});return;}return emit(name,data);};
+  mockBle.emit=(name,data)=>{if(name==='otaNotification'&&recoveryUiHooks.blockInfo&&!probeIds.has(data.connectionId)){recoveryUiHooks.info.push({name,data});return;}return emit(name,data);};
   recoveryUiHooks.emitNative=emit;
   recoveryUiHooks.releaseInfo=()=>{recoveryUiHooks.blockInfo=false;for(const e of recoveryUiHooks.info.splice(0))emit(e.name,e.data);};
   bridge.nativePromise=async(plugin,method,opts={})=>{
-   recoveryUiHooks.calls.push({plugin,method,opts,at:performance.now()});
-   if(plugin==='SparkBle'&&method==='connect'&&opts.boundDevice&&++count===2){recoveryUiHooks.rawConnecting=true;await new Promise(r=>recoveryUiHooks.releaseConnect=r);if(recoveryUiHooks.failAt==='connect')throw Object.assign(new Error('mock native connect failure'),{code:'DISCONNECTED'});}
-   if(plugin==='SparkBle'&&method==='beginOta'){recoveryUiHooks.beginPending=true;await new Promise(r=>recoveryUiHooks.releaseBegin=r);if(recoveryUiHooks.failAt==='begin')throw Object.assign(new Error('mock native begin failure'),{code:'DISCONNECTED'});}
+   recoveryUiHooks.calls.push({plugin,method,opts,at:performance.now()});if(plugin==='SparkBle'&&method==='connect'&&opts.probeOnly)probeIds.add(opts.connectionId);
+   if(plugin==='SparkBle'&&method==='connect'&&opts.boundDevice&&!opts.probeOnly&&++count===1){recoveryUiHooks.rawConnecting=true;await new Promise(r=>recoveryUiHooks.releaseConnect=r);if(recoveryUiHooks.failAt==='connect')throw Object.assign(new Error('mock native connect failure'),{code:'DISCONNECTED'});}
+   if(plugin==='SparkBle'&&method==='beginOta'&&!probeIds.has(opts.connectionId)){recoveryUiHooks.beginPending=true;await new Promise(r=>recoveryUiHooks.releaseBegin=r);if(recoveryUiHooks.failAt==='begin')throw Object.assign(new Error('mock native begin failure'),{code:'DISCONNECTED'});}
    return previous(plugin,method,opts);
   };
  });

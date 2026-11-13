@@ -36,18 +36,22 @@ public class SparkBlePlugin extends Plugin {
     private BluetoothLeScanner scanner;
     private ScanCallback scanCallback;
     private String scanId="", connectionId="", deviceId="";
+    // Fixed for the lifetime of this GATT client; only disconnect retires it.
+    private boolean probeOnly;
     private BluetoothGatt gatt;
-    // A local disconnect request is not a physical disconnection boundary.
+    // Retire this local GATT client before reusing its connection slot.
+    // Completion never substitutes for a new peer/protocol verification.
     private BluetoothGatt closingGatt;
     private String closingEpoch="",closingDeviceId="";
     private long gattGeneration=0,closingGeneration=0;
-    private boolean closingTimedOut=false,closingClientClosed=false,closingAclDisconnected=false;
+    private boolean closingClientClosed=false;
     private Runnable disconnectTimeout;
     private PluginCall queuedConnect;
     private final List<PluginCall> disconnectCalls=new ArrayList<>();
     private static final long DISCONNECT_TIMEOUT_MS=5000;
     private BluetoothGattCharacteristic characteristic, writeCharacteristic, fallbackCharacteristic;
-    private PluginCall connectCall, operationCall;
+    private PluginCall connectCall;
+    private volatile PluginCall operationCall;
     private String operation="";
     private boolean subscribed=false, foreground=true;
     private boolean remoteUsed=false;
@@ -60,6 +64,8 @@ public class SparkBlePlugin extends Plugin {
     private byte[][] otaChunks;
     private int otaChunkIndex;
     private Runnable otaPump;
+    private volatile MultiProgramFrame.Transfer programWrite;
+    private Runnable programPump;
     private long lastNotificationAt=-1000;
     private int negotiatedMtu=23;
     private Runnable scanTimeout, connectTimeout, operationTimeout;
@@ -74,21 +80,19 @@ public class SparkBlePlugin extends Plugin {
                 BluetoothDevice device=Build.VERSION.SDK_INT>=33?intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE,BluetoothDevice.class):intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
                 final String address;
                 try {address=device==null?null:device.getAddress();}catch(SecurityException ignored){return;}
-                // Capture before posting: an already received old event cannot adopt
-                // a later connection's generation merely because it has the same MAC.
-                final BluetoothGatt expected=closingGatt!=null?closingGatt:gatt;
-                final String epoch=closingGatt!=null?closingEpoch:connectionId;
-                final long generation=closingGatt!=null?closingGeneration:gattGeneration;
+                // ACL broadcasts have no GATT generation. Observe only the retired
+                // client; a late broadcast must never acquire an active client's ID.
+                final BluetoothGatt expected=closingGatt;
+                final String epoch=closingEpoch;
+                final long generation=closingGeneration;
                 main.post(()->handleAclDisconnected(expected,epoch,generation,address));return;
             }
             main.post(()->{
                 if (!enabled()) {
                     stopScanInternal("bluetoothOff");cancelQueuedConnect("手机蓝牙已关闭。","BLUETOOTH_OFF");
                     closeConnection("手机蓝牙已关闭");
-                    // STATE_OFF is a real radio boundary; TURNING_OFF alone is not.
-                    if(intent.getIntExtra(BluetoothAdapter.EXTRA_STATE,-1)==BluetoothAdapter.STATE_OFF&&closingGatt!=null) {
-                        closingAclDisconnected=true;completeGattClose(closingGatt);
-                    }
+                    if(intent.getIntExtra(BluetoothAdapter.EXTRA_STATE,-1)==BluetoothAdapter.STATE_OFF&&closingGatt!=null)
+                        completeGattClose(closingGatt);
                 }
                 notifyListeners("adapterState",state());
             });
@@ -213,7 +217,6 @@ public class SparkBlePlugin extends Plugin {
         // Invalid or expired candidates must never tear down a valid current host.
         if(validateConnectRequest(call)==null)return;
         if(queuedConnect!=null) {call.reject("上一条连接请求仍在等待断开完成。","BUSY");return;}
-        if(closingGatt!=null&&closingTimedOut) {call.reject("上次连接尚未确认断开，请关闭再开启蓝牙后重试。","DISCONNECT_TIMEOUT");return;}
         if(gatt!=null||closingGatt!=null) {
             queuedConnect=call;
             if(gatt!=null)closeConnection("切换连接");
@@ -231,6 +234,7 @@ public class SparkBlePlugin extends Plugin {
         String id=call.getString("deviceId","");
         BluetoothDevice device=found.get(id);
         String requested=call.getString("profile","xiaobai");
+        if(call.getBoolean("probeOnly",false)&&!requested.equals("xiaobai")) {call.reject("只读探测仅支持小白。","PROBE_READ_ONLY");return null;}
         // Recovery explicitly targets the UID-bound stable native address. Never search by name.
         if(device==null&&requested.equals("xiaobai")&&call.getBoolean("boundDevice",false)&&BluetoothAdapter.checkBluetoothAddress(id)) {
             try {device=adapter.getRemoteDevice(id);}catch(Exception ignored) {}
@@ -267,7 +271,7 @@ public class SparkBlePlugin extends Plugin {
         BluetoothDevice device=checked.device;String id=checked.id,requested=checked.profile;
         UUID service=checked.service,notify=checked.notify,write=checked.write;
         stopScanInternal("connecting");
-        profile=requested;selectedService=service;selectedNotify=notify;selectedWrite=write;
+        profile=requested;probeOnly=call.getBoolean("probeOnly",false);selectedService=service;selectedNotify=notify;selectedWrite=write;
         tcWriteMode=call.getString("writeMode","");tcLineEnding=call.getString("lineEnding","");
         lbsWriteMode=call.getString("writeMode","");lbsMaxBytes=call.getInt("maxFrameBytes",0);lbsSafeActions=call.getInt("safeActions",0);
         connectionId=call.getString("connectionId","");deviceId=id;connectCall=call;
@@ -351,9 +355,12 @@ public class SparkBlePlugin extends Plugin {
         if(ota.active()) {call.reject("固件升级期间不能发送普通控制指令。","OTA_EXCLUSIVE");return;}
         byte[] bytes;
         try {bytes=Base64.decode(call.getString("data",""),Base64.NO_WRAP);} catch(Exception e) {call.reject("无效的蓝牙数据。");return;}
+        // An unverified discovery candidate never inherits normal control or OTA write authority.
+        if(probeOnly&&!OtaProbeGate.validProgramRead(bytes)) {call.reject("只读探测连接不能发送控制指令。","PROBE_READ_ONLY");return;}
         // Validate against the connection profile; LBS frames are never sent to Xiaobai.
         boolean remote=RemoteFrame.valid(bytes);
         boolean programming=ProgramFrame.valid(bytes);
+        boolean multi=profile.equals("xiaobai") && MultiProgramFrame.valid(bytes);
         if(remote && uploadGate.active()) {call.reject("程序发送期间不能使用遥控。");return;}
         if(profile.equals("tc01")) {
             if(!Tc01Frame.valid(bytes,tcLineEnding)||bytes.length>negotiatedMtu-3) {call.reject("无效或超长的 TC-01 遥控字符串。");return;}
@@ -364,8 +371,9 @@ public class SparkBlePlugin extends Plugin {
         } else if(profile.equals("spark-ai")) {
             if(bytes.length>negotiatedMtu-3) {call.reject("Spark AI 数据帧超过 MTU。");return;}
             if(!remote && !SparkControlFrame.valid(bytes) && !uploadGate.accept(bytes)) {call.reject("无效的 Spark AI 上传或控制指令。");return;}
-        } else if(!remote && !programming) {call.reject("无效的小白控制指令。");return;}
+        } else if(!remote && !programming && !multi) {call.reject("无效的小白控制指令。");return;}
         if(remote) remoteUsed=true;
+        if(multi) {beginProgramWrite(call,bytes);return;}
         beginOperation(call,"write");
         BluetoothGattCharacteristic target=writeCharacteristic;
         int type=(target.getProperties()&BluetoothGattCharacteristic.PROPERTY_WRITE)!=0
@@ -379,12 +387,59 @@ public class SparkBlePlugin extends Plugin {
             if(!accepted) throw new IllegalStateException();
         } catch(Exception e) {closeConnection("蓝牙写入失败，连接已关闭，未自动重发。");}
     });}
+    private void beginProgramWrite(PluginCall call,byte[] bytes) {
+        final MultiProgramFrame.Transfer transfer;
+        try {transfer=new MultiProgramFrame.Transfer(bytes,negotiatedMtu);}
+        catch(IllegalArgumentException error) {call.reject(error.getMessage());return;}
+        beginOperation(call,"programWrite");programWrite=transfer;
+        final BluetoothGatt expected=gatt;final String epoch=connectionId;final long generation=gattGeneration;
+        programPump=()->pumpProgram(expected,epoch,generation,call,transfer);
+        main.post(programPump);
+    }
+    private void cancelProgramWrite() {
+        if(programPump!=null)main.removeCallbacks(programPump);
+        programPump=null;
+        MultiProgramFrame.Transfer transfer=programWrite;programWrite=null;
+        if(transfer!=null)transfer.cancel();
+    }
+    private void pumpProgram(BluetoothGatt expected,String epoch,long generation,PluginCall call,MultiProgramFrame.Transfer transfer) {
+        if(expected!=gatt||!epoch.equals(connectionId)||generation!=gattGeneration||
+           operationCall!=call||!operation.equals("programWrite")||programWrite!=transfer)return;
+        if(programPump!=null)main.removeCallbacks(programPump);
+        if(!foreground||!subscribed||ota.active()||!profile.equals("xiaobai")) {closeConnection("多组程序发送被中止，请重新连接。");return;}
+        try {
+            long now=SystemClock.elapsedRealtime(),delay=transfer.delay(now,lastNotificationAt);
+            if(delay>0) {main.postDelayed(programPump,delay);return;}
+            if(transfer.done()) {cancelProgramWrite();finishOperation(BluetoothGatt.GATT_SUCCESS);return;}
+            byte[] bytes=transfer.next(now,lastNotificationAt);
+            if(bytes==null)throw new IllegalStateException();
+            BluetoothGattCharacteristic target=writeCharacteristic;
+            int type=(target.getProperties()&BluetoothGattCharacteristic.PROPERTY_WRITE)!=0
+                ? BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT:BluetoothGattCharacteristic.WRITE_TYPE_NO_RESPONSE;
+            boolean accepted;
+            if(Build.VERSION.SDK_INT>=33)accepted=gatt.writeCharacteristic(target,bytes,type)==BluetoothStatusCodes.SUCCESS;
+            else {target.setWriteType(type);target.setValue(bytes);accepted=gatt.writeCharacteristic(target);}
+            if(!accepted)throw new IllegalStateException();
+            // NO_RESPONSE still requires Android's local write completion callback.
+            // A timer is a failure watchdog, never proof that a chunk was written.
+            main.postDelayed(programPump,MultiProgramFrame.CHUNK_TIMEOUT_MS);
+        } catch(Exception error) {closeConnection("多组程序分片发送失败或超时，已停止，请重新连接。");}
+    }
+    private void finishProgramChunk(BluetoothGatt source,BluetoothGattCharacteristic item,int status,
+                                    MultiProgramFrame.Transfer transfer,long chunkToken,PluginCall call) {
+        if(source!=gatt||writeCharacteristic==null||!writeCharacteristic.getUuid().equals(item.getUuid())||
+           programWrite!=transfer||operationCall!=call||!operation.equals("programWrite"))return;
+        if(!transfer.inFlight()||transfer.token()!=chunkToken)return;
+        if(status!=BluetoothGatt.GATT_SUCCESS) {closeConnection("多组程序分片写入失败（GATT "+status+"），已停止。");return;}
+        try {if(transfer.written(chunkToken,SystemClock.elapsedRealtime())&&programPump!=null)main.post(programPump);}
+        catch(IllegalStateException error) {closeConnection(error.getMessage());}
+    }
     @PluginMethod public void beginOta(PluginCall call) {main.post(()->{
         if(!matches(call))return;
         if(!profile.equals("xiaobai")||!subscribed||uploadGate.active()) {call.reject("请先连接并订阅小白主机。");return;}
         if(ota.active()) {call.reject("升级通道已经开启。");return;}
         // No release/heartbeat may be sent into Boot, including from background cleanup.
-        remoteUsed=false;ota.begin();ota.observedRx(lastNotificationAt);
+        remoteUsed=false;ota.begin(probeOnly);ota.observedRx(lastNotificationAt);
         JSObject result=new JSObject();result.put("chunkBytes",OtaTransport.CHUNK_BYTES);
         result.put("chunkIntervalMs",OtaTransport.CHUNK_INTERVAL_MS);result.put("rxQuietMs",OtaTransport.RX_QUIET_MS);
         result.put("otaTransportVersion",1);call.resolve(result);
@@ -434,22 +489,22 @@ public class SparkBlePlugin extends Plugin {
         // A delayed JS cleanup must not tear down a newer connection or its queue.
         String expected=call.getString("connectionId",connectionId.isEmpty()?closingEpoch:connectionId);
         if(queuedConnect!=null&&expected.equals(queuedConnect.getString("connectionId",""))) {
-            cancelQueuedConnect("连接已取消。","CANCELLED");call.resolve();return;
+            cancelQueuedConnect("连接已取消。","CANCELLED");resolveLocalDisconnect(call);return;
         }
         if(closingGatt!=null&&expected.equals(closingEpoch)) {
-            if(closingTimedOut)call.reject("上次连接尚未确认断开，请关闭再开启蓝牙后重试。","DISCONNECT_TIMEOUT");
-            else disconnectCalls.add(call);
-            return;
+            disconnectCalls.add(call);return;
         }
         if(gatt!=null&&expected.equals(connectionId)) {
             disconnectCalls.add(call);releaseAndClose("已断开连接");return;
         }
-        call.resolve();
+        resolveLocalDisconnect(call);
     }
     private void releaseAndClose(String reason) {
         closingReason=reason;
+        // Never continue a partial C4 frame after backgrounding/disconnect intent.
+        if(programWrite!=null) {closeConnection(reason);return;}
         if(operation.equals("release")) return;
-        if(ota.active() || !remoteUsed || gatt==null || !subscribed) {closeConnection(reason);return;}
+        if(probeOnly || ota.active() || !remoteUsed || gatt==null || !subscribed) {closeConnection(reason);return;}
         if(!operation.isEmpty()) return;
         remoteUsed=false;
         operation="release";
@@ -470,13 +525,13 @@ public class SparkBlePlugin extends Plugin {
             if(!accepted) closeConnection(reason);
         } catch(Exception ignored) {closeConnection(reason);}
     }
-    private void closeConnection(String reason) {closeConnection(reason,false,false);}
-    private void closeConnection(String reason,boolean clientDisconnected) {closeConnection(reason,clientDisconnected,false);}
-    private void closeConnection(String reason,boolean clientDisconnected,boolean aclDisconnected) {
+    private void closeConnection(String reason) {closeConnection(reason,false);}
+    private void closeConnection(String reason,boolean clientDisconnected) {
+        cancelProgramWrite();
         if(otaPump!=null)main.removeCallbacks(otaPump);
         otaPump=null;otaChunks=null;otaChunkIndex=0;ota.close();
         uploadGate.reset();negotiatedMtu=23;
-        closingReason="";remoteUsed=false;
+        closingReason="";remoteUsed=false;probeOnly=false;
         if(connectTimeout!=null) main.removeCallbacks(connectTimeout);
         if(operationTimeout!=null) main.removeCallbacks(operationTimeout);
         BluetoothGatt previous=gatt;gatt=null;characteristic=null;writeCharacteristic=null;fallbackCharacteristic=null;subscribed=false;
@@ -484,79 +539,77 @@ public class SparkBlePlugin extends Plugin {
         connectionName=null;connectionNameObservedAt=0;connectionNameObservation="";
         PluginCall pendingConnect=connectCall,pendingOperation=operationCall;
         connectCall=null;operationCall=null;operation="";
-        // The transport is already closed; pending promises must carry this fact
-        // even when their rejection reaches JS before the disconnected event.
+        // Invalidate local ownership before notifying JS. Peer/Boot state must
+        // still be verified through the next connection's fresh protocol exchange.
         if(pendingConnect!=null) pendingConnect.reject(reason,"DISCONNECTED");
         if(pendingOperation!=null) pendingOperation.reject(reason,"DISCONNECTED");
-        if(previous!=null)beginGattClose(previous,ticket,address,generation,clientDisconnected,aclDisconnected);
+        if(previous!=null)beginGattClose(previous,ticket,address,generation,clientDisconnected);
         else if(closingGatt==null)finishDisconnectCalls(null,null);
         if(!ticket.isEmpty()) {JSObject event=new JSObject();event.put("connectionId",ticket);event.put("reason",reason);notifyListeners("disconnected",event);}
     }
-    // BEGIN PHYSICAL GATT CLOSE BARRIER
+    // BEGIN BOUNDED GATT CLIENT CLOSE
     private void traceGattClose(String stage,String epoch,String address) {
         Log.i("SparkBle",stage+" elapsed="+SystemClock.elapsedRealtime()+" epoch="+epoch+" device="+address);
     }
-    private void beginGattClose(BluetoothGatt previous,String epoch,String address,long generation,boolean clientDisconnected,boolean aclDisconnected) {
+    private void beginGattClose(BluetoothGatt previous,String epoch,String address,long generation,boolean clientDisconnected) {
         closingGatt=previous;closingEpoch=epoch;closingDeviceId=address;closingGeneration=generation;
-        closingTimedOut=false;closingClientClosed=false;closingAclDisconnected=aclDisconnected;
+        closingClientClosed=false;
         traceGattClose("closing request",epoch,address);
-        if(clientDisconnected||aclDisconnected)closeRetiredClient(previous);
-        if(aclDisconnected) {completeGattClose(previous);return;}
+        // A client callback completes local retirement; ACL is not an authority.
+        if(clientDisconnected) {completeGattClose(previous);return;}
         disconnectTimeout=()->{
             if(closingGatt!=previous||closingGeneration!=generation||!closingEpoch.equals(epoch))return;
-            disconnectTimeout=null;closingTimedOut=true;
-            finishDisconnectCalls("未收到主机物理断开确认，请关闭再开启蓝牙后重试。","DISCONNECT_TIMEOUT");
-            cancelQueuedConnect("上次连接断开未确认，已停止重新连接。","DISCONNECT_TIMEOUT");
-            // Client STATE_DISCONNECTED and elapsed time are not ACL proof.
-            // Retain the barrier until actual ACL_DISCONNECTED or STATE_OFF.
+            traceGattClose("local close timeout",epoch,address);
+            completeGattClose(previous);
         };
         main.postDelayed(disconnectTimeout,DISCONNECT_TIMEOUT_MS);
-        if(!clientDisconnected)try {previous.disconnect();}catch(Exception ignored) {}
+        try {previous.disconnect();}catch(Exception ignored) {completeGattClose(previous);}
     }
     private void closeRetiredClient(BluetoothGatt previous) {
         if(previous!=closingGatt||closingClientClosed)return;
         closingClientClosed=true;try {previous.close();}catch(Exception ignored) {}
     }
     private void completeGattClose(BluetoothGatt previous) {
-        if(previous!=closingGatt||!closingAclDisconnected)return;
+        if(previous==null||previous!=closingGatt)return;
         closeRetiredClient(previous);
         if(disconnectTimeout!=null)main.removeCallbacks(disconnectTimeout);
         disconnectTimeout=null;closingGatt=null;closingEpoch="";closingDeviceId="";closingGeneration=0;
-        closingTimedOut=false;closingClientClosed=false;closingAclDisconnected=false;
+        closingClientClosed=false;
         finishDisconnectCalls(null,null);
         PluginCall waiting=queuedConnect;queuedConnect=null;
         if(waiting!=null)requestConnect(waiting); // Rechecks foreground/radio/permission.
     }
     private void handleAclDisconnected(BluetoothGatt source,String epoch,long generation,String address) {
         if(source==null||address==null)return;
-        if(source==closingGatt&&generation==closingGeneration&&epoch.equals(closingEpoch)&&address.equalsIgnoreCase(closingDeviceId)) {
-            traceGattClose("aclDown",epoch,address);closingAclDisconnected=true;completeGattClose(source);return;
-        }
-        if(source==gatt&&generation==gattGeneration&&epoch.equals(connectionId)&&address.equalsIgnoreCase(deviceId)) {
-            // ACL may arrive before the GATT callback. It is already real physical
-            // proof for this captured source; do not wait for a second ACL event.
-            traceGattClose("aclDown",epoch,address);closeConnection("主机物理连接已断开。",false,true);
-        }
+        if(source==closingGatt&&generation==closingGeneration&&epoch.equals(closingEpoch)&&address.equalsIgnoreCase(closingDeviceId))
+            traceGattClose("acl observed during local close",epoch,address);
+        // No client identity is attached to an ACL broadcast. Never retire or
+        // disconnect a GATT client, or settle its promises, from this observation.
     }
     private void abandonGattClose() {
         // Destroyed instance cannot reconnect. Free resources without claiming ACL proof.
         if(closingGatt!=null)closeRetiredClient(closingGatt);
         if(disconnectTimeout!=null)main.removeCallbacks(disconnectTimeout);
         disconnectTimeout=null;closingGatt=null;closingEpoch="";closingDeviceId="";closingGeneration=0;
-        closingTimedOut=false;closingClientClosed=false;closingAclDisconnected=false;
+        closingClientClosed=false;
+    }
+    private void resolveLocalDisconnect(PluginCall call) {
+        JSObject result=new JSObject();result.put("localReleased",true);
+        result.put("remoteDisconnectionConfirmed",false);call.resolve(result);
     }
     private void finishDisconnectCalls(String reason,String code) {
         List<PluginCall> waiting=new ArrayList<>(disconnectCalls);disconnectCalls.clear();
-        for(PluginCall call:waiting) {if(reason==null)call.resolve();else call.reject(reason,code);}
+        for(PluginCall call:waiting) {if(reason==null)resolveLocalDisconnect(call);else call.reject(reason,code);}
     }
     private void cancelQueuedConnect(String reason,String code) {
         PluginCall waiting=queuedConnect;queuedConnect=null;
         if(waiting!=null)waiting.reject(reason,code);
     }
     private void handleConnectionStateChange(BluetoothGatt source,int status,int newState) {
+        if(source==null)return;
         if(source==closingGatt) {
             if(newState==BluetoothProfile.STATE_DISCONNECTED) {
-                traceGattClose("clientDown",closingEpoch,closingDeviceId);closeRetiredClient(source);
+                traceGattClose("clientDown",closingEpoch,closingDeviceId);completeGattClose(source);
             }
             return;
         }
@@ -640,7 +693,7 @@ public class SparkBlePlugin extends Plugin {
             properties.put("writeWithoutResponse",(wp&BluetoothGattCharacteristic.PROPERTY_WRITE_NO_RESPONSE)!=0);
             properties.put("fallbackWrite",fallbackCharacteristic!=null&&fallbackCharacteristic!=writeCharacteristic);
             properties.put("writeCharacteristic",writeCharacteristic.getUuid().toString());
-            result.put("properties",properties);result.put("connectionId",connectionId);result.put("deviceId",deviceId);result.put("otaTransportVersion",1);putConnectionName(result);
+            result.put("properties",properties);result.put("connectionId",connectionId);result.put("deviceId",deviceId);result.put("otaTransportVersion",1);result.put("probeOnly",probeOnly);putConnectionName(result);
             PluginCall call=connectCall;connectCall=null;call.resolve(result);
         });}
         @Override public void onDescriptorWrite(BluetoothGatt source,BluetoothGattDescriptor descriptor,int status) {main.post(()->{
@@ -648,7 +701,14 @@ public class SparkBlePlugin extends Plugin {
             if(status==BluetoothGatt.GATT_SUCCESS) subscribed=true;
             finishOperation(status);
         });}
-        @Override public void onCharacteristicWrite(BluetoothGatt source,BluetoothGattCharacteristic item,int status) {main.post(()->{
+        @Override public void onCharacteristicWrite(BluetoothGatt source,BluetoothGattCharacteristic item,int status) {
+          final MultiProgramFrame.Transfer transfer=programWrite;
+          final long chunkToken=transfer==null?0:transfer.token();final PluginCall call=operationCall;
+          main.post(()->{
+            if(transfer!=null) {
+                finishProgramChunk(source,item,status,transfer,chunkToken,call);
+                return;
+            }
             if(source==gatt && writeCharacteristic!=null && writeCharacteristic.getUuid().equals(item.getUuid()) && operation.equals("release")) {closeConnection(closingReason);return;}
             if(source==gatt && writeCharacteristic!=null && writeCharacteristic.getUuid().equals(item.getUuid()) && operation.equals("otaWrite")) {
                 if(status!=BluetoothGatt.GATT_SUCCESS) {closeConnection("升级数据写入失败（GATT "+status+"），已停止。");return;}
@@ -657,7 +717,8 @@ public class SparkBlePlugin extends Plugin {
                 return;
             }
             if(source==gatt && writeCharacteristic!=null && writeCharacteristic.getUuid().equals(item.getUuid()) && operation.equals("write")) finishOperation(status);
-        });}
+          });
+        }
         @Override public void onCharacteristicChanged(BluetoothGatt source,BluetoothGattCharacteristic item) {
             byte[] value=item.getValue();byte[] copy=value==null?null:value.clone();main.post(()->receive(source,item,copy));
         }

@@ -1,20 +1,24 @@
 {
   "app": {
     "applicationId": "com.xiaobai.remote",
-    "versionCode": 21,
-    "versionName": "1.2.15"
+    "versionCode": 37,
+    "versionName": "1.2.31"
   },
   "firmware": {
-    "asset": "assets/firmware/xiaobai_py32_1.0.4.ota",
+    "appBase": 134230016,
+    "asset": "assets/firmware/xiaobai_py32_2.2.3_l2_7a88de8c7a02d182b40836643a4185981244f2c4aa17000608d3251b4041572e_pf51d5234053222d9.ota",
     "boardId": 258,
-    "imageSha256": "fc473b50f3f37ef8b151f07fd6f20e6a99e6824ee8bebcff67a6b148240edbce",
-    "imageSize": 32260,
-    "minBootVersion": 65537,
-    "packageSha256": "d9f1777bd27a01a8650a4e2c320fd3213a9b9ad89d3aee2ab33f2e0e73ce9e9d",
-    "packageSize": 32388,
+    "erasePage": 128,
+    "format": 2,
+    "imageSha256": "7a88de8c7a02d182b40836643a4185981244f2c4aa17000608d3251b4041572e",
+    "imageSize": 52984,
+    "layoutId": 2,
+    "minBootVersion": 131072,
+    "packageSha256": "f51d5234053222d971e63dbfe4b8dd083aa22aca2bd048a1977e879f5441c16e",
+    "packageSize": 53112,
     "protocol": 1,
-    "version": 65540,
-    "versionName": "1.0.4"
+    "version": 131587,
+    "versionName": "2.2.3"
   },
-  "schemaVersion": 1
+  "schemaVersion": 2
 }

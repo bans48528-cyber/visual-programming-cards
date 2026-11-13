@@ -64,7 +64,7 @@ async function checkArtworkSize(page, selector, minRatio, maxRatio) {
     const expected = {
       motor: ['motor-forward', 'motor-reverse', 'motor-forward-continuous', 'motor-reverse-continuous', 'motor-stop', 'motor-power'],
       combo: ['combo-forward', 'combo-backward', 'combo-turn-left', 'combo-turn-right', 'combo-continuous', 'combo-stop', 'combo-power'],
-      logic: ['wait-time', 'tilt-wait', 'loop-count', 'loop', 'infrared-wait'],
+      logic: ['wait-time', 'tilt-wait', 'motion-wait', 'loop-count', 'loop', 'loop-infrared', 'loop-tilt', 'loop-time', 'infrared-wait'],
       dynamic: ['eye-expression', 'eye-matrix', 'display-number', 'display-off', 'speech-play', 'speech-wait', 'self-learned-wait']
     };
     for (const [category, ids] of Object.entries(expected)) {

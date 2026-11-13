@@ -11,8 +11,9 @@ const storage=()=>{const m=new Map();return{getItem:k=>m.get(k)??null,setItem:(k
 let checks=0;
 function eq(a,b,message){assert.deepEqual(a,b,message);checks++;}
 function fixture(pkg){
+ const layout=P.layoutOf(pkg);
  const log=[],state={epoch:'epoch-1',deviceId};
- const current={info:{protocol:1,boardId:pkg.boardId,bootVersion:pkg.minBootVersion,version:pkg.version-1,mode:0,imageValid:false,state:0,lastError:0,imageSize:pkg.imageSize,nextOffset:0,imageSha256:'0'.repeat(64),supported:true},uid,deviceId,epoch:state.epoch,productMode:4};
+ const current={info:{protocol:1,schemaVersion:layout.id,layoutId:layout.id,activeAppBase:layout.appBase,erasePage:layout.erasePage,capabilities:layout.id===2?15:1,boardId:pkg.boardId,bootVersion:pkg.minBootVersion,version:pkg.version-1,mode:0,imageValid:false,state:0,lastError:0,imageSize:pkg.imageSize,nextOffset:0,imageSha256:'0'.repeat(64),supported:true},uid,deviceId,epoch:state.epoch,productMode:4};
  const adapter={
   identity:()=>({...state}),
   async prepare(){log.push('prepare');},async release(){log.push('release');},

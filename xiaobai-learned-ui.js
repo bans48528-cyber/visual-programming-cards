@@ -113,6 +113,13 @@
     }
     panel.refresh = refresh;
     refresh();
+    // Opening this feature is the first operation that needs the stable UID
+    // for memos. Background slot refreshes deliberately do not request it.
+    const opening=context();
+    if(opening.service&&!locked(opening.snapshot)&&window.CardBluetooth?.firmware?.snapshot().ready!==false)
+      Promise.resolve().then(()=>{
+        if(context().service===opening.service&&!locked(opening.service.getSnapshot()))return opening.service.initialize();
+      }).catch(error=>notice(errorText(error)));
     // Status and memo arrive after this popover was positioned. Reuse the
     // editor's anchor placement only when its actual size changes; keep its
     // DOM, focus and scroll position intact during ordinary device updates.

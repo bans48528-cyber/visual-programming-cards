@@ -150,7 +150,9 @@ async function run(h,slot=1){await h.session.prepareRun([block(slot)]);await h.s
   await h.session.prepareRun([{id:'display-off'}]);await h.session.beginRun();assert.equal(h.session.run.legacy,true);h.close();
   h=await setup({silent:new Set([OP.QUERY_LEARNED])});await assert.rejects(h.session.initialize(),e=>e.code==='TIMEOUT');
   assert.equal(h.session.query,'error');assert(h.session.states.every(s=>s==='unknown'));
-  await assert.rejects(h.session.prepareRun([{id:'display-off'}]),e=>e.code==='TIMEOUT');assert.equal(h.session.run,null);h.close();
+  const queriesBeforeNormal=h.writes.filter(p=>[OP.READ_UID,OP.QUERY_LEARNED].includes(p[6])).length;
+  await h.session.prepareRun([{id:'display-off'}]);assert.equal(h.session.preparingRun,true,'ordinary programs reserve the local mutex without waiting for failed learned state');
+  assert.equal(h.writes.filter(p=>[OP.READ_UID,OP.QUERY_LEARNED].includes(p[6])).length,queriesBeforeNormal,'ordinary prepare adds no UID or learned query');assert.equal(h.session.run,null);h.close();
   h=await setup({mask:1,silent:new Set([OP.DECLARE_RUN])});await h.ready();await h.session.prepareRun([block(1)]);
   await assert.rejects(h.session.beginRun(),e=>e.code==='TIMEOUT');assert.equal(h.session.run,null);h.close();
   h=await setup({mask:1,unsupported:new Set([OP.DECLARE_RUN])});await h.ready();await h.session.prepareRun([block(1)]);

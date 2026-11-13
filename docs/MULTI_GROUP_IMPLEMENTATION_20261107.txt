@@ -1,0 +1,32 @@
+小白多程序组手机端实现记录
+日期：2026-11-07；本轮仅源码、离线测试和网页复验。
+
+实现
+- xiaobai-multi-protocol.js：冻结v1 C4/D4、64位安全随机SID、OPEN/全部组准备/COMMIT、单待受理ACTION许可、逐任务ACK/QUERY、重复/旧会话栅栏及分阶段超时。25份固件黄金帧逐字节往返。
+- xiaobai-protocol.js：旧D2/D3与D4共存，有界单writer，STOP/心跳优先；不打断逻辑帧，不缩短40ms保护。
+- MultiProgramFrame.java / SparkBlePlugin：仅小白profile开放严格C4校验，完整native.write内按MTU分段，40ms保护/500ms分片期限，最后真实本地GATT回调才完成。旧epoch/后台/失败关闭整帧。
+- xiaobai-multi-runner.js：手机保留各组PC/循环/时间等待，最多4组/合计1000块/20层；显式groupId字典序，块UID定位，组END不全停，全部结束后CLOSE。持续电机/声音资源身份独立于PC推进，定位映射有界。
+- app/free-canvas：不可变RunSnapshot与真实作品ID，运行期结构和参数锁；取消未提交拖动。平移/缩放/fit/reset及工具栏折叠仍可用。保留本轮去吸附圆点和折叠工具栏UI。
+- 自动失败若STOP也未确认，先停止心跳/关闭本地Link并等待一次物理断连，随后报告STOP_UNCONFIRMED；断连处理完成前不释放运行互斥，不假报设备已经停止。
+
+门禁
+开发目标为最终主控候选1.1.1。1.1.0候选不可作为最终绑定包。
+当前App仍为1.2.16/code22、签名内置固件仍为冻结1.0.4；releaseAllows要求App签名pin和已核验实机均精确匹配1.1.1，因此当前正常入口仍只运行旧单组。CAPS单独不能启用并发。
+未绑定新包、未更新发布版本、未assemble/构建APK、未安装、未提交Git。原1.2.15/1.2.16 APK及1.0.4 OTA哈希未变。
+下一次经用户授权构建开发APK时须使用新App版本，不能覆盖这些已有安装包。
+
+验证
+npm run test:multi：37项JS测试通过；原生4061帧用例、4251生产pump/callback/lifecycle断言通过。
+实际Android compileDebugJavaWithJavac成功（未assemble）；旧ProgramFrame3082项通过。
+现画布25项、生产吸附合法性、存储/五型号共86积木目录、旧协议/runner/倾倒/点阵/学习及共享transport回归通过。
+固定内置固件发布门禁62项通过，仍映射1.2.16→1.0.4。
+CUA复验不可变快照/稳定UID、运行锁/解锁、视图按钮保持、568x320无工具遮挡、折叠按钮和正常网页加载；页面无错误日志。
+
+限制
+尚未实测平板GATT分段、主控UART负载、电机/声音资源冲突、ASR真实READY/HIT与停止看门狗。离线通过不等于硬件并发验收。
+默认旧OTA native权威头比较会因主控开发树升到1.1.x而拒绝当前App1.0.4常量，这是保持的发布门禁；使用已提交公开1.0.4头的只读临时fixture验证旧逻辑861项及ACL隔离通过，不标为默认整套通过。
+既有CLI xiaobai-app-flow脚本仍使用单链program/startBlock，mock连接等待超时，不标PASS；本轮用当前VM/UI接入回归与CUA检查实际路径。
+
+最终候选（仅核对，不内置）
+1.1.1 OTA：44484字节；SHA256 ddf8fd7ee1bf681cc4408ec54c5f415f953e59aa80958076f6acba95a08fadc8。
+镜像/Boot/实机验证以嵌入式主线程交付与后续联合验收为准。

@@ -22,9 +22,12 @@
     "test:learned": "node --test tests/xiaobai-learned-recovery.spec.cjs && node tests/xiaobai-learned-commands.spec.cjs && node tests/xiaobai-learned-runner.spec.cjs && node tests/xiaobai-native-frames.spec.cjs && node tests/xiaobai-learned-ui.spec.cjs",
     "test:guides": "node tests/companion-sessions.spec.cjs && node tests/usage-guide.spec.cjs && node tests/building-direct-program.spec.cjs",
     "test:tilt": "node tests/xiaobai-tilt.spec.cjs && node tests/xiaobai-native-frames.spec.cjs && node tests/xiaobai-eye-tilt.spec.cjs && node tests/xiaobai-app-flow.spec.cjs",
+    "test:motion": "node --test tests/xiaobai-motion-wait.spec.cjs tests/xiaobai-control-flow.spec.cjs tests/xiaobai-condition-protocol.spec.cjs tests/xiaobai-motion-loop-catalog.spec.cjs tests/xiaobai-motion-condition-runner.spec.cjs && node tests/xiaobai-tilt.spec.cjs",
     "test:ota": "node tests/xiaobai-ota-package.spec.cjs && node tests/xiaobai-ota-native.spec.cjs && node tests/xiaobai-native-frames.spec.cjs && node tests/xiaobai-ota-startup.spec.cjs && node tests/xiaobai-ota-session.spec.cjs && node tests/xiaobai-ota-ui.spec.cjs",
     "test:ota:interop": "node tests/xiaobai-ota-c-interop.spec.cjs",
-    "test:firmware": "node tests/xiaobai-firmware-bundle.spec.cjs && node tests/xiaobai-firmware.spec.cjs && node tests/xiaobai-firmware-recovery.spec.cjs && node tests/xiaobai-firmware-actions.spec.cjs && node tests/xiaobai-firmware-identity.spec.cjs && node tests/bluetooth-name-source.spec.cjs && node tests/xiaobai-ota-ui.spec.cjs"
+    "test:firmware": "node tests/xiaobai-firmware-bundle.spec.cjs && node tests/xiaobai-firmware.spec.cjs && node tests/xiaobai-firmware-recovery.spec.cjs && node tests/xiaobai-firmware-actions.spec.cjs && node tests/xiaobai-firmware-identity.spec.cjs && node tests/bluetooth-name-source.spec.cjs && node tests/xiaobai-ota-ui.spec.cjs",
+    "test:canvas": "node --test tests/canvas-workspace.spec.cjs tests/free-canvas-run.spec.cjs && node tests/canvas-snap-legality.spec.cjs && node tests/free-canvas-storage.spec.cjs",
+    "test:multi": "node --test tests/multi-snapshot.spec.cjs tests/multi-ui.spec.cjs tests/xiaobai-multi-protocol.spec.cjs tests/xiaobai-multi-runner.spec.cjs tests/xiaobai-multi-interop.spec.cjs && node tests/xiaobai-multi-native.spec.cjs"
   },
   "dependencies": {
     "@capacitor/android": "8.5.2",

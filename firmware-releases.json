@@ -206,6 +206,434 @@
         },
         "schemaVersion": 1
       }
+    },
+    {
+      "manifestSha256": "9b87895d7a9cb677b581bcbf440e1b49434c4f6fadd7ea555e9891aca329bcbf",
+      "release": {
+        "app": {
+          "applicationId": "com.xiaobai.remote",
+          "versionCode": 22,
+          "versionName": "1.2.16"
+        },
+        "firmware": {
+          "asset": "assets/firmware/xiaobai_py32_1.0.4.ota",
+          "boardId": 258,
+          "imageSha256": "fc473b50f3f37ef8b151f07fd6f20e6a99e6824ee8bebcff67a6b148240edbce",
+          "imageSize": 32260,
+          "minBootVersion": 65537,
+          "packageSha256": "d9f1777bd27a01a8650a4e2c320fd3213a9b9ad89d3aee2ab33f2e0e73ce9e9d",
+          "packageSize": 32388,
+          "protocol": 1,
+          "version": 65540,
+          "versionName": "1.0.4"
+        },
+        "schemaVersion": 1
+      }
+    },
+    {
+      "manifestSha256": "55519c166c7e613cdf1d1927560830db198f1a9696a8b0e22b77d900f49c46cf",
+      "release": {
+        "app": {
+          "applicationId": "com.xiaobai.remote",
+          "versionCode": 23,
+          "versionName": "1.2.17"
+        },
+        "firmware": {
+          "appBase": 134230016,
+          "asset": "assets/firmware/xiaobai_py32_2.0.0_l2_caccbd3505d717d4bd8c884d9eab7d93aa0e3e3b96dce292c5b26cf941773218_p6b46ae98b0b3262a.ota",
+          "boardId": 258,
+          "erasePage": 128,
+          "format": 2,
+          "imageSha256": "caccbd3505d717d4bd8c884d9eab7d93aa0e3e3b96dce292c5b26cf941773218",
+          "imageSize": 44684,
+          "layoutId": 2,
+          "minBootVersion": 131072,
+          "packageSha256": "6b46ae98b0b3262a232bb6b72c32eb59bb5f38b25b59a1c058e2803a7bd3e669",
+          "packageSize": 44812,
+          "protocol": 1,
+          "version": 131072,
+          "versionName": "2.0.0"
+        },
+        "schemaVersion": 2
+      }
+    },
+    {
+      "manifestSha256": "1483932b439196dc42dc0cdce770cb0a62f34653d34e60ef6f0b36334f05e972",
+      "release": {
+        "app": {
+          "applicationId": "com.xiaobai.remote",
+          "versionCode": 24,
+          "versionName": "1.2.18"
+        },
+        "firmware": {
+          "appBase": 134230016,
+          "asset": "assets/firmware/xiaobai_py32_2.0.1_l2_68c692e548958dbe37bd3eccd113a3e9354c569382ed427aefc8b04b75afc8e0_p62e9603df75669ef.ota",
+          "boardId": 258,
+          "erasePage": 128,
+          "format": 2,
+          "imageSha256": "68c692e548958dbe37bd3eccd113a3e9354c569382ed427aefc8b04b75afc8e0",
+          "imageSize": 45276,
+          "layoutId": 2,
+          "minBootVersion": 131072,
+          "packageSha256": "62e9603df75669efb2324f7df99f83e15569809579ac6355f561d29669d608cb",
+          "packageSize": 45404,
+          "protocol": 1,
+          "version": 131073,
+          "versionName": "2.0.1"
+        },
+        "schemaVersion": 2
+      }
+    },
+    {
+      "manifestSha256": "25a5027fa87eede366db2ed2a3470dd1853140e7f01140a3463b86ddd0ca1467",
+      "release": {
+        "app": {
+          "applicationId": "com.xiaobai.remote",
+          "versionCode": 25,
+          "versionName": "1.2.19"
+        },
+        "firmware": {
+          "appBase": 134230016,
+          "asset": "assets/firmware/xiaobai_py32_2.0.2_l2_b5ff2296435fc39c2f1ecfd09712c2c4455940f0add642ef50ab1af368fb23cd_p5dfe1c3e9e9f86bd.ota",
+          "boardId": 258,
+          "erasePage": 128,
+          "format": 2,
+          "imageSha256": "b5ff2296435fc39c2f1ecfd09712c2c4455940f0add642ef50ab1af368fb23cd",
+          "imageSize": 45188,
+          "layoutId": 2,
+          "minBootVersion": 131072,
+          "packageSha256": "5dfe1c3e9e9f86bd764d4856be8b2549d7c8ca75288f2129b87c1b824d2c474e",
+          "packageSize": 45316,
+          "protocol": 1,
+          "version": 131074,
+          "versionName": "2.0.2"
+        },
+        "schemaVersion": 2
+      }
+    },
+    {
+      "manifestSha256": "60ece11af3cfb117910935dff4d86af4e371d8b58fbdfe7058fb6dba93b0d0ed",
+      "release": {
+        "app": {
+          "applicationId": "com.xiaobai.remote",
+          "versionCode": 26,
+          "versionName": "1.2.20"
+        },
+        "firmware": {
+          "appBase": 134230016,
+          "asset": "assets/firmware/xiaobai_py32_2.1.0_l2_d4c6ae663548296963848bde61673210369454cd9e20e6ef1bf5d380b77edfd8_p182526f27c54d6fa.ota",
+          "boardId": 258,
+          "erasePage": 128,
+          "format": 2,
+          "imageSha256": "d4c6ae663548296963848bde61673210369454cd9e20e6ef1bf5d380b77edfd8",
+          "imageSize": 48716,
+          "layoutId": 2,
+          "minBootVersion": 131072,
+          "packageSha256": "182526f27c54d6fabdd288b46dab68a5b836bb8a8216c1c7c2a4e1d437e0cee7",
+          "packageSize": 48844,
+          "protocol": 1,
+          "version": 131328,
+          "versionName": "2.1.0"
+        },
+        "schemaVersion": 2
+      }
+    },
+    {
+      "manifestSha256": "26dbb3da413cf2ef0fe8bbd3ade7a4d267c0710b4ce692c4d87dc962cf9269aa",
+      "release": {
+        "app": {
+          "applicationId": "com.xiaobai.remote",
+          "versionCode": 27,
+          "versionName": "1.2.21"
+        },
+        "firmware": {
+          "appBase": 134230016,
+          "asset": "assets/firmware/xiaobai_py32_2.1.1_l2_3001dd3578c924f7e240be501787a4bd3f4c3b00a81ae94cf1347acccf59fdb3_p97dba0de590d91ed.ota",
+          "boardId": 258,
+          "erasePage": 128,
+          "format": 2,
+          "imageSha256": "3001dd3578c924f7e240be501787a4bd3f4c3b00a81ae94cf1347acccf59fdb3",
+          "imageSize": 49872,
+          "layoutId": 2,
+          "minBootVersion": 131072,
+          "packageSha256": "97dba0de590d91ed724ffce9f0031af3e6685b6cdf616766b5a8db4748acd5a9",
+          "packageSize": 50000,
+          "protocol": 1,
+          "version": 131329,
+          "versionName": "2.1.1"
+        },
+        "schemaVersion": 2
+      }
+    },
+    {
+      "manifestSha256": "b55708e188bd9dd4f780679e8e2e5a976746639c82685dfa1f7b689215c56017",
+      "release": {
+        "app": {
+          "applicationId": "com.xiaobai.remote",
+          "versionCode": 28,
+          "versionName": "1.2.22"
+        },
+        "firmware": {
+          "appBase": 134230016,
+          "asset": "assets/firmware/xiaobai_py32_2.1.2_l2_08207f0f02ecefa54b625b6da8dba35838c18d5bd2a3700e91ef417595e132db_pa88c199cb5ca5800.ota",
+          "boardId": 258,
+          "erasePage": 128,
+          "format": 2,
+          "imageSha256": "08207f0f02ecefa54b625b6da8dba35838c18d5bd2a3700e91ef417595e132db",
+          "imageSize": 51780,
+          "layoutId": 2,
+          "minBootVersion": 131072,
+          "packageSha256": "a88c199cb5ca58006563a180c6d49c01e8933f9b29ca718aed53daeb198f01de",
+          "packageSize": 51908,
+          "protocol": 1,
+          "version": 131330,
+          "versionName": "2.1.2"
+        },
+        "schemaVersion": 2
+      }
+    },
+    {
+      "manifestSha256": "917d5338e033e1d10a485894053d4c6df358764a8b436c6c3c4194d79dff6224",
+      "release": {
+        "app": {
+          "applicationId": "com.xiaobai.remote",
+          "versionCode": 29,
+          "versionName": "1.2.23"
+        },
+        "firmware": {
+          "appBase": 134230016,
+          "asset": "assets/firmware/xiaobai_py32_2.1.3_l2_070a46c5b49b67d4329332d1ec15cdb9e824704142941ca4b7e46e725375e108_ped61efc8d68f2da3.ota",
+          "boardId": 258,
+          "erasePage": 128,
+          "format": 2,
+          "imageSha256": "070a46c5b49b67d4329332d1ec15cdb9e824704142941ca4b7e46e725375e108",
+          "imageSize": 50244,
+          "layoutId": 2,
+          "minBootVersion": 131072,
+          "packageSha256": "ed61efc8d68f2da33955c4b2d3643167dc933519ff4ec2c8e7175607e6321f32",
+          "packageSize": 50372,
+          "protocol": 1,
+          "version": 131331,
+          "versionName": "2.1.3"
+        },
+        "schemaVersion": 2
+      }
+    },
+    {
+      "manifestSha256": "a32f337021ed9994b7bf633d532f96af26bb0db2144290c015f792183b67e626",
+      "release": {
+        "app": {
+          "applicationId": "com.xiaobai.remote",
+          "versionCode": 30,
+          "versionName": "1.2.24"
+        },
+        "firmware": {
+          "appBase": 134230016,
+          "asset": "assets/firmware/xiaobai_py32_2.1.5_l2_0fd6583317cd76e2ea98e6b77c9c0cb6ec6fca28a8ba9019c82f59f98d103fd1_pf1d78b75a756ac6d.ota",
+          "boardId": 258,
+          "erasePage": 128,
+          "format": 2,
+          "imageSha256": "0fd6583317cd76e2ea98e6b77c9c0cb6ec6fca28a8ba9019c82f59f98d103fd1",
+          "imageSize": 50244,
+          "layoutId": 2,
+          "minBootVersion": 131072,
+          "packageSha256": "f1d78b75a756ac6d8f0d7e75b144c1f5f3156557210e54d27f5615c3c7d02055",
+          "packageSize": 50372,
+          "protocol": 1,
+          "version": 131333,
+          "versionName": "2.1.5"
+        },
+        "schemaVersion": 2
+      }
+    },
+    {
+      "manifestSha256": "47d27db726cdb89f02d166e5ac742e3faf72d00b38895204fad08aa834a2ac38",
+      "release": {
+        "app": {
+          "applicationId": "com.xiaobai.remote",
+          "versionCode": 31,
+          "versionName": "1.2.25"
+        },
+        "firmware": {
+          "appBase": 134230016,
+          "asset": "assets/firmware/xiaobai_py32_2.2.1_l2_caa821e0bc06ae19f772420a1e746213cf9fa09a4ef5bb3376feaff4b652fc87_p9b80ad05003b9e03.ota",
+          "boardId": 258,
+          "erasePage": 128,
+          "format": 2,
+          "imageSha256": "caa821e0bc06ae19f772420a1e746213cf9fa09a4ef5bb3376feaff4b652fc87",
+          "imageSize": 52632,
+          "layoutId": 2,
+          "minBootVersion": 131072,
+          "packageSha256": "9b80ad05003b9e0333e254d053c7a29dd3da68eaf8ea5bde34ef2ab8d0bba6d0",
+          "packageSize": 52760,
+          "protocol": 1,
+          "version": 131585,
+          "versionName": "2.2.1"
+        },
+        "schemaVersion": 2
+      }
+    },
+    {
+      "manifestSha256": "a74752ec65d07d8eec41146186e26c6f879480bf6e1c4b302771213f54154ac7",
+      "release": {
+        "app": {
+          "applicationId": "com.xiaobai.remote",
+          "versionCode": 32,
+          "versionName": "1.2.26"
+        },
+        "firmware": {
+          "appBase": 134230016,
+          "asset": "assets/firmware/xiaobai_py32_2.2.2_l2_aa52ae011f64e40d059be80ed16584ba0c46225d5e3537627ec2825856d4b1b4_p0c02edf9d5bc7103.ota",
+          "boardId": 258,
+          "erasePage": 128,
+          "format": 2,
+          "imageSha256": "aa52ae011f64e40d059be80ed16584ba0c46225d5e3537627ec2825856d4b1b4",
+          "imageSize": 52960,
+          "layoutId": 2,
+          "minBootVersion": 131072,
+          "packageSha256": "0c02edf9d5bc710385c5d4be34f16f2f089e0e70184f64f31699b217f9664860",
+          "packageSize": 53088,
+          "protocol": 1,
+          "version": 131586,
+          "versionName": "2.2.2"
+        },
+        "schemaVersion": 2
+      }
+    },
+    {
+      "manifestSha256": "1e0e373987bef14bb84db9508ee781482fbaf9cd686a084030dd0bad80cff5f1",
+      "release": {
+        "app": {
+          "applicationId": "com.xiaobai.remote",
+          "versionCode": 33,
+          "versionName": "1.2.27"
+        },
+        "firmware": {
+          "appBase": 134230016,
+          "asset": "assets/firmware/xiaobai_py32_2.2.2_l2_aa52ae011f64e40d059be80ed16584ba0c46225d5e3537627ec2825856d4b1b4_p0c02edf9d5bc7103.ota",
+          "boardId": 258,
+          "erasePage": 128,
+          "format": 2,
+          "imageSha256": "aa52ae011f64e40d059be80ed16584ba0c46225d5e3537627ec2825856d4b1b4",
+          "imageSize": 52960,
+          "layoutId": 2,
+          "minBootVersion": 131072,
+          "packageSha256": "0c02edf9d5bc710385c5d4be34f16f2f089e0e70184f64f31699b217f9664860",
+          "packageSize": 53088,
+          "protocol": 1,
+          "version": 131586,
+          "versionName": "2.2.2"
+        },
+        "schemaVersion": 2
+      }
+    },
+    {
+      "manifestSha256": "fbb0ca5abbd5fddd80d7fbbf76a51fb05acad35686c0b7422f62c2f2a5e78e9c",
+      "release": {
+        "app": {
+          "applicationId": "com.xiaobai.remote",
+          "versionCode": 34,
+          "versionName": "1.2.28"
+        },
+        "firmware": {
+          "appBase": 134230016,
+          "asset": "assets/firmware/xiaobai_py32_2.2.2_l2_aa52ae011f64e40d059be80ed16584ba0c46225d5e3537627ec2825856d4b1b4_p0c02edf9d5bc7103.ota",
+          "boardId": 258,
+          "erasePage": 128,
+          "format": 2,
+          "imageSha256": "aa52ae011f64e40d059be80ed16584ba0c46225d5e3537627ec2825856d4b1b4",
+          "imageSize": 52960,
+          "layoutId": 2,
+          "minBootVersion": 131072,
+          "packageSha256": "0c02edf9d5bc710385c5d4be34f16f2f089e0e70184f64f31699b217f9664860",
+          "packageSize": 53088,
+          "protocol": 1,
+          "version": 131586,
+          "versionName": "2.2.2"
+        },
+        "schemaVersion": 2
+      }
+    },
+    {
+      "manifestSha256": "1fc5c2635391c4e2d0b42611044030642e9a76bc0c8cc95a4fc380f292f1d635",
+      "release": {
+        "app": {
+          "applicationId": "com.xiaobai.remote",
+          "versionCode": 35,
+          "versionName": "1.2.29"
+        },
+        "firmware": {
+          "appBase": 134230016,
+          "asset": "assets/firmware/xiaobai_py32_2.2.3_l2_7a88de8c7a02d182b40836643a4185981244f2c4aa17000608d3251b4041572e_pf51d5234053222d9.ota",
+          "boardId": 258,
+          "erasePage": 128,
+          "format": 2,
+          "imageSha256": "7a88de8c7a02d182b40836643a4185981244f2c4aa17000608d3251b4041572e",
+          "imageSize": 52984,
+          "layoutId": 2,
+          "minBootVersion": 131072,
+          "packageSha256": "f51d5234053222d971e63dbfe4b8dd083aa22aca2bd048a1977e879f5441c16e",
+          "packageSize": 53112,
+          "protocol": 1,
+          "version": 131587,
+          "versionName": "2.2.3"
+        },
+        "schemaVersion": 2
+      }
+    },
+    {
+      "manifestSha256": "daa5c82cfa71141de53b99afdef2cfb27217be97f2a4b4ecce47609fc8ddf487",
+      "release": {
+        "app": {
+          "applicationId": "com.xiaobai.remote",
+          "versionCode": 36,
+          "versionName": "1.2.30"
+        },
+        "firmware": {
+          "appBase": 134230016,
+          "asset": "assets/firmware/xiaobai_py32_2.2.3_l2_7a88de8c7a02d182b40836643a4185981244f2c4aa17000608d3251b4041572e_pf51d5234053222d9.ota",
+          "boardId": 258,
+          "erasePage": 128,
+          "format": 2,
+          "imageSha256": "7a88de8c7a02d182b40836643a4185981244f2c4aa17000608d3251b4041572e",
+          "imageSize": 52984,
+          "layoutId": 2,
+          "minBootVersion": 131072,
+          "packageSha256": "f51d5234053222d971e63dbfe4b8dd083aa22aca2bd048a1977e879f5441c16e",
+          "packageSize": 53112,
+          "protocol": 1,
+          "version": 131587,
+          "versionName": "2.2.3"
+        },
+        "schemaVersion": 2
+      }
+    },
+    {
+      "manifestSha256": "c02bc3d5f546fe0c41c12e6c98338619df320665880170b971a4bf253ecae2df",
+      "release": {
+        "app": {
+          "applicationId": "com.xiaobai.remote",
+          "versionCode": 37,
+          "versionName": "1.2.31"
+        },
+        "firmware": {
+          "appBase": 134230016,
+          "asset": "assets/firmware/xiaobai_py32_2.2.3_l2_7a88de8c7a02d182b40836643a4185981244f2c4aa17000608d3251b4041572e_pf51d5234053222d9.ota",
+          "boardId": 258,
+          "erasePage": 128,
+          "format": 2,
+          "imageSha256": "7a88de8c7a02d182b40836643a4185981244f2c4aa17000608d3251b4041572e",
+          "imageSize": 52984,
+          "layoutId": 2,
+          "minBootVersion": 131072,
+          "packageSha256": "f51d5234053222d971e63dbfe4b8dd083aa22aca2bd048a1977e879f5441c16e",
+          "packageSize": 53112,
+          "protocol": 1,
+          "version": 131587,
+          "versionName": "2.2.3"
+        },
+        "schemaVersion": 2
+      }
     }
   ],
   "schemaVersion": 1

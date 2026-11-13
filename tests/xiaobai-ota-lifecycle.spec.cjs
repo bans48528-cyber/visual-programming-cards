@@ -138,7 +138,7 @@ async function explicitCancellation(browser){
  }
 }
 async function boundBootAfterProbeTimeout(browser){
- const pending={boardId:target.boardId,version:target.version,imageSize:target.imageSize,imageSha256:target.imageSha256};
+ const pending={...target};
  const {context,page,errors}=await create(browser,{appAvailable:false,imageValid:false,pending});
  try{
   await enter(page);await page.locator('.firmware-cancel').tap();await page.waitForFunction(()=>!document.getElementById('xiaobaiFirmwareDialog').open);
@@ -149,7 +149,7 @@ async function boundBootAfterProbeTimeout(browser){
   await page.waitForFunction(()=>location.hash==='#editor'&&document.getElementById('xiaobaiFirmwareDialog').open,null,{timeout:15000});
   const before=await evidence(page,'ordinary-c2-timeout-bound-boot-entry');pinned(before);
   eq(before.snapshot.phase,'recovery');ok(before.snapshot.prompt,'ordinary C2 timeout exposes real programming recovery prompt');
-  eq(before.ota.length,0,'no raw Boot request or write before a fresh explicit confirmation');
+  ok(before.ota.some(c=>c.op===0x60),'manual candidate uses real read-only Boot INFO');eq(before.ota.filter(c=>[0x62,0x63,0x64].includes(c.op)).length,0,'read-only preflight never sends BEGIN/DATA/FINISH before explicit consent');eq(before.ota.filter(c=>c.op===0x65).length,0,'old Boot receives no GET_UID');
   eq(await page.locator('#xiaobaiOtaSettings,.ota-file,.home-ota-entry').count(),0,'no independent old OTA settings workflow');
   await page.locator('.firmware-confirm').tap();await page.waitForFunction(()=>CardBluetooth.firmware.snapshot().phase==='success'&&!CardBluetooth.firmware.snapshot().busy,null,{timeout:40000});
   const e=await evidence(page,'ordinary-c2-timeout-bound-boot-success');pinned(e);eq(e.ota.filter(c=>c.op===0x62).length,1);

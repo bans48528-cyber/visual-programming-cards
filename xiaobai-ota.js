@@ -14,7 +14,7 @@
   class BootClient{
     constructor(transport,{timing={},onProgress=()=>{},onTrace=()=>{},firstRequestId=randomId()}={}){
       this.transport=transport;this.timing={...TIMING,...timing};this.onProgress=onProgress;this.onTrace=onTrace;
-      this.nextId=firstRequestId>>>0||1;this.pending=null;this.closed=false;this.closeError=null;this.began=false;
+      this.nextId=firstRequestId>>>0||1;this.pending=null;this.closed=false;this.closeError=null;this.began=false;this.identityVerified=false;
       this.receiver=new P.Receiver(frame=>this.receive(frame));
       this.unsubscribe=transport.subscribe(bytes=>{if(!this.closed)this.receiver.feed(bytes);});
       this.offDisconnect=transport.onDisconnect?.(()=>this.close('升级连接已断开，请重新连接恢复。','DISCONNECTED'));
@@ -57,7 +57,14 @@
         throw error('TIMEOUT','设备未确认升级数据，已停止发送。请保持主机供电后重新连接。');
       }finally{if(this.pending===p)this.pending=null;}
     }
-    async info(){const bytes=await this.request(P.OP.INFO);if(bytes.length!==61)throw error('PROTOCOL','Boot 身份反馈长度无效。');const info=P.parseInfo60(bytes.slice(1));if(info.mode!==1)throw error('MODE','设备尚未进入升级模式。');this.lastInfo=info;return info;}
+    async info(){const bytes=await this.request(P.OP.INFO);const info=P.parseInfo(bytes.slice(1));if(info.mode!==1)throw error('MODE','设备尚未进入升级模式。');this.lastInfo=info;return info;}
+    async uid(){
+      let bytes;
+      try{bytes=await this.request(P.OP.GET_UID);}
+      catch(e){if(e.code==='DEVICE'&&e.status===P.C.OTA_ERR_PARAM)throw Object.assign(error('UID_UNSUPPORTED','当前 Boot 不支持只读主机身份查询。'),{status:e.status});throw e;}
+      if(bytes.length!==13)throw error('UID_LENGTH','Boot 主机身份反馈长度无效。');
+      return Array.from(bytes.slice(1),n=>n.toString(16).padStart(2,'0')).join('');
+    }
     async ack(cmd,payload,expected){const response=await this.request(cmd,payload);if(response.length!==5||read32(response.slice(1))!==expected)throw error('OFFSET','设备已提交的位置与当前数据不一致，升级已停止。');return expected;}
     async upload(pkg,{repair=false,info=null}={}){
       info=info||await this.info();const compatible=P.checkCompatibility(pkg,info,{repair});
@@ -82,9 +89,10 @@
       return{info,written:true,alreadyPresent:false,applicationStartVerified:false};
     }
     close(reason='升级已取消。',code='CANCELLED'){
-      if(this.closed)return;this.closed=true;this.closeError=error(code,reason);this.pending?.reject(this.closeError);this.unsubscribe?.();this.offDisconnect?.();
+      if(this.closed)return;this.closed=true;this.identityVerified=false;this.closeError=error(code,reason);this.pending?.reject(this.closeError);this.unsubscribe?.();this.offDisconnect?.();
     }
   }
+  function deviceHealthError(code,message){return Object.assign(error(code,message),{deviceHealth:true});}
   function validateStatus(samples,{epoch,startedAt,endedAt=now(),gapMs=500,deadlineMs=30000}={}){
     if(!epoch||!Number.isFinite(startedAt)||!Number.isFinite(endedAt)||endedAt<startedAt||endedAt-startedAt>deadlineMs)throw error('TIMING','启动检查时间无效或已超时。');
     if(!Array.isArray(samples)||samples.length<2)throw error('STATUS','尚未取得两次真实状态反馈。');
@@ -94,19 +102,22 @@
       if(!Number.isInteger(s.seq)||s.seq<1||s.seq>255||seen.has(s.seq)||s.opcode!==4||s.result!==0)throw error('STATUS','状态反馈未匹配新的查询编号。');
       if(!Number.isFinite(s.sentAt)||!Number.isFinite(s.receivedAt)||s.sentAt<startedAt||s.receivedAt<s.sentAt||s.receivedAt>endedAt||s.receivedAt<=previous)throw error('TIMING','状态反馈不属于本次启动检查。');
       const b=s.data;
-      if(!b||b.length!==7||Array.from(b).some(n=>!Number.isInteger(n)||n<0||n>255)||b[0]>4||Math.max(b[1],b[2],b[3])>100||b[1]!==b[2]||b[2]!==b[3])throw error('STATUS','主机模式或单红外状态反馈异常。');
-      if((b[4]|b[5]<<8)<3000)throw error('POWER','主机电量不足，请充电后重试检查。');
-      if(b[6]>>4)throw error('BUSY','主机任务尚未停止。');
-      if(b[6]&15)throw error('FAULT','主机报告硬件故障，启动检查未通过。');
+      if(!b||b.length!==7||Array.from(b).some(n=>!Number.isInteger(n)||n<0||n>255))throw error('STATUS','主机状态反馈格式无效。');
+      if(b[0]>4||Math.max(b[1],b[2],b[3])>100||b[1]!==b[2]||b[2]!==b[3])throw deviceHealthError('STATUS','主机模式或单红外状态反馈异常。');
+      const millivolts=b[4]|(b[5]<<8);
+      if(millivolts===0)throw deviceHealthError('POWER','设备未提供有效电压（上报 0 mV）。请检查主机供电后重试确认。');
+      if(millivolts<3000)throw deviceHealthError('POWER',`主机上报电压为 ${millivolts} mV，低于 3000 mV。请充电后重试确认。`);
+      if(b[6]>>4)throw deviceHealthError('BUSY','主机任务尚未停止。');
+      if(b[6]&15)throw deviceHealthError('FAULT','主机报告硬件故障，启动检查未通过。');
       seen.add(s.seq);previous=s.receivedAt;
     }
-    if(samples.at(-1).receivedAt-samples[0].receivedAt<gapMs)throw error('TIMING','两次启动状态检查间隔不足。');
+    if(samples[samples.length-1].receivedAt-samples[0].receivedAt<gapMs)throw error('TIMING','两次启动状态检查间隔不足。');
     return true;
   }
   function confirmIdentity(actual,binding,pkg,{allowLocatorChange=false}={}){
     const i=actual.info;
     if(!actual.epoch||typeof actual.deviceId!=='string'||!actual.deviceId||!binding.deviceId||!/^[0-9a-f]{24}$/.test(binding.uid||'')||actual.uid!==binding.uid||(!allowLocatorChange&&actual.deviceId!==binding.deviceId))throw error('IDENTITY','重连设备与升级前不是同一台主机，已停止确认。');
-    if(!i||i.protocol!==P.C.OTA_PROTOCOL_VERSION||i.mode!==0||!i.imageValid||i.boardId!==pkg.boardId||i.version!==pkg.version||i.imageSize!==pkg.imageSize||i.imageSha256!==pkg.imageSha256)throw error('IDENTITY','主机运行镜像与升级目标不一致，写入状态尚未确认。');
+    if(!i||!P.isSupportedInfo(i)||i.mode!==0||!i.imageValid||!P.sameTarget(i,pkg))throw error('IDENTITY','主机运行镜像与升级目标不一致，写入状态尚未确认。');
   }
   class Session{
     constructor(adapter,{storage=null,timing={},onChange=()=>{},clock=now}={}){
@@ -114,8 +125,19 @@
       this.state={phase:'idle',busy:false,message:'连接小白后将自动核对本 App 对应的主控固件。',info:null,uid:null,pkg:null,committed:0,total:0,written:false,supported:null};
       this.generation=0;this.client=null;this.file=null;this.binding=this.loadBinding();this.operation=null;this.cancelRequested=false;this.cancelling=null;
     }
-    loadBinding(){try{const b=JSON.parse(this.storage?.getItem('xiaobai:ota:binding:v1')||'null');if(!b||typeof b.deviceId!=='string'||!b.deviceId||!/^[0-9a-f]{24}$/.test(b.uid))return null;if(b.pending&&(b.pending.boardId!==P.C.OTA_BOARD_ID||!Number.isInteger(b.pending.version)||!b.pending.version||!Number.isInteger(b.pending.imageSize)||b.pending.imageSize<192||b.pending.imageSize>P.C.OTA_APP_CAPACITY||!/^[0-9a-f]{64}$/.test(b.pending.imageSha256)))return null;return b;}catch{return null;}}
-    saveBinding(binding){const next={...binding};try{this.storage?.setItem('xiaobai:ota:binding:v1',JSON.stringify(next));}catch{throw error('STORAGE','无法保存升级设备身份，已停止升级。');}this.binding=next;}
+    loadBinding(){try{
+      const b=JSON.parse(this.storage?.getItem('xiaobai:ota:binding:v1')||'null');
+      if(!b||typeof b.deviceId!=='string'||!b.deviceId||!/^[0-9a-f]{24}$/.test(b.uid))return null;
+      if(b.pending){
+        const p=b.pending,layout=P.layoutOf(p);
+        if(!layout||p.boardId!==P.C.OTA_BOARD_ID||!Number.isInteger(p.version)||p.version<=0||p.version>0xffffffff||!Number.isInteger(p.imageSize)||p.imageSize<192||p.imageSize>layout.capacity||!/^[0-9a-f]{64}$/.test(p.imageSha256))return null;
+        // Pre-layout records were exclusively format-1/base-0x4000 releases.
+        b.pending=targetOf(p);
+      }
+      return b;
+    }catch{return null;}}
+    saveBinding(binding){const previous=this.binding,next={...binding};
+      if(previous?.uid===binding.uid){if(previous.requireBootUid===true)next.requireBootUid=true;if(previous.identityNeedsUid===true&&binding.identityNeedsUid!==false)next.identityNeedsUid=true;}try{this.storage?.setItem('xiaobai:ota:binding:v1',JSON.stringify(next));}catch{throw error('STORAGE','无法保存升级设备身份，已停止升级。');}this.binding=next;}
     snapshot(){return{...this.state,recovery:Boolean(this.binding?.pending),binding:this.binding?{deviceId:this.binding.deviceId,uid:this.binding.uid,name:this.binding.name}:null};}
     set(patch){Object.assign(this.state,patch);this.onChange(this.snapshot());}
     current(ticket){if(ticket!==this.generation||this.cancelRequested)throw error('CANCELLED','升级已中止。');}
@@ -155,24 +177,131 @@
         return this.adapter.connectBoot(binding);
       }
     }
+    recoveryProof(binding,proof){
+      if(!proof||proof.retired!==true||proof.verifiedLocator!==true||!['boot','app'].includes(proof.kind)||
+         typeof proof.deviceId!=='string'||!proof.deviceId||typeof proof.epoch!=='string'||!proof.epoch)
+        throw error('UNVERIFIED_DEVICE','探测主机身份尚未确认，已停止恢复。');
+      const uidProof=proof.uidSupported===true&&proof.uid===binding.uid&&
+        proof.verification===(proof.kind==='boot'?'boot-uid':'app-uid')&&
+        (proof.kind==='app'||proof.info?.mode===1&&proof.info.bootVersion>=0x020002);
+      const legacy=proof.kind==='boot'&&proof.uidSupported===false&&proof.uid===null&&
+        (proof.verification==='bound-address'&&proof.deviceId===binding.deviceId||proof.verification==='historical-app-uid');
+      if(legacy&&(binding.requireBootUid===true||binding.identityNeedsUid===true))throw error('UID_REQUIRED','该主机需要重新核对真实 UID，不能按旧地址或历史地址降级恢复。');
+      if(!uidProof&&!legacy)throw error('IDENTITY','探测身份与原绑定主机不一致，已停止恢复。');
+      return proof;
+    }
+    adoptRecoveryProof(binding,proof){
+      const next={...binding,deviceId:proof.deviceId};
+      if(proof.uidSupported===true){next.identityNeedsUid=false;if(proof.kind==='boot')next.requireBootUid=true;}
+      this.saveBinding(next);return this.binding;
+    }
+    async verifyBootIdentity(ticket,binding,proof,info){
+      this.current(ticket);const client=this.client,epoch=client.transport.connectionId;
+      const owner=this.binding,owns=()=>this.binding===owner&&owner?.uid===binding.uid;
+      const needsUid=binding.requireBootUid===true||binding.identityNeedsUid===true||owns()&&(owner.requireBootUid===true||owner.identityNeedsUid===true);
+      if(proof&&(!this.client.transport.connectionId||this.client.transport.connectionId===proof.epoch))
+        throw error('STALE','探测连接尚未退役，不能直接用于固件写入。');
+      if(!Number.isInteger(info.bootVersion)||!info.bootVersion)throw error('BOOT_UNKNOWN','尚未读取有效的实际 Boot 版本，未发送固件。');
+      if(info.bootVersion<0x020002){
+        // Older Boot treats an unknown opcode as a stateful last-error change.
+        // Never send GET_UID to it, including as an ability probe.
+        if(needsUid||proof?.kind==='boot'&&proof.uidSupported===true){if(owns())this.saveBinding({...owner,identityNeedsUid:true});throw error('UID_DOWNGRADE','写入连接的 Boot 身份能力与已验证记录不一致，未发送固件。');}
+        if(proof&&!['bound-address','historical-app-uid'].includes(proof.verification)&&
+           !(proof.kind==='app'&&proof.verification==='app-uid'&&proof.uid===binding.uid))throw error('UNVERIFIED_DEVICE','旧 Boot 没有主机身份，不能使用未确认的新地址。');
+        this.current(ticket);if(this.client!==client||client.closed||client.transport.connectionId!==epoch)throw error('STALE','身份核验连接已变化。');
+        client.identityVerified=true;return;
+      }
+      const uid=await client.uid();this.current(ticket);
+      if(this.client!==client||client.closed||client.transport.connectionId!==epoch)throw error('STALE','身份核验连接已变化。');
+      if(this.binding!==owner)throw error('BINDING','升级记录已变化，未发送固件。');
+      if(uid!==binding.uid){if(owns())this.saveBinding({...owner,identityNeedsUid:true});throw error('IDENTITY','Boot 主机身份与原绑定主机不符，未发送固件。');}
+      if(owns())this.saveBinding({...owner,requireBootUid:true,identityNeedsUid:false});
+      this.current(ticket);client.identityVerified=true;
+    }
+    async prepareAppRecoveryIdentity(ticket,actual,pkg){
+      if(!this.adapter.prepareRecoveryIdentity)return actual;
+      const previous=this.binding,base=previous?.uid===actual.uid?previous:{deviceId:actual.deviceId,uid:actual.uid,name:actual.name};
+      const prepared=await this.adapter.prepareRecoveryIdentity(base,{actual,target:targetOf(pkg)});this.current(ticket);
+      if(!prepared)return actual;
+      const proof=this.recoveryProof(base,prepared);
+      if(proof.kind!=='app'||proof.prepared!==true)throw error('LEGACY_RECOVERY_IDENTITY','未取得本次受控重连的主机身份，未进入升级。');
+      const selected=this.adoptRecoveryProof(base,proof),owner=this.binding;
+      let fresh=await this.adapter.connectApp(selected,{probe:proof});this.current(ticket);
+      if(!fresh)fresh=await this.adapter.readApp();this.current(ticket);
+      if(fresh.uid!==base.uid||fresh.deviceId!==selected.deviceId||!fresh.epoch||fresh.epoch===proof.epoch||fresh.info?.mode!==0){
+        if(this.binding===owner&&fresh.uid!==base.uid)this.saveBinding({...owner,identityNeedsUid:true});
+        throw error('IDENTITY','重连后的主机身份与升级前不一致，未进入升级。');
+      }
+      return fresh;
+    }
+    async checkBeforeEnter(ticket,actual){
+      let heartbeatSample=null;
+      for(;;){
+        this.current(ticket);
+        const sample=await this.adapter.queryStatus();this.current(ticket);
+        if(!actual.epoch||sample.epoch!==actual.epoch)throw error('STALE','升级前的状态来自其他连接。');
+        const data=sample.data;
+        if(sample.opcode!==4||sample.result!==0||!Number.isInteger(sample.seq)||sample.seq<1||sample.seq>255||
+           !data||data.length!==7||Array.from(data).some(v=>!Number.isInteger(v)||v<0||v>255)||data[0]>4)
+          throw error('STATUS','升级前的主机状态反馈无效。');
+        if(heartbeatSample&&(sample.seq===heartbeatSample.seq||data[0]!==heartbeatSample.data[0]))
+          throw error('STALE','心跳复核未取得同一模式的新状态。');
+        const millivolts=data[4]|(data[5]<<8);
+        if(millivolts<3000)throw error('POWER',millivolts?`主机上报电压为 ${millivolts} mV，请充电后重试。`:'设备未提供有效电压（上报 0 mV），请检查供电。');
+        if(data[6]>>4)throw error('BUSY','主机仍有任务，停止任务后再更新。');
+        if(data[6]===0){
+          if(heartbeatSample)this.trace('心跳复核通过',`seq=${sample.seq} voltage=${millivolts}mV`);
+          return;
+        }
+        // Losing the old programming heartbeat brakes the motors, switches to
+        // voice (0) and latches bit 0. A real heartbeat clears only this bit.
+        if(data[0]!==0||data[6]!==1||heartbeatSample||!this.adapter.sendPreflightHeartbeat)
+          throw error('FAULT','主机报告故障，请检查后重试。');
+        heartbeatSample=sample;
+        this.trace('升级前心跳复核',`seq=${sample.seq} epoch=${actual.epoch}`);
+        await this.adapter.sendPreflightHeartbeat(actual.epoch);this.current(ticket);
+      }
+    }
     async perform(ticket,{repair,recovery,confirmationOnly=false,restoreConfirmation=async()=>{}}){
       const readOnly=confirmationOnly||Boolean(recovery&&this.binding?.written&&sameTarget(this.binding.pending,this.state.pkg));
       let entered=false,progressBucket=-1,binding=this.binding,preserveApp=false;this.trace('准备','停止原程序与学习任务');this.set({busy:true,phase:'preparing',message:readOnly?'正在准备核对已安装固件…':'正在停止程序、学习与电机，准备升级…',written:readOnly?this.binding?.written===true:false,committed:readOnly?this.state.committed:0,confirmationOnly:readOnly,healthVerifiedEpoch:null,bootInfoEpoch:null});
       try{
         const pkg=await P.verifyPackage(this.file.bytes,{name:this.file.name});this.current(ticket);this.state.pkg=pkg;
         await this.adapter.prepare();this.current(ticket);
-        binding=this.binding;let bootTransport;
-        if(readOnly){
+        binding=this.binding;let bootTransport,recoveryProbe=null;
+        const confirmHistorical=async actual=>{
+          const previous=this.binding,pending=previous?.pending;
+          if(!pending||previous.uid!==actual.uid||!actual.info.imageValid||!sameTarget(actual.info,pending)||sameTarget(pending,pkg))return;
+          this.set({phase:'confirming',confirmationOnly:true,message:'正在确认此前已安装的镜像，先清理已完成的更新记录…'});
+          // A cached written=false may only mean FINISH's ACK was lost. Current
+          // identity plus fresh healthy samples prove completion in either case.
+          await this.confirmActual(ticket,previous,pending,actual);this.current(ticket);
+          binding=this.binding;
+          this.set({phase:'preparing',written:false,committed:0,total:pkg.imageSize,confirmationOnly:false,healthVerifiedEpoch:null,message:'此前更新记录已确认，正在准备本 App 的目标镜像…'});
+        };
+        if(recovery&&this.adapter.probeRecovery){
+          if(!binding)throw error('BINDING','缺少这台主机的原始身份。');
+          recoveryProbe=this.recoveryProof(binding,await this.adapter.probeRecovery(binding,{target:targetOf(pkg)}));this.current(ticket);
+          // The independent read-only owner is retired. Keep unfinished transfer
+          // evidence while moving to a UID-verified locator under explicit consent.
+          binding=this.adoptRecoveryProof(binding,recoveryProbe);
+          if(recoveryProbe.kind==='boot'){
+            if(readOnly)throw error('UNCONFIRMED','已写入记录仍待确认，主机处于引导模式。请手动重启主机后重试确认。');
+            entered=true;
+            bootTransport=await this.adapter.connectBoot(binding,{probe:recoveryProbe});this.current(ticket);
+          }
+        }
+        if(readOnly&&!bootTransport){
           if(!binding?.pending)throw error('BINDING','没有待确认的升级记录。');
           await this.confirm(ticket,binding,pkg,{restore:restoreConfirmation});
           return{written:this.state.written,alreadyPresent:true,applicationStartVerified:true};
         }
-        if(recovery){
+        if(recovery&&!bootTransport){
           if(!binding)throw error('BINDING','缺少这台主机的原始身份。请先连接正常主机并读取版本。');
           // Recovery may already be running the target after a lost FINISH ACK.
           // Probe only this pinned App first; a Boot-only device will not answer C2.
           let actual=null;
-          try{actual=await this.adapter.connectApp(binding);if(!actual)actual=await this.adapter.readApp();}
+          try{actual=await this.adapter.connectApp(binding,{probe:recoveryProbe});if(!actual)actual=await this.adapter.readApp();}
           catch(e){
             if(['BOOT_VERSION','BOOT_UNKNOWN'].includes(e.code))throw e;
             await this.adapter.disconnect().catch(()=>{});
@@ -185,25 +314,33 @@
             if(actual.uid!==binding.uid)throw error('IDENTITY','绑定主机身份不匹配，已停止恢复。');
             const match=P.checkCompatibility(pkg,actual.info,{repair});
             if(match.alreadyPresent&&!repair){await this.confirm(ticket,binding,pkg,{actual,restore:restoreConfirmation});return{written:false,alreadyPresent:true,applicationStartVerified:true};}
-            if(actual.deviceId!==binding.deviceId)throw error('IDENTITY','未确认的新连接地址不能用于写入固件。');
-            const status=await this.adapter.queryStatus();
-            if(status.data.length!==7||(status.data[4]|status.data[5]<<8)<3000||status.data[6])throw error('POWER','主机电量或任务状态不允许升级，请检查后重试。');
+            const writeLocator=binding.deviceId;await confirmHistorical(actual);
+            if(actual.deviceId!==writeLocator)throw error('IDENTITY','未确认的新连接地址不能用于写入固件。');
+            // recoveryProbe already retired its read-only UID owner; the fresh
+            // App full identity above must not trigger a second rescan cycle.
+            if(recoveryProbe?.kind!=='app')actual=await this.prepareAppRecoveryIdentity(ticket,actual,pkg);this.current(ticket);
+            binding={...(this.binding?.uid===actual.uid?this.binding:{}),deviceId:actual.deviceId,uid:actual.uid,name:actual.name};this.saveBinding(binding);
+            if(P.checkCompatibility(pkg,actual.info,{repair}).alreadyPresent&&!repair){await this.confirm(ticket,binding,pkg,{actual,restore:restoreConfirmation});return{written:false,alreadyPresent:true,applicationStartVerified:true};}
+            await this.checkBeforeEnter(ticket,actual);this.current(ticket);
             entered=true;this.saveBinding({...binding,pending:targetOf(pkg),written:false});bootTransport=await this.enterBoot(ticket,binding);
           }else{entered=true;bootTransport=await this.adapter.connectBoot(binding);}
           this.current(ticket);
-        }else{
-          const actual=await this.adapter.readApp();this.current(ticket);
-          const compatible=P.checkCompatibility(pkg,actual.info,{repair});
+        }else if(!bootTransport){
+          let actual=await this.adapter.readApp();this.current(ticket);
+          let compatible=P.checkCompatibility(pkg,actual.info,{repair});
           const previous=this.binding,sameUid=previous?.uid===actual.uid;
           if(previous?.pending&&!sameUid)throw error('BINDING','另一台主机的升级记录尚待确认，已保留原记录。');
           if(previous?.pending&&sameUid&&compatible.alreadyPresent&&!repair){await this.confirm(ticket,previous,pkg,{actual,restore:restoreConfirmation});return{written:false,alreadyPresent:true,applicationStartVerified:true};}
-          if(previous?.pending&&sameUid&&actual.deviceId!==previous.deviceId)throw error('IDENTITY','未确认的新连接地址不能用于写入固件。');
-          binding={...(sameUid?previous:{}),deviceId:actual.deviceId,uid:actual.uid,name:actual.name};this.saveBinding(binding);
+          const writeLocator=previous?.deviceId;await confirmHistorical(actual);
+          if(previous?.pending&&sameUid&&actual.deviceId!==writeLocator)throw error('IDENTITY','未确认的新连接地址不能用于写入固件。');
+          binding={...(sameUid?this.binding:{}),deviceId:actual.deviceId,uid:actual.uid,name:actual.name};this.saveBinding(binding);
           this.set({info:actual.info,uid:actual.uid,supported:true});
           if(compatible.alreadyPresent&&!repair){this.set({phase:'current',message:'已是当前版本，镜像校验一致。'});return{alreadyPresent:true,written:false};}
-          const status=await this.adapter.queryStatus();this.current(ticket);
-          if(status.data.length!==7||(status.data[4]|status.data[5]<<8)<3000)throw error('POWER','主机电量不足或电量状态未知，请充电后重试。');
-          if(status.data[6])throw error('BUSY','主机仍有运行任务或故障，未进入升级。');
+          actual=await this.prepareAppRecoveryIdentity(ticket,actual,pkg);this.current(ticket);
+          compatible=P.checkCompatibility(pkg,actual.info,{repair});
+          binding={...(this.binding?.uid===actual.uid?this.binding:{}),deviceId:actual.deviceId,uid:actual.uid,name:actual.name};this.saveBinding(binding);
+          if(compatible.alreadyPresent&&!repair){await this.confirm(ticket,binding,pkg,{actual,restore:restoreConfirmation});return{written:false,alreadyPresent:true,applicationStartVerified:true};}
+          await this.checkBeforeEnter(ticket,actual);this.current(ticket);
           this.saveBinding({...binding,pending:targetOf(pkg),written:false});entered=true;
           this.set({phase:'entering',message:'正在切换主控升级模式…'});
           // Even an ENTER timeout may mean its ACK was lost after reset. Probe Boot, never loop C2.
@@ -229,12 +366,13 @@
             this.client.close();this.client=null;await this.adapter.disconnect();this.current(ticket);
             if(this.clock()>=deadline)break;
             await pause(this.timing.bootPollMs);this.current(ticket);
-            bootTransport=await this.adapter.connectBoot(binding);this.current(ticket);
+            bootTransport=await this.adapter.connectBoot(binding,{probe:recoveryProbe});this.current(ticket);
             this.client=new BootClient(bootTransport,{timing:this.timing,onProgress:progress,onTrace:(stage,detail)=>this.trace(stage,detail)});
           }
         }
         if(!info)throw error('BOOT_UNKNOWN','切换升级模式未确认。请保持主机供电，使用恢复入口重新连接检查。');
-        this.set({info,phase:'boot',bootInfoEpoch:this.client.transport.connectionId||null,message:'已读取引导状态，正在核对固件…'});this.current(ticket);
+        await this.verifyBootIdentity(ticket,binding,recoveryProbe,info);this.current(ticket);
+        this.set({info,phase:'boot',bootInfoEpoch:this.client.transport.connectionId||null,message:'已读取引导身份与状态，正在核对固件…'});this.current(ticket);
         this.saveBinding({...binding,pending:targetOf(pkg),written:false});
         const result=await this.client.upload(pkg,{repair,info});this.current(ticket);
         this.set({written:true,phase:'written',message:'固件已写入，等待主机启动并重新核对…'});
@@ -253,7 +391,19 @@
           try{await this.confirm(ticket,this.binding,this.state.pkg,{restore:restoreConfirmation});return{written:true,applicationStartVerified:true,afterLostFinishAck:true};}
           catch(checkError){e=checkError;}
         }
-        preserveApp=['IMAGE_MISMATCH','BOOT_VERSION','BOOT_UNKNOWN'].includes(e.code);
+        const bootRejected=['BOOT_VERSION','BOOT_UNKNOWN','BOOT_LAYOUT','BOOT_CAPABILITY','LAYOUT_UNKNOWN','LAYOUT_MIGRATION_REQUIRED','DOWNGRADE','VERSION_COLLISION','COMPATIBILITY'].includes(e.code);
+        preserveApp=e.code==='IMAGE_MISMATCH'||['BOOT_VERSION','BOOT_UNKNOWN'].includes(e.code)&&!entered;
+        // Actual Boot INFO is the final authority. An incompatible signed target
+        // must not strand the valid old App, nor send BEGIN/DATA. Idle FINISH is
+        // the firmware's explicit non-writing return path, never a rollback.
+        if(bootRejected&&entered&&!this.cancelRequested&&this.client?.identityVerified&&!this.client.closed&&!this.client.began&&!this.client.finishAttempted&&!this.client.pending&&this.client.lastInfo?.state===0&&this.client.lastInfo.imageValid){
+          try{
+            this.trace('Boot 兼容性拒绝','BEGIN 前无擦写退出到原镜像');
+            await this.client.ack(P.OP.FINISH,new Uint8Array(),this.client.lastInfo.imageSize);
+            this.client.close();this.client=null;await this.adapter.disconnect();entered=false;e.bootExited=true;
+            if(this.binding?.uid===binding?.uid&&sameTarget(this.binding.pending,this.state.pkg)&&!this.binding.written)this.saveBinding({...this.binding,pending:null});
+          }catch(exitError){this.trace('Boot 退出未确认',exitError.code||exitError.message);}
+        }
         // Only an explicit device rejection proves that ENTER was not accepted.
         if(e.notEntered&&(e.deviceRejected===true||Number.isInteger(e.result)&&e.result!==0)){entered=false;if(this.binding?.uid===binding?.uid)this.saveBinding({...this.binding,pending:null});}
         if(ticket===this.generation){const recovery=entered||this.client?.began;
@@ -312,7 +462,7 @@
           return await this.confirmActual(ticket,binding,pkg,fresh,{startedAt,restore});
         }catch(e){
           last=e;this.set({healthVerifiedEpoch:null});
-          if(['IDENTITY','IMAGE_MISMATCH','BINDING','STORAGE','CANCELLED','STALE','BOOT_VERSION','BOOT_UNKNOWN'].includes(e.code))throw e;
+          if(e.deviceHealth||['IDENTITY','IMAGE_MISMATCH','BINDING','STORAGE','CANCELLED','STALE','BOOT_VERSION','BOOT_UNKNOWN','BOOT_LAYOUT','BOOT_CAPABILITY','LAYOUT_UNKNOWN'].includes(e.code))throw e;
           await this.adapter.disconnect().catch(()=>{});this.current(ticket);
           if(this.binding?.uid===binding.uid)binding=this.binding;
           if(this.clock()<deadline)await pause(Math.min(700,Math.max(0,deadline-this.clock())));
@@ -330,7 +480,7 @@
       this.cancelRequested=true;this.set({healthVerifiedEpoch:null});this.trace('取消',background?'background/leave':'explicit user cancellation');
       this.cancelling=(async()=>{
         // Before BEGIN, an idle valid App can leave Boot without erasure. Never do this after BEGIN.
-        if(!background&&this.client&&!this.client.pending&&!this.client.began&&this.client.lastInfo?.state===0&&this.client.lastInfo.imageValid){
+        if(!background&&this.client?.identityVerified&&!this.client.closed&&!this.client.pending&&!this.client.began&&this.client.lastInfo?.state===0&&this.client.lastInfo.imageValid){
           try{const result=await this.client.request(P.OP.FINISH,new Uint8Array(),{timeoutMs:1000});if(result.length!==5||read32(result.slice(1))!==this.client.lastInfo.imageSize)throw error('OFFSET','退出升级模式反馈无效。');}catch{}
         }
         this.client?.close('用户取消了升级。');await this.adapter.disconnect().catch(()=>{});
@@ -339,7 +489,7 @@
     }
     async dispose(){const operation=this.operation;await this.cancel({background:true});this.generation++;this.client?.close('升级界面已关闭。');await operation?.catch(()=>{});await this.adapter.release();}
   }
-  function sameTarget(a,b){return Boolean(a&&b&&a.boardId===b.boardId&&a.version===b.version&&a.imageSize===b.imageSize&&a.imageSha256===b.imageSha256);}
-  function targetOf(p){return{boardId:p.boardId,version:p.version,imageSize:p.imageSize,imageSha256:p.imageSha256};}
+  const sameTarget=(a,b)=>P.sameTarget(a,b);
+  function targetOf(p){return{boardId:p.boardId,version:p.version,layoutId:P.layoutIdOf(p),imageSize:p.imageSize,imageSha256:p.imageSha256};}
   return{TIMING,BootClient,Session,validateStatus,confirmIdentity,targetOf};
 });

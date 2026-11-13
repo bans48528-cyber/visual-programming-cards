@@ -5,6 +5,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
 const test = require('node:test');
+const {webcrypto} = require('node:crypto');
 
 class Clock {
   now = 10000;
@@ -61,7 +62,7 @@ function modules(clock) {
   for (const name of ['xiaobai-protocol.js', 'xiaobai-learned-commands.js']) {
     const module = {exports: {}};
     const context = {
-      module, console,
+      module, console, crypto: webcrypto,
       require: key => loaded[key.replace('./', '')],
       Date: class extends Date { static now() { return clock.now; } },
       setTimeout: (fn, ms) => clock.set(fn, ms), clearTimeout: id => clock.clear(id),
@@ -136,7 +137,7 @@ async function fixture(options = {}) {
   return h;
 }
 
-test('all C2 frames honor 40 ms after completed writes and raw notification fragments', async () => {
+test('all C2 frames retain 40 ms TX pacing; normal RX courtesy is bounded and urgent safety bypasses RX', async () => {
   const clock = new Clock(), {p} = modules(clock), writes = [];
   let rx;
   const link = new p.Link({start: async fn => { rx = fn; }, close() {}, async write(bytes) {
@@ -150,10 +151,13 @@ test('all C2 frames honor 40 ms after completed writes and raw notification frag
     rx(Uint8Array.of(0x5a)); // Not enough for a complete frame, still an RX turn.
     const startCount = writes.length;
     const sending = link.send(p.command(1, op));
-    await clock.advance(39); assert.equal(writes.length, startCount);
+    const urgent = op === p.OP.HEARTBEAT || op === p.OP.STOP_PROGRAM;
+    await clock.advance(20);rx(Uint8Array.of(0x97)); // RX cannot renew an already queued job forever.
+    await clock.advance(19);if(!urgent)assert.equal(writes.length,startCount);
     await clock.settle(sending);
     const current = writes.at(-1);
-    assert(current.at - notified >= 40, `RX guard for ${op}`);
+    if(!urgent)assert(current.at-notified>=40,`normal RX courtesy for ${op}`);
+    assert(current.at-notified<=40,`RX cannot postpone eligible job beyond enqueue courtesy for ${op}`);
     if (previousEnd) assert(current.at - previousEnd >= 40, `TX guard for ${op}`);
     previousEnd = current.end;
   }

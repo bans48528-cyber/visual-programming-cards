@@ -10,11 +10,12 @@ let checks=0;
 const eq=(a,b,message)=>{assert.deepEqual(a,b,message);checks++;};
 const ok=(value,message)=>{assert.ok(value,message);checks++;};
 function fixture(pkg,{mac=newMac,written=false,pendingTarget=Ota.targetOf(pkg),bindingUid=uid}={}){
+ const layout=P.layoutOf(pkg);
  const entries=new Map(),log=[],state={epoch:'live-app-1',deviceId:mac,connected:true},hooks={};let gate,seq=10;
  const initial={uid:bindingUid,deviceId:oldMac,name:'original robot',pending:pendingTarget,written};
  entries.set(key,JSON.stringify(initial));
  const storage={getItem:k=>entries.get(k)??null,setItem:(k,v)=>entries.set(k,String(v))};
- const actual={uid,deviceId:mac,epoch:state.epoch,productMode:4,info:{protocol:P.C.OTA_PROTOCOL_VERSION,boardId:pkg.boardId,bootVersion:pkg.minBootVersion,mode:0,imageValid:true,version:pkg.version,imageSize:pkg.imageSize,imageSha256:pkg.imageSha256,state:0,lastError:0,nextOffset:0}};
+ const actual={uid,deviceId:mac,epoch:state.epoch,productMode:4,info:{protocol:P.C.OTA_PROTOCOL_VERSION,schemaVersion:layout.id,layoutId:layout.id,activeAppBase:layout.appBase,erasePage:layout.erasePage,capabilities:layout.id===2?15:1,boardId:pkg.boardId,bootVersion:pkg.minBootVersion,mode:0,imageValid:true,version:pkg.version,imageSize:pkg.imageSize,imageSha256:pkg.imageSha256,state:0,lastError:0,nextOffset:0}};
  const adapter={
   identity:()=>state.connected?{epoch:state.epoch,deviceId:state.deviceId}:null,
   async readApp(){log.push('readApp');await hooks.readApp?.();return{...actual,deviceId:state.deviceId,epoch:state.epoch,info:{...actual.info}};},

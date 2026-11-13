@@ -1,0 +1,244 @@
+{
+  "version": 1,
+  "extension": "reusable-program-groups",
+  "appFirmware": "2.2.0",
+  "integerEncoding": "little-endian",
+  "vectorsAreEncodingExamples": true,
+  "note": "Named frames illustrate individual states, not one contiguous device transcript.",
+  "vectors": [
+    {
+      "name": "caps_request",
+      "hex": "5a 97 98 10 c4 01 01 00 00 78 56 34 12 f0 de bc 9a 01 00 00 00 98 a5",
+      "bytes": 23,
+      "payloadBytes": 16
+    },
+    {
+      "name": "caps_reusable_asr_ready",
+      "hex": "5a 98 97 20 d4 01 81 00 00 78 56 34 12 f0 de bc 9a 01 00 00 00 02 00 04 04 03 01 07 00 44 33 22 11 88 77 66 55 b1 a5",
+      "bytes": 39,
+      "payloadBytes": 32
+    },
+    {
+      "name": "open_reusable",
+      "hex": "5a 97 98 1a c4 01 02 00 00 78 56 34 12 f0 de bc 9a 01 00 00 00 44 33 22 11 88 77 66 55 03 01 0b a5",
+      "bytes": 33,
+      "payloadBytes": 26
+    },
+    {
+      "name": "open_accepted",
+      "hex": "5a 98 97 12 d4 01 82 00 00 78 56 34 12 f0 de bc 9a 01 00 00 00 01 00 2c a5",
+      "bytes": 25,
+      "payloadBytes": 18
+    },
+    {
+      "name": "group_1_prepare_idle",
+      "hex": "5a 97 98 10 c4 01 03 01 00 78 56 34 12 f0 de bc 9a 00 00 00 00 9a a5",
+      "bytes": 23,
+      "payloadBytes": 16
+    },
+    {
+      "name": "group_1_prepared",
+      "hex": "5a 98 97 12 d4 01 83 01 00 78 56 34 12 f0 de bc 9a 00 00 00 00 01 00 2d a5",
+      "bytes": 25,
+      "payloadBytes": 18
+    },
+    {
+      "name": "group_2_prepare_idle",
+      "hex": "5a 97 98 10 c4 01 03 02 00 78 56 34 12 f0 de bc 9a 00 00 00 00 9b a5",
+      "bytes": 23,
+      "payloadBytes": 16
+    },
+    {
+      "name": "group_2_prepared",
+      "hex": "5a 98 97 12 d4 01 83 02 00 78 56 34 12 f0 de bc 9a 00 00 00 00 01 00 2e a5",
+      "bytes": 25,
+      "payloadBytes": 18
+    },
+    {
+      "name": "commit",
+      "hex": "5a 97 98 11 c4 01 0b 00 00 78 56 34 12 f0 de bc 9a 00 00 00 00 03 a5 a5",
+      "bytes": 24,
+      "payloadBytes": 17
+    },
+    {
+      "name": "commit_ready_no_group_started",
+      "hex": "5a 98 97 12 d4 01 8b 00 00 78 56 34 12 f0 de bc 9a 00 00 00 00 02 00 35 a5",
+      "bytes": 25,
+      "payloadBytes": 18
+    },
+    {
+      "name": "group_1_begin_2",
+      "hex": "5a 97 98 10 c4 01 10 01 00 78 56 34 12 f0 de bc 9a 02 00 00 00 a9 a5",
+      "bytes": 23,
+      "payloadBytes": 16
+    },
+    {
+      "name": "group_1_begin_ready",
+      "hex": "5a 98 97 12 d4 01 90 01 00 78 56 34 12 f0 de bc 9a 02 00 00 00 02 00 3d a5",
+      "bytes": 25,
+      "payloadBytes": 18
+    },
+    {
+      "name": "group_1_show_number",
+      "hex": "5a 97 98 11 c4 01 04 01 41 78 56 34 12 f0 de bc 9a 03 00 00 00 01 e1 a5",
+      "bytes": 24,
+      "payloadBytes": 17
+    },
+    {
+      "name": "group_1_number_applied",
+      "hex": "5a 98 97 12 d4 01 84 01 41 78 56 34 12 f0 de bc 9a 03 00 00 00 04 00 75 a5",
+      "bytes": 25,
+      "payloadBytes": 18
+    },
+    {
+      "name": "group_2_begin_4",
+      "hex": "5a 97 98 10 c4 01 10 02 00 78 56 34 12 f0 de bc 9a 04 00 00 00 ac a5",
+      "bytes": 23,
+      "payloadBytes": 16
+    },
+    {
+      "name": "group_2_begin_ready",
+      "hex": "5a 98 97 12 d4 01 90 02 00 78 56 34 12 f0 de bc 9a 04 00 00 00 02 00 40 a5",
+      "bytes": 25,
+      "payloadBytes": 18
+    },
+    {
+      "name": "group_2_play_audio",
+      "hex": "5a 97 98 11 c4 01 04 02 50 78 56 34 12 f0 de bc 9a 05 00 00 00 01 f3 a5",
+      "bytes": 24,
+      "payloadBytes": 17
+    },
+    {
+      "name": "group_2_audio_applied",
+      "hex": "5a 98 97 12 d4 01 84 02 50 78 56 34 12 f0 de bc 9a 05 00 00 00 04 00 87 a5",
+      "bytes": 25,
+      "payloadBytes": 18
+    },
+    {
+      "name": "group_2_finish_poll",
+      "hex": "5a 97 98 10 c4 01 11 02 00 78 56 34 12 f0 de bc 9a 04 00 00 00 ad a5",
+      "bytes": 23,
+      "payloadBytes": 16
+    },
+    {
+      "name": "group_2_finish_wait_real_audio_stop",
+      "hex": "5a 98 97 12 d4 01 91 02 00 78 56 34 12 f0 de bc 9a 04 00 00 00 01 00 40 a5",
+      "bytes": 25,
+      "payloadBytes": 18
+    },
+    {
+      "name": "group_2_finish_done_after_real_stop",
+      "hex": "5a 98 97 12 d4 01 91 02 00 78 56 34 12 f0 de bc 9a 04 00 00 00 03 00 42 a5",
+      "bytes": 25,
+      "payloadBytes": 18
+    },
+    {
+      "name": "group_2_begin_next_6",
+      "hex": "5a 97 98 10 c4 01 10 02 00 78 56 34 12 f0 de bc 9a 06 00 00 00 ae a5",
+      "bytes": 23,
+      "payloadBytes": 16
+    },
+    {
+      "name": "group_2_begin_next_ready",
+      "hex": "5a 98 97 12 d4 01 90 02 00 78 56 34 12 f0 de bc 9a 06 00 00 00 02 00 42 a5",
+      "bytes": 25,
+      "payloadBytes": 18
+    },
+    {
+      "name": "late_group_2_finish_4_expired",
+      "hex": "5a 98 97 12 d4 01 91 02 00 78 56 34 12 f0 de bc 9a 04 00 00 00 05 09 4d a5",
+      "bytes": 25,
+      "payloadBytes": 18
+    },
+    {
+      "name": "late_group_2_begin_4_expired",
+      "hex": "5a 98 97 12 d4 01 90 02 00 78 56 34 12 f0 de bc 9a 04 00 00 00 05 09 4c a5",
+      "bytes": 25,
+      "payloadBytes": 18
+    },
+    {
+      "name": "finish_while_pc_busy",
+      "hex": "5a 98 97 12 d4 01 91 02 00 78 56 34 12 f0 de bc 9a 06 00 00 00 05 03 49 a5",
+      "bytes": 25,
+      "payloadBytes": 18
+    },
+    {
+      "name": "condition_arm_scoped",
+      "hex": "5a 97 98 15 c4 01 0c 02 01 78 56 34 12 f0 de bc 9a 01 00 00 00 06 00 00 00 32 e3 a5",
+      "bytes": 28,
+      "payloadBytes": 21
+    },
+    {
+      "name": "condition_ready_scoped",
+      "hex": "5a 98 97 16 d4 01 8c 02 01 78 56 34 12 f0 de bc 9a 01 00 00 00 02 00 06 00 00 00 44 a5",
+      "bytes": 29,
+      "payloadBytes": 22
+    },
+    {
+      "name": "condition_query_scoped",
+      "hex": "5a 97 98 14 c4 01 0d 02 01 78 56 34 12 f0 de bc 9a 01 00 00 00 06 00 00 00 b1 a5",
+      "bytes": 27,
+      "payloadBytes": 20
+    },
+    {
+      "name": "condition_done_scoped",
+      "hex": "5a 98 97 16 d4 01 8d 02 01 78 56 34 12 f0 de bc 9a 01 00 00 00 03 00 06 00 00 00 46 a5",
+      "bytes": 29,
+      "payloadBytes": 22
+    },
+    {
+      "name": "condition_ack_scoped",
+      "hex": "5a 97 98 15 c4 01 0f 02 01 78 56 34 12 f0 de bc 9a 01 00 00 00 06 00 00 00 03 b7 a5",
+      "bytes": 28,
+      "payloadBytes": 21
+    },
+    {
+      "name": "condition_close_scoped",
+      "hex": "5a 97 98 14 c4 01 0e 02 01 78 56 34 12 f0 de bc 9a 01 00 00 00 06 00 00 00 b2 a5",
+      "bytes": 27,
+      "payloadBytes": 20
+    },
+    {
+      "name": "condition_closed_scoped",
+      "hex": "5a 98 97 16 d4 01 8e 02 01 78 56 34 12 f0 de bc 9a 01 00 00 00 06 00 06 00 00 00 4a a5",
+      "bytes": 29,
+      "payloadBytes": 22
+    },
+    {
+      "name": "old_condition_close",
+      "hex": "5a 97 98 14 c4 01 0e 02 01 78 56 34 12 f0 de bc 9a 01 00 00 00 04 00 00 00 b0 a5",
+      "bytes": 27,
+      "payloadBytes": 20
+    },
+    {
+      "name": "old_condition_reject_echo_old_run",
+      "hex": "5a 98 97 16 d4 01 8e 02 01 78 56 34 12 f0 de bc 9a 01 00 00 00 05 09 04 00 00 00 50 a5",
+      "bytes": 29,
+      "payloadBytes": 22
+    },
+    {
+      "name": "condition_time_scoped_max_payload",
+      "hex": "5a 97 98 18 c4 01 0c 02 04 78 56 34 12 f0 de bc 9a 02 00 00 00 06 00 00 00 e8 03 00 00 a3 a5",
+      "bytes": 31,
+      "payloadBytes": 24
+    },
+    {
+      "name": "heartbeat",
+      "hex": "5a 97 98 10 c4 01 09 00 00 78 56 34 12 f0 de bc 9a 00 00 00 00 9f a5",
+      "bytes": 23,
+      "payloadBytes": 16
+    },
+    {
+      "name": "stop",
+      "hex": "5a 97 98 10 c4 01 08 00 00 78 56 34 12 f0 de bc 9a 00 00 00 00 9e a5",
+      "bytes": 23,
+      "payloadBytes": 16
+    },
+    {
+      "name": "stop_cancelled",
+      "hex": "5a 98 97 12 d4 01 88 00 00 78 56 34 12 f0 de bc 9a 00 00 00 00 06 00 36 a5",
+      "bytes": 25,
+      "payloadBytes": 18
+    }
+  ]
+}

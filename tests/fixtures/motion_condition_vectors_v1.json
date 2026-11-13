@@ -1,0 +1,126 @@
+{
+  "schema": 1,
+  "minimum_firmware": "2.1.0",
+  "vectors": [
+    {
+      "name": "c2_motion_still",
+      "payload_hex": "25340100000000000000",
+      "wire_hex": "5a97980ac225340100000000000000afa5"
+    },
+    {
+      "name": "c4_motion_still",
+      "payload_hex": "0104023478563412f0debc9a0900000001",
+      "wire_hex": "5a979811c40104023478563412f0debc9a0900000001dba5"
+    },
+    {
+      "name": "c2_motion_shaking",
+      "payload_hex": "25340200000000000000",
+      "wire_hex": "5a97980ac225340200000000000000b0a5"
+    },
+    {
+      "name": "c4_motion_shaking",
+      "payload_hex": "0104023478563412f0debc9a0900000002",
+      "wire_hex": "5a979811c40104023478563412f0debc9a0900000002dca5"
+    },
+    {
+      "name": "c2_motion_up",
+      "payload_hex": "25340300000000000000",
+      "wire_hex": "5a97980ac225340300000000000000b1a5"
+    },
+    {
+      "name": "c4_motion_up",
+      "payload_hex": "0104023478563412f0debc9a0900000003",
+      "wire_hex": "5a979811c40104023478563412f0debc9a0900000003dda5"
+    },
+    {
+      "name": "c2_motion_down",
+      "payload_hex": "25340400000000000000",
+      "wire_hex": "5a97980ac225340400000000000000b2a5"
+    },
+    {
+      "name": "c4_motion_down",
+      "payload_hex": "0104023478563412f0debc9a0900000004",
+      "wire_hex": "5a979811c40104023478563412f0debc9a0900000004dea5"
+    },
+    {
+      "name": "observe_arm_ir_gt",
+      "payload_hex": "010c020178563412f0debc9a1100000032",
+      "wire_hex": "5a979811c4010c020178563412f0debc9a1100000032e9a5"
+    },
+    {
+      "name": "observe_ready_ir_gt",
+      "payload_hex": "018c020178563412f0debc9a110000000200",
+      "wire_hex": "5a989712d4018c020178563412f0debc9a1100000002004aa5"
+    },
+    {
+      "name": "observe_hit_ir_gt",
+      "payload_hex": "018c020178563412f0debc9a110000000300",
+      "wire_hex": "5a989712d4018c020178563412f0debc9a1100000003004ba5"
+    },
+    {
+      "name": "observe_arm_ir_lt",
+      "payload_hex": "010c020278563412f0debc9a1100000028",
+      "wire_hex": "5a979811c4010c020278563412f0debc9a1100000028e0a5"
+    },
+    {
+      "name": "observe_ready_ir_lt",
+      "payload_hex": "018c020278563412f0debc9a110000000200",
+      "wire_hex": "5a989712d4018c020278563412f0debc9a1100000002004ba5"
+    },
+    {
+      "name": "observe_hit_ir_lt",
+      "payload_hex": "018c020278563412f0debc9a110000000300",
+      "wire_hex": "5a989712d4018c020278563412f0debc9a1100000003004ca5"
+    },
+    {
+      "name": "observe_arm_front",
+      "payload_hex": "010c020378563412f0debc9a1100000002",
+      "wire_hex": "5a979811c4010c020378563412f0debc9a1100000002bba5"
+    },
+    {
+      "name": "observe_ready_front",
+      "payload_hex": "018c020378563412f0debc9a110000000200",
+      "wire_hex": "5a989712d4018c020378563412f0debc9a1100000002004ca5"
+    },
+    {
+      "name": "observe_hit_front",
+      "payload_hex": "018c020378563412f0debc9a110000000300",
+      "wire_hex": "5a989712d4018c020378563412f0debc9a1100000003004da5"
+    },
+    {
+      "name": "observe_arm_time_5s",
+      "payload_hex": "010c020478563412f0debc9a1100000088130000",
+      "wire_hex": "5a979814c4010c020478563412f0debc9a110000008813000058a5"
+    },
+    {
+      "name": "observe_ready_time_5s",
+      "payload_hex": "018c020478563412f0debc9a110000000200",
+      "wire_hex": "5a989712d4018c020478563412f0debc9a1100000002004da5"
+    },
+    {
+      "name": "observe_hit_time_5s",
+      "payload_hex": "018c020478563412f0debc9a110000000300",
+      "wire_hex": "5a989712d4018c020478563412f0debc9a1100000003004ea5"
+    },
+    {
+      "name": "legacy_run_observe_time",
+      "payload_hex": "010c000439300000000000000100000088130000",
+      "wire_hex": "5a979814c4010c00043930000000000000010000008813000077a5"
+    },
+    {
+      "name": "observe_query",
+      "payload_hex": "010d020478563412f0debc9a11000000",
+      "wire_hex": "5a979810c4010d020478563412f0debc9a11000000baa5"
+    },
+    {
+      "name": "observe_close",
+      "payload_hex": "010e020478563412f0debc9a11000000",
+      "wire_hex": "5a979810c4010e020478563412f0debc9a11000000bba5"
+    },
+    {
+      "name": "observe_ack_hit",
+      "payload_hex": "010f020478563412f0debc9a1100000003",
+      "wire_hex": "5a979811c4010f020478563412f0debc9a1100000003c0a5"
+    }
+  ]
+}

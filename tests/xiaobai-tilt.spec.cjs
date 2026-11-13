@@ -58,7 +58,7 @@ async function directionAndValidation(){
 async function legacyWebViewCompatibility(){
  const context=vm.createContext({setTimeout,clearTimeout,setInterval,clearInterval});
  vm.runInContext('Object.hasOwn=undefined;',context);
- for(const file of ['xiaobai-protocol.js','xiaobai-runner.js'])
+ for(const file of ['xiaobai-protocol.js','xiaobai-multi-protocol.js','xiaobai-condition-protocol.js','xiaobai-control-flow.js','xiaobai-runner.js'])
   vm.runInContext(fs.readFileSync(path.join(__dirname,'..',file),'utf8'),context,{filename:file});
  assert.equal(vm.runInContext('typeof Object.hasOwn',context),'undefined');
  const legacy=context.XiaobaiRunner;

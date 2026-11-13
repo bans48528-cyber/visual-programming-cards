@@ -60,8 +60,8 @@ async function policies(){
   await g.cancel();assert.equal(g.snapshot().prompt,false);for(let i=0;i<10;i++)await g.onProgramEntered(c.epoch);assert.equal(g.snapshot().prompt,false);assert.equal(c.reads,1);
   assert.equal(await g.ensureReady({interactive:true}),false);assert.equal(g.snapshot().prompt,true);assert.equal(c.reads,1);await g.dispose();
  }
- for(const [opts,phase,code] of [[{version:0x10003},'newer','NEWER'],[{hash:'c'.repeat(64)},'unknown','VERSION_COLLISION']]){
-  const {gate:g,context:c}=fixture(opts);assert.equal(await g.onProgramEntered(c.epoch),false);assert.equal(g.snapshot().phase,phase);assert.equal(g.snapshot().code,code);assert.equal(g.snapshot().canUpgrade,false);await assert.rejects(()=>g.confirmUpgrade());assert.equal(c.enter,0);await g.dispose();
+ for(const opts of [{version:0x10003},{hash:'c'.repeat(64)}]){
+  const {gate:g,context:c}=fixture(opts);assert.equal(await g.onProgramEntered(c.epoch),false);assert.equal(g.snapshot().phase,'update-required');assert.equal(g.snapshot().code,'UPDATE_REQUIRED');assert.equal(g.snapshot().canUpgrade,true);assert.equal(c.enter,0,'preflight only offers confirmation; it does not enter Boot');await g.dispose();
  }
  const {gate:g,context:c}=fixture({loadError:new Error('missing builtin')});assert.equal(await g.onProgramEntered(c.epoch),false);assert.equal(c.reads,0);assert.equal(g.snapshot().ready,false);assert.match(g.snapshot().message,/missing/);await g.dispose();
 }

@@ -6,7 +6,14 @@
   'use strict';
   const MODEL_KEY = 'cardDefaultModelV1';
   const key = (modelId, part) => `cardModel:${modelId}:${part}:v1`;
-  const blank = state => Array.isArray(state) ? !state.length : !(state?.program?.length || state?.stagedGroups?.length);
+  const freeCanvas = state => state?.schemaVersion === 2 && state?.kind === 'free-canvas' && Array.isArray(state.groups);
+  const groupHasContent = group => Boolean(group?.items?.length || (typeof group?.startId === 'string' && group.startId));
+  // Read the removed field only to protect pre-removal documents before the canvas model loads.
+  // This storage guard never converts or rewrites an older saved document.
+  const hasLegacyStoredContent = state => Array.isArray(state?.stagedGroups) && state.stagedGroups.some(groupHasContent);
+  const blank = state => Array.isArray(state) ? !state.length : freeCanvas(state)
+    ? !state.groups.some(groupHasContent) && !hasLegacyStoredContent(state)
+    : !(state?.program?.length || state?.stagedGroups?.length);
   function createStore(storage, modelId) {
     const read = (part, fallback) => {
       const raw = storage.getItem(key(modelId, part));
@@ -20,7 +27,12 @@
       },
       write(projects) {
         if (projects.some(p => p.modelId !== modelId)) throw new Error('不能将作品保存到其他设备型号。');
-        storage.setItem(key(modelId, 'projects'), JSON.stringify(projects.filter(p => !blank(p.state))));
+        // Existing legacy rows are retained exactly as supplied, including old blank drafts.
+        // Filtering new empty documents must never clean up a user's older-format library.
+        const previous = read('projects', []);
+        const legacyIds = new Set(Array.isArray(previous) ? previous
+          .filter(p => p?.modelId === modelId && !freeCanvas(p.state)).map(p => p.id) : []);
+        storage.setItem(key(modelId, 'projects'), JSON.stringify(projects.filter(p => !blank(p.state) || legacyIds.has(p.id))));
       },
       getActive: () => storage.getItem(key(modelId, 'active')),
       setActive: id => id ? storage.setItem(key(modelId, 'active'), id) : storage.removeItem(key(modelId, 'active'))

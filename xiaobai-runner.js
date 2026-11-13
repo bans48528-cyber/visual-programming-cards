@@ -1,25 +1,39 @@
 (function(root,factory){
-  const api=factory(typeof module==='object'&&module.exports?require('./xiaobai-protocol.js'):root.XiaobaiProtocol);
+  const api=factory(typeof module==='object'&&module.exports?require('./xiaobai-protocol.js'):root.XiaobaiProtocol,
+    typeof module==='object'&&module.exports?require('./xiaobai-control-flow.js'):root.XiaobaiControlFlow,
+    typeof module==='object'&&module.exports?require('./xiaobai-condition-protocol.js'):root.XiaobaiConditionProtocol);
   if(typeof module==='object'&&module.exports)module.exports=api;else root.XiaobaiRunner=api;
-})(globalThis,function(protocol){
+})(globalThis,function(protocol,Flow,Conditions){
   'use strict';
-  const {OP,TILT,milliseconds,matrixChunks}=protocol;
+  const {OP,TILT_DIRECTIONS:tilt,MOTION_TARGETS:motion,milliseconds,matrixChunks}=protocol;
   const motorIds=new Set(['motor-forward','motor-reverse','motor-forward-continuous','motor-reverse-continuous','motor-stop']);
   const comboIds=new Set(['combo-forward','combo-backward','combo-turn-left','combo-turn-right','combo-continuous','combo-stop']);
   const supported=new Set([...motorIds,...comboIds,'motor-power','combo-power','wait-time','loop','loop-count','infrared-wait',
-    'tilt-wait','eye-expression','eye-matrix','display-number','display-off','speech-play','speech-wait','self-learned-wait','speed-up','speed-down']);
+    'tilt-wait','motion-wait','loop-infrared','loop-tilt','loop-time','eye-expression','eye-matrix','display-number','display-off','speech-play','speech-wait','self-learned-wait','speed-up','speed-down']);
   const move={advance:1,left:2,right:3,retreat:4};
-  const tilt={forward:TILT.FORWARD,backward:TILT.BACKWARD,left:TILT.LEFT,right:TILT.RIGHT};
+  const FEATURE_MIN_FIRMWARE=0x020101;
+  const FIRST_COMPACT_START_VERSION = 0x020202;
+  const compactVersions = new Set([FIRST_COMPACT_START_VERSION, 0x020203]);
+  function supportsCompactStart(version) { return compactVersions.has(version); }
+  function compactProgramReady(state, target = state?.targetVersion) {
+    const actual = state?.actual, info = actual?.info;
+    return Boolean(supportsCompactStart(target) && state?.ready && state.targetVersion === target &&
+      state.currentVersion === target && state.epoch && actual?.epoch === state.epoch &&
+      info?.version === target && info.mode === 0 && info.imageValid === true);
+  }
   const motorIndex=port=>['L/M1','L'].includes(port)?0:1;
   function validate(program){
-    const copy=JSON.parse(JSON.stringify(program));let count=0;
+    const copy=JSON.parse(JSON.stringify(program));let count=0;Flow.validateLoops(copy);
     function sequence(items,depth=0){
       if(!Array.isArray(items)||depth>20)throw new Error('程序结构无效或循环嵌套过深。');
       for(const item of items){
         if(!item||++count>1000)throw new Error('程序最多支持 1000 块积木。');
         const {id,params:p={}}=item;
         // Validate the whole program before entering program mode.
-        if(id==='tilt-wait'&&!Object.prototype.hasOwnProperty.call(tilt,p.direction))throw new Error('倾倒方向无效，请选择向前、向后、向左或向右。');
+        if(id==='tilt-wait'){
+          if(!Object.prototype.hasOwnProperty.call(tilt,p.direction))throw new Error('倾倒方向无效，请选择向前、向后、向左或向右。');
+        }
+        if(id==='motion-wait'&&!Object.prototype.hasOwnProperty.call(motion,p.state))throw new Error('运动状态无效，请选择平稳、持续晃动、向上抬一下或向下放一下。');
         if(id==='eye-matrix')matrixChunks(0,p.leftPattern,p.rightPattern);
         if(!supported.has(id))throw new Error('小白不支持此积木：'+id);
         if(motorIds.has(id)&&!['L/M1','R/M2','L','R'].includes(p.port))throw new Error('请选择左或右电机。');
@@ -34,7 +48,7 @@
         if(id==='self-learned-wait'&&(!Number.isInteger(p.slot)||p.slot<1||p.slot>10))throw new Error('请选择指令1至指令10。');
         if(id==='speech-play'&&!/^P(0[1-9]|10)$/.test(p.phrase))throw new Error('播报词条无效。');
         if(id==='speech-wait'&&!/^ASR_(0[1-9]|10)$/.test(p.phrase))throw new Error('识别词条无效。');
-        if(id==='loop'||id==='loop-count'){
+        if(Flow.isLoop(item)){
           if(id==='loop-count'&&(!Number.isInteger(p.count)||p.count<1||p.count>1000000))throw new Error('循环次数无效。');
           if(!Array.isArray(item.children)||!item.children.length)throw new Error('请在循环中放入积木。');
           sequence(item.children,depth+1);
@@ -44,23 +58,61 @@
     sequence(copy);if(!copy.length)throw new Error('请先放入积木。');return copy;
   }
   class Cancelled extends Error{}
+  function requireFeatureFirmware(items,connection){
+    let found;
+    function visit(sequence,path=[]){
+      for(let index=0;index<sequence.length&&!found;index++){
+        const item=sequence[index],current=[...path,index];
+        if(item.id==='motion-wait'||Flow.isConditionalLoop(item))found={item,path:current};
+        else if(item.children)visit(item.children,current);
+      }
+    }
+    visit(items);if(!found)return;
+    // The ordinary connection gate proves the exact application version.
+    // Archived adapters retain their full-identity compatibility fallback below.
+    const state=connection.firmware?.snapshot?.(),info=state?.actual?.info,pkg=connection.firmware?.bundle?.pkg;
+    // Normal programming is pinned by the current connection's application
+    // version. Full UID/image/Boot evidence belongs to explicit OTA only.
+    if(compactProgramReady(state))return;
+    if(state?.ready&&(!state.targetVersion||state.targetVersion===info?.version)&&info?.boardId===258&&info.protocol===1&&info.mode===0&&info.imageValid&&
+      Number.isInteger(info.version)&&info.version>=FEATURE_MIN_FIRMWARE&&info.version===state.currentVersion&&
+      (!state.epoch||state.actual.epoch===state.epoch)&&pkg?.signatureVerified&&pkg.boardId===info.boardId&&
+      pkg.version===info.version&&pkg.format===2&&pkg.layoutId===2&&info.layoutId===2&&
+      (info.schemaVersion??info.infoVersion)===2&&pkg.appBase===0x08003000&&info.activeAppBase===pkg.appBase&&
+      pkg.erasePage===128&&info.erasePage===128&&Number.isInteger(pkg.imageSize)&&pkg.imageSize>=192&&pkg.imageSize<=52992&&
+      info.imageSize===pkg.imageSize&&/^[0-9a-f]{64}$/.test(pkg.imageSha256)&&info.imageSha256===pkg.imageSha256)return;
+    throw Object.assign(new Error('运动状态和条件循环需要小白主控固件 2.1.1 或更新版本，请先更新主控。'),
+      {code:'CONTROL_FIRMWARE',path:found.path,blockUid:found.item.uid});
+  }
   class Runner{
     constructor(connection,{isCurrent=()=>true,onStep=()=>{}}={}){
       this.connection=connection;this.isCurrent=isCurrent;this.onStep=onStep;
-      this.cancelled=false;this.waiters=new Set();this.done=null;this.comboPower=3;this.matrixTransfer=0;
+      this.cancelled=false;this.waiters=new Set();this.done=null;this.comboPower=3;this.matrixTransfer=0;this.error=null;this.observers=null;this.stopPromise=null;this.observerContexts=new Map();
     }
-    check(){if(this.cancelled)throw new Cancelled();if(!this.isCurrent())throw new Error('连接已断开，程序已取消。');}
+    check(){if(this.error)throw this.error;if(this.cancelled)throw new Cancelled();if(!this.isCurrent())throw new Error('连接已断开，程序已取消。');}
     delay(ms){this.check();return new Promise((resolve,reject)=>{
       const finish=()=>{clearTimeout(timer);this.waiters.delete(finish);try{this.check();resolve();}catch(error){reject(error);}};
       const timer=setTimeout(finish,ms);this.waiters.add(finish);
     });}
-    cancel(){this.cancelled=true;this.connection.learned?.stop('程序已停止。');for(const wake of [...this.waiters])wake();this.connection.cancelPending?.();}
+    cancel(){if(this.cancelled)return;this.cancelled=true;this.observers?.cancel('程序已停止。');this.connection.learned?.stop('程序已停止。');for(const wake of [...this.waiters])wake();this.connection.cancelPending?.();}
+    requestStop(){if(!this.stopPromise)this.stopPromise=Promise.resolve().then(()=>this.isCurrent()?this.connection.stopProgram():undefined);this.stopPromise.catch(()=>{});return this.stopPromise;}
+    observationFailed(error){if(this.cancelled)return;const original=this.observerContexts.get(error.observerId);if(original)Object.assign(error,original);this.error=error;this.cancel();this.requestStop();}
+    async observe(item,path){
+      try{
+        const handle=await this.observers.arm(0,Conditions.condition(item));
+        this.observerContexts.set(handle.id,{blockUid:item.uid,path:path.slice()});
+        return {get matched(){return handle.matched;},check:()=>handle.check(),refresh:()=>handle.refresh(),close:async options=>{
+          try{return await handle.close(options);}finally{this.observerContexts.delete(handle.id);}
+        }};
+      }catch(error){if(!error.blockUid)Object.assign(error,{blockUid:item.uid,path:path.slice()});throw error;}
+    }
     async action(op,args=[],blocking=false,timeout=0){this.check();await this.connection.action(op,args,blocking,timeout);this.check();}
     async sequence(items,parentPath=[]){
       for(const [index,item] of items.entries()){
         this.check();const path=[...parentPath,index];this.onStep(item,path);const {id,params:p={}}=item;
-        if(id==='loop'||id==='loop-count'){
-          for(let n=0;id==='loop'||n<p.count;n++){await this.sequence(item.children,path);await this.delay(10);}
+        if(Flow.isLoop(item)){
+          await Flow.runLoop(item,()=>this.sequence(item.children,path),{check:()=>this.check(),delay:ms=>this.delay(ms),
+            observe:loop=>this.observe(loop,path)});
         }else if(id==='wait-time')await this.delay(p.duration*1000);
         else if(motorIds.has(id)){
           const motor=motorIndex(p.port);
@@ -85,6 +137,7 @@
           await this.action(OP.MOVE_POWER,[this.comboPower]);
         }else if(id==='infrared-wait')await this.action(OP.WAIT_IR,[1,p.comparison==='greater'?0:1,p.threshold],true); // Compatibility selector 1 is the single PA1 IR on the new board.
         else if(id==='tilt-wait')await this.action(OP.WAIT_TILT,[tilt[p.direction]],true);
+        else if(id==='motion-wait')await this.action(OP.WAIT_MOTION,[motion[p.state]],true);
         else if(id==='eye-expression')await this.action(OP.SHOW_EYE,[Number(p.expression.slice(-2))]);
         else if(id==='eye-matrix'){
           this.matrixTransfer=(this.matrixTransfer+1)&255;
@@ -107,22 +160,29 @@
           await this.connection.enterProgram();this.check();
           if(this.connection.ensureFirmware&&!await this.connection.ensureFirmware({interactive:false,reason:'run'}))throw new Error('主控固件尚未就绪，程序未运行。');
           this.check();
+          requireFeatureFirmware(copy,this.connection);
+          let runIdentity;
           if(this.connection.learned){
             await this.connection.learned.prepareRun(copy);this.check();
-            await this.connection.learned.beginRun();this.check();
+            runIdentity=await this.connection.learned.beginRun();this.check();
           }else{
             const containsLearned=items=>items.some(item=>item.id==='self-learned-wait'||containsLearned(item.children||[]));
             if(containsLearned(copy))throw new Error('设备暂不支持自学习口令。');
           }
+          if(hasConditional(copy)){
+            if(!runIdentity?.id||runIdentity.legacy||!this.connection.conditionObservers?.createClient)throw new Error('设备未确认条件循环的运行身份，程序未运行。');
+            this.observers=this.connection.conditionObservers.createClient({sessionLo:runIdentity.id,sessionHi:0,isCurrent:()=>!this.cancelled&&this.isCurrent(),onFault:error=>this.observationFailed(error)});
+          }
           await this.sequence(copy);this.check();
           if(this.connection.learned)await this.connection.learned.endRun();
         }
-        catch(error){if(!(error instanceof Cancelled))failure=error;}
-        finally{this.cancel();try{if(this.isCurrent())await this.connection.stopProgram();}catch(error){failure=failure||error;}}
+        catch(error){if(!(error instanceof Cancelled))failure=this.error||error;}
+        finally{this.cancel();this.observers?.dispose();this.observerContexts.clear();try{await this.requestStop();}catch(error){failure=failure||error;}}
         if(failure)throw failure;
       })();return this.done;
     }
-    async stop(){this.cancel();if(this.isCurrent())await this.connection.stopProgram();if(this.done)await this.done;}
+    async stop(){this.cancel();await this.requestStop();if(this.done)await this.done;}
   }
-  return {Runner,validate};
+  function hasConditional(items){return items.some(item=>Flow.isConditionalLoop(item)||hasConditional(item.children||[]));}
+  return {Runner,validate,FIRST_COMPACT_START_VERSION,supportsCompactStart,compactProgramReady,requireFeatureFirmware,FEATURE_MIN_FIRMWARE,hasConditional,controlFlow:Flow};
 });

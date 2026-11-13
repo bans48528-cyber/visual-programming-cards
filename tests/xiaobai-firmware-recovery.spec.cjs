@@ -5,9 +5,10 @@ const root=path.resolve(__dirname,'..'),release=JSON.parse(fs.readFileSync(path.
 const uid='00112233445566778899aabb',deviceId='EC:B0:DC:10:B4:43';
 const storage=()=>{const m=new Map();return{getItem:k=>m.get(k)??null,setItem:(k,v)=>m.set(k,String(v))};};
 function fixture(pkg){
+ const layout=P.layoutOf(pkg);
  let connected=true,gate,connections=0,seq=20;
  const state={epoch:'upgrade-before-1',deviceId},log=[];
- const actual={uid,deviceId,epoch:state.epoch,productMode:4,info:{protocol:1,boardId:pkg.boardId,bootVersion:pkg.minBootVersion,version:pkg.version-1,mode:0,imageValid:true,state:0,lastError:0,imageSize:pkg.imageSize,nextOffset:0,imageSha256:'a'.repeat(64),supported:true}};
+ const actual={uid,deviceId,epoch:state.epoch,productMode:4,info:{protocol:1,schemaVersion:layout.id,layoutId:layout.id,activeAppBase:layout.appBase,erasePage:layout.erasePage,capabilities:layout.id===2?15:1,boardId:pkg.boardId,bootVersion:pkg.minBootVersion,version:pkg.version-1,mode:0,imageValid:true,state:0,lastError:0,imageSize:pkg.imageSize,nextOffset:0,imageSha256:'a'.repeat(64),supported:true}};
  const adapter={identity:()=>connected?{...state}:null,
   async prepare(){log.push('prepare');},async release(){log.push('release');},
   async readApp(){log.push('readApp');return{...actual,epoch:state.epoch,info:{...actual.info}};},

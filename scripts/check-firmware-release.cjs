@@ -20,20 +20,27 @@ function actualApp(repo=root){
 function readJson(file,missing){if(!fs.existsSync(file))die(missing||`发布文件缺失：${file}`);try{return JSON.parse(fs.readFileSync(file,'utf8'));}catch{die(`发布文件不是有效 JSON：${file}`);}}
 function plan(repo=root){
  const p=readJson(path.join(repo,'firmware-release-plan.json'),'缺少 App 固定固件发布计划。');
- if(p.schemaVersion!==1||!p.app||!p.firmware||!same(p.app,actualApp(repo)))die('固定固件发布计划与实际 App 包名/版本不一致。');
+ if(![1,2].includes(p.schemaVersion)||!p.app||!p.firmware||!same(p.app,actualApp(repo)))die('固定固件发布计划与实际 App 包名/版本不一致。');
  if(p.firmware.boardId!==0x102||p.firmware.protocol!==1||!Number.isInteger(p.firmware.version)||p.firmware.version<1)die('固定固件计划板型/协议/版本无效。');
+ const fields=p.schemaVersion===1?['boardId','protocol','version']:['boardId','protocol','version','layoutId','imageSha256'];
+ if(Object.keys(p.firmware).length!==fields.length||fields.some(k=>!Object.prototype.hasOwnProperty.call(p.firmware,k))||
+    p.schemaVersion===2&&(![1,2].includes(p.firmware.layoutId)||!hash.test(p.firmware.imageSha256)))die('固定固件计划必须明确完整目标身份。');
  return p;
 }
 function modules(repo=root){
  const target=path.join(repo,'xiaobai-firmware-bundle.js');delete require.cache[require.resolve(target)];
  return{P:require(path.join(repo,'xiaobai-ota-protocol.js')),B:require(target)};
 }
-function metadataFor(release,manifestSha256){return{bound:true,app:release.app,firmware:{boardId:release.firmware.boardId,protocol:release.firmware.protocol,version:release.firmware.version},manifestSha256};}
+function metadataFor(release,manifestSha256){
+ const f=release.firmware,firmware={boardId:f.boardId,protocol:f.protocol,version:f.version};
+ if(release.schemaVersion===2)Object.assign(firmware,{layoutId:f.layoutId,imageSha256:f.imageSha256});
+ return{bound:true,app:release.app,firmware,manifestSha256};
+}
 function versionParts(version){if(!/^\d+\.\d+\.\d+$/.test(version))die('App 版本必须为 major.minor.patch。');return version.split('.').map(Number);}
 function compareVersion(a,b){const x=versionParts(a),y=versionParts(b);for(let i=0;i<3;i++)if(x[i]!==y[i])return x[i]>y[i]?1:-1;return 0;}
 function validateHistory(history,B){
  if(history.schemaVersion!==1||!Array.isArray(history.releases))die('固件发布历史格式无效。');
- const names=new Set(),codes=new Set(),latestApp=new Map(),firmware=new Map();
+ const names=new Set(),codes=new Set(),latestApp=new Map();
  for(const entry of history.releases){
   const release=entry.release,raw=canonical(release),manifestSha256=sha(raw);
   B.validateRelease(release,metadataFor(release,manifestSha256));
@@ -42,10 +49,9 @@ function validateHistory(history,B){
   if(names.has(n)||codes.has(c))die('同一个 App 版本已有固件绑定，禁止重复或偷偷替换。');
   const prior=latestApp.get(app.applicationId);
   if(prior&&(app.versionCode<=prior.versionCode||compareVersion(app.versionName,prior.versionName)<=0))die('新 App 发布版本必须递增。');
-  const f=release.firmware,board=f.boardId+':'+f.protocol,key=board+':'+f.version,old=firmware.get(key),last=firmware.get(board);
-  if(old&&(old.imageSha256!==f.imageSha256||old.imageSize!==f.imageSize))die('同一固件版本不能绑定不同镜像。');
-  if(last&&f.version<last.version)die('新的 App 发布不能绑定降级固件。');
-  firmware.set(key,f);firmware.set(board,f);latestApp.set(app.applicationId,app);names.add(n);codes.add(c);
+  // App identities remain append-only. Firmware identities have no version-order
+  // restriction: a later App may deliberately pin an older or same-version image.
+  latestApp.set(app.applicationId,app);names.add(n);codes.add(c);
  }
  return history;
 }
@@ -77,13 +83,18 @@ async function bindPackage({repo=root,packageFile,expectedSha256}={}){
  if(sha(bytes)!==expectedSha256)die('最终签名包与指定冻结 SHA256 不一致。');
  const pkg=await P.verifyPackage(bytes,{name:path.basename(packageFile)});
  if(pkg.boardId!==expected.firmware.boardId||P.C.OTA_PROTOCOL_VERSION!==expected.firmware.protocol||pkg.version!==expected.firmware.version)die('最终签名包版本/板型与固定计划不一致。');
- const release={schemaVersion:1,app:expected.app,firmware:{boardId:pkg.boardId,protocol:P.C.OTA_PROTOCOL_VERSION,version:pkg.version,versionName:pkg.versionText,minBootVersion:pkg.minBootVersion,imageSize:pkg.imageSize,imageSha256:pkg.imageSha256,packageSize:bytes.length,packageSha256:pkg.packageSha256,asset:`assets/firmware/xiaobai_py32_${pkg.versionText}.ota`}};
- const raw=canonical(release),manifestSha256=sha(raw),historyFile=path.join(repo,'firmware-releases.json'),history=validateHistory(readJson(historyFile,'缺少发布历史，不能绑定。'),B);
- const prior=history.releases.find(e=>e.release.app.applicationId===release.app.applicationId&&(e.release.app.versionName===release.app.versionName||e.release.app.versionCode===release.app.versionCode));
- if(prior&&!same(prior.release,release))die('这个 App 版本已绑定其他固件，禁止同版本替换。请递增 App 版本。');
- if(!prior){
-  history.releases.push({manifestSha256,release});validateHistory(history,B);
+ const historyFile=path.join(repo,'firmware-releases.json'),history=validateHistory(readJson(historyFile,'缺少发布历史，不能绑定。'),B);
+ const prior=history.releases.find(e=>e.release.app.applicationId===expected.app.applicationId&&(e.release.app.versionName===expected.app.versionName||e.release.app.versionCode===expected.app.versionCode));
+ if(prior){
+  if(!same(prior.release.app,expected.app)||prior.release.firmware.packageSha256!==pkg.packageSha256)die('这个 App 版本已绑定其他固件，禁止同版本替换。请递增 App 版本。');
+  // In particular, do not rewrite a frozen legacy schema-1 pin as schema 2.
+  return checkRelease({repo});
  }
+ if(expected.schemaVersion!==2||pkg.layoutId!==expected.firmware.layoutId||pkg.imageSha256!==expected.firmware.imageSha256)die('新绑定必须使用布局及镜像哈希完全匹配的 schema 2 发布计划。');
+ const f={boardId:pkg.boardId,protocol:P.C.OTA_PROTOCOL_VERSION,version:pkg.version,versionName:pkg.versionText,minBootVersion:pkg.minBootVersion,imageSize:pkg.imageSize,imageSha256:pkg.imageSha256,packageSize:bytes.length,packageSha256:pkg.packageSha256,layoutId:pkg.layoutId,format:pkg.format,appBase:pkg.appBase,erasePage:pkg.erasePage};
+ const release={schemaVersion:2,app:expected.app,firmware:{...f,asset:B.packageAsset(f)}};
+ const raw=canonical(release),manifestSha256=sha(raw);
+ history.releases.push({manifestSha256,release});validateHistory(history,B);
  const folder=path.join(repo,'assets/firmware'),asset=path.join(repo,release.firmware.asset);fs.mkdirSync(folder,{recursive:true});
  const others=fs.readdirSync(folder).filter(n=>n.endsWith('.ota')&&n!==path.basename(asset));
  if(others.length)die('活动固件目录存在历史 .ota；请将历史包存于 assets 外，再绑定新版本。');

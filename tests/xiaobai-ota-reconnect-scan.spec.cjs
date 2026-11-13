@@ -12,7 +12,7 @@ async function create(browser){
  const context=await browser.newContext({viewport:{width:751,height:360},hasTouch:true});
  await context.addInitScript(()=>localStorage.setItem('cardDefaultModelV1','xiaobai'));
  await context.addInitScript(mockAndroid);
- await context.addInitScript(mockFirmware,{target,appAvailable:false,imageValid:false,holdDataAck:true,pending:{boardId:target.boardId,version:target.version,imageSize:target.imageSize,imageSha256:target.imageSha256}});
+ await context.addInitScript(mockFirmware,{target,appAvailable:false,imageValid:false,holdDataAck:true,pending:{...target}});
  await context.addInitScript(()=>{
   const bridge=Capacitor,previous=bridge.nativePromise.bind(bridge),callback=bridge.nativeCallback.bind(bridge);
   const hooks=window.scanHooks={scans:[],events:[],added:[],removed:[],holdStop:false,stopPending:false};
@@ -63,11 +63,11 @@ async function freshExactBlank(browser){
   eq((await inspect(page)).connects.length,0,'matching advertisement still waits for stopScan completion');
   await page.evaluate(()=>scanHooks.releaseStop());await page.waitForFunction(()=>scanHooks.scans.length===2);
   const second=await page.evaluate(()=>scanHooks.scans[1].scanId);ok(first!==second,'every existing reconnect requires a fresh scan ID');
-  eq((await inspect(page)).connects.length,1,'App probe occurs only after its matching scan');
+  eq((await inspect(page)).connects.length,1,'read-only Boot probe occurs only after its matching scan');
   await page.evaluate(({first,second})=>{scanHooks.ad(first);scanHooks.ad(second,'OTHER','Spark_AI');}, {first,second});await page.waitForTimeout(80);
-  eq((await inspect(page)).connects.length,1,'retired App scan cannot open Boot channel');
+  eq((await inspect(page)).connects.length,1,'retired read-only scan cannot open writable Boot channel');
   await page.evaluate(id=>scanHooks.ad(id,'FW-BOUND',''),second);await page.waitForFunction(()=>mockBle.dataRequests>0);
-  const s=await evidence(page,'fresh-exact-blank-success');eq(s.connects.length,2);ok(s.connects.every(c=>c.deviceId==='FW-BOUND'&&c.boundDevice),'original bound MAC only');
+  const s=await evidence(page,'fresh-exact-blank-success');eq(s.connects.length,2);ok(s.connects.every(c=>c.deviceId==='FW-BOUND'&&(c.boundDevice||c.probeOnly)),'original bound MAC only');
   eq(s.ota.filter(x=>x.op===0x62).length,1);eq(s.businessConnected,false);eq(s.snapshot.ready,false);eq(s.binding.uid,'0102030405060708090a0b0c');
   for(let index=0;index<2;index++){const scan=s.scans[index],connect=s.events.filter(x=>x.kind==='connect')[index];ok(s.events.some(x=>x.kind==='stop-done'&&x.id===scan.scanId&&x.at<=connect.at),'scan stopped before native connect '+index);}
   await removed(page,baseline);await page.locator('.firmware-cancel').tap();await settled(page);eq(errors,[]);
@@ -94,7 +94,7 @@ async function endedScan(browser,kind){
   await page.evaluate(()=>mockBle.emit('scanStopped',{scanId:'old-scan',reason:'finished'}));await page.waitForTimeout(50);eq(await page.evaluate(()=>CardBluetooth.firmware.snapshot().busy),true,'old scanStopped ignored');
   if(kind!=='local-timeout')await page.evaluate(({id,kind})=>mockBle.emit('scanStopped',{scanId:id,reason:kind==='timeout'?'finished':'failed'}),{id,kind});
   await page.waitForFunction(()=>!CardBluetooth.firmware.snapshot().busy,null,{timeout:15000});
-  const s=await evidence(page,'scan-'+kind);eq(s.connects.length,0);eq(s.ota.length,0);eq(s.scans.length,1,'scan failure does not fall into another C2/Boot connection attempt');eq(s.snapshot.code,kind==='failed'?'SCAN_FAILED':'SCAN_TIMEOUT');eq(s.cancelled,false);eq(s.connection.phase,'idle');eq(s.binding.pending.imageSha256,target.imageSha256);
+  const s=await evidence(page,'scan-'+kind);eq(s.connects.length,0);eq(s.ota.length,0);eq(s.scans.length,1,'scan failure does not fall into another C2/Boot connection attempt');eq(s.snapshot.code,kind==='failed'?'SCAN_FAILED':'UNVERIFIED_DEVICE');eq(s.cancelled,false);eq(s.connection.phase,'idle');eq(s.binding.pending.imageSha256,target.imageSha256);
   if(kind==='local-timeout'){const stop=s.events.find(x=>x.kind==='stop-done'&&x.id===id);ok(stop.at-s.scans[0].at>=9900&&stop.at-s.scans[0].at<15000,'fallback scanner bound is ten seconds');}
   await removed(page,baseline);await unchangedAfterLate(page,id);eq(errors,[]);
  }catch(e){await evidence(page,'failure-'+currentCase);throw e;}finally{await context.close();}

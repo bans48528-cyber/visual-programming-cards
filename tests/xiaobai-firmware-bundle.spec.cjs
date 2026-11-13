@@ -35,9 +35,9 @@ async function runtime(){
  const broken=Buffer.from(packageBytes);broken[broken.length-1]^=1;await rejects(()=>B.verify(releaseBytes,broken),{code:'IMAGE_HASH'});
  const badSignature=Buffer.from(packageBytes);badSignature[100]^=1;await rejects(()=>B.verify(releaseBytes,badSignature),{code:'SIGNATURE'});
  await rejects(()=>B.verify(Buffer.concat([releaseBytes,Buffer.from(' ')]),packageBytes),{code:'RELEASE_HASH'});
- const wrong=copy(release);wrong.firmware.packageSha256='a'.repeat(64);const wrongBytes=G.canonical(wrong);
+ const wrong=copy(release);wrong.firmware.packageSha256='a'.repeat(64);wrong.firmware.asset=B.packageAsset(wrong.firmware,wrong.schemaVersion);const wrongBytes=G.canonical(wrong);
  await rejects(()=>B.verify(wrongBytes,packageBytes,{metadata:{...B.METADATA,manifestSha256:G.sha(wrongBytes)}}),{code:'BUNDLE_IDENTITY'});
- const fields=[r=>r.schemaVersion=2,r=>r.app.versionCode=nextCode,r=>r.firmware.version=65537,r=>r.firmware.boardId=259,r=>r.firmware.protocol=2,r=>r.firmware.asset='../evil.ota',r=>r.firmware.asset='https://other/firmware.ota',r=>r.firmware.asset='assets/firmware/固件.ota',r=>r.firmware.imageSize=999999,r=>r.firmware.packageSize++,r=>r.firmware.additionalAsset='other.ota'];
+ const fields=[r=>r.schemaVersion=release.schemaVersion===1?2:1,r=>r.app.versionCode=nextCode,r=>r.firmware.version=65537,r=>r.firmware.boardId=259,r=>r.firmware.protocol=2,r=>r.firmware.asset='../evil.ota',r=>r.firmware.asset='https://other/firmware.ota',r=>r.firmware.asset='assets/firmware/固件.ota',r=>r.firmware.imageSize=999999,r=>r.firmware.packageSize++,r=>r.firmware.additionalAsset='other.ota'];
  for(const mutate of fields){const r=copy(release);mutate(r);throws(()=>B.validateRelease(r));}
  const calls=[];const fetch=async url=>{calls.push(url);const bytes=url.endsWith('/release.json')?releaseBytes:packageBytes;return{ok:true,arrayBuffer:async()=>Uint8Array.from(bytes).buffer};};
  const loader=B.createLoader({fetch,baseUrl:'https://localhost/index.html'});const [a,b]=await Promise.all([loader.load(),loader.load()]);eq(calls.length,2,'one map plus one firmware fetch');eq(a.pkg.packageSha256,b.pkg.packageSha256);
@@ -55,7 +55,7 @@ async function buildGate(){
  await inRepo(async repo=>{mutateJson(repo,'capacitor.config.json',v=>v.appId='com.other.app');await rejects(()=>G.checkRelease({repo}),/applicationId/);});
  await inRepo(async repo=>{mutateJson(repo,'firmware-release-plan.json',v=>v.firmware.version=65537);await rejects(()=>G.checkRelease({repo}),/发布计划/);});
  await inRepo(async repo=>{const f=path.join(repo,release.firmware.asset),b=fs.readFileSync(f);b[b.length-1]^=1;fs.writeFileSync(f,b);await rejects(()=>G.checkRelease({repo}),/校验失败/);});
- await inRepo(async repo=>{mutateJson(repo,'assets/firmware/release.json',v=>v.firmware.packageSha256='b'.repeat(64));await rejects(()=>G.checkRelease({repo}),/固定指纹/);});
+ await inRepo(async repo=>{mutateJson(repo,'assets/firmware/release.json',v=>{v.firmware.packageSha256='b'.repeat(64);v.firmware.asset=B.packageAsset(v.firmware,v.schemaVersion);});await rejects(()=>G.checkRelease({repo}),/固定指纹/);});
  await inRepo(async repo=>{mutateJson(repo,'firmware-releases.json',v=>v.releases=[]);await rejects(()=>G.checkRelease({repo}),/未登记/);});
  await inRepo(async repo=>{mutateJson(repo,'firmware-releases.json',v=>v.releases[0].manifestSha256='0'.repeat(64));await rejects(()=>G.checkRelease({repo}),/发布记录/);});
  await inRepo(async repo=>{fs.writeFileSync(path.join(repo,'assets/firmware/extra.ota'),packageBytes);await rejects(()=>G.checkRelease({repo}),/只能内置一个/);});
@@ -64,10 +64,12 @@ async function buildGate(){
  await rejects(()=>G.bindPackage({}),/不能使用占位包/);
  const first=entryFor(copy(release));const duplicate=entryFor(copy(release));
  throws(()=>G.validateHistory({schemaVersion:1,releases:[first,duplicate]},B),/禁止重复/);
- const other=copy(release);other.app.versionCode=nextCode;other.firmware.imageSha256='c'.repeat(64);
+ const other=copy(release);other.app.versionCode=nextCode;other.firmware.imageSha256='c'.repeat(64);other.firmware.asset=B.packageAsset(other.firmware,other.schemaVersion);
  throws(()=>G.validateHistory({schemaVersion:1,releases:[first,entryFor(other)]},B),/同一个 App/);
- const collision=copy(release);collision.app.versionCode=nextCode;collision.app.versionName=nextVersion;collision.firmware.imageSha256='c'.repeat(64);
- throws(()=>G.validateHistory({schemaVersion:1,releases:[first,entryFor(collision)]},B),/同一固件版本/);
+ const collision=copy(release);collision.app.versionCode=nextCode;collision.app.versionName=nextVersion;collision.firmware.imageSha256='c'.repeat(64);collision.firmware.asset=B.packageAsset(collision.firmware,collision.schemaVersion);
+ eq(G.validateHistory({schemaVersion:1,releases:[first,entryFor(collision)]},B).releases.length,2,'a new App may pin another image with the same firmware version');
+ const downgrade=copy(collision);downgrade.firmware.version=65536;downgrade.firmware.versionName='1.0.0';downgrade.firmware.asset=B.packageAsset(downgrade.firmware,downgrade.schemaVersion);
+ eq(G.validateHistory({schemaVersion:1,releases:[first,entryFor(downgrade)]},B).releases.length,2,'firmware version order does not constrain a later App release');
 }
 async function missingBuildsStopBeforeMutation(){
  for(const script of ['build-web.cjs','build-android.cjs'])await inRepo(async repo=>{

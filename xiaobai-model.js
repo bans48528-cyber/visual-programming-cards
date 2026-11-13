@@ -2,9 +2,9 @@
 (() => {
     const portParam = () => ({ label: "电机", type: "select", default: "L/M1", options: ["L/M1", "R/M2"] });
     const durationParam = label => ({ label, type: "number", default: 1, min: 0.1, max: 86400, step: 0.1, unit: "秒" });
-    const powerParam = () => ({
+    const powerParam = (kind = "motor") => ({
       label: "功率", type: "select", default: 3,
-      options: [1, 2, 3].map(value => ({ value, label: `${value}档` }))
+      options: [1, 2, 3].map(value => ({ value, label: `${value}档`, icon: `assets/blocks/xiaobai-20261112/${kind}-power-${value}.svg` }))
     });
     const expressions = ["待机", "开心", "生气", "伤心", "惊讶", "眨眼", "喜欢", "晕眩", "困倦", "好奇"];
     const speechLines = [
@@ -12,6 +12,25 @@
       "小心一点哦", "太棒了，继续加油", "我找到目标啦", "挑战成功", "我的表演结束啦"
     ];
     const recognizedLines = ["开始", "下一步", "再来一次", "你好", "再见", "谢谢", "打开", "关闭", "前进", "后退"];
+    const tiltDirection = () => ({ label: "倾倒方向", type: "select", default: "forward", options: [
+      { value: "forward", label: "向前", bubble: "向前倾倒", icon: "assets/blocks/xiaobai-20261112/tilt-wait-forward.svg" },
+      { value: "backward", label: "向后", bubble: "向后倾倒", icon: "assets/blocks/xiaobai-20261112/tilt-wait-backward.svg" },
+      { value: "left", label: "向左", bubble: "向左倾倒", icon: "assets/blocks/xiaobai-20261112/tilt-wait-left.svg" },
+      { value: "right", label: "向右", bubble: "向右倾倒", icon: "assets/blocks/xiaobai-20261112/tilt-wait-right.svg" }
+    ] });
+    const infraredCondition = () => ({
+      comparison: { label: "条件", type: "select", default: "greater", options: [{ value: "greater", label: "大于" }, { value: "less", label: "小于" }] },
+      threshold: { label: "数值", type: "number", default: 50, min: 0, max: 100, step: 1, integer: true }
+    });
+    const conditionalLoopHelp = "进入时先检查，已满足则跳过；轮中满足后会记住。完成当前整轮再退出；当前等待或无限内循环不结束则继续等待；停止立即生效。";
+    const messageColors = [
+      {value:1,label:"红色",color:"#e50012",openIcon:"assets/blocks/xiaobai-20261112/message-open-red.svg",closedIcon:"assets/blocks/xiaobai-20261112/message-closed-red.svg"},
+      {value:2,label:"棕色",color:"#804f21",openIcon:"assets/blocks/xiaobai-20261112/message-open-brown.svg",closedIcon:"assets/blocks/xiaobai-20261112/message-closed-brown.svg"},
+      {value:3,label:"黄色",color:"#f29600",openIcon:"assets/blocks/xiaobai-20261112/message-open-yellow.svg",closedIcon:"assets/blocks/xiaobai-20261112/message-closed-yellow.svg"},
+      {value:4,label:"绿色",color:"#009844",openIcon:"assets/blocks/xiaobai-20261112/message-open-green.svg",closedIcon:"assets/blocks/xiaobai-20261112/message-closed-green.svg"},
+      {value:5,label:"蓝色",color:"#009fe8",openIcon:"assets/blocks/xiaobai-20261112/message-open-blue.svg",closedIcon:"assets/blocks/xiaobai-20261112/message-closed-blue.svg"},
+      {value:6,label:"粉色",color:"#e51373",openIcon:"assets/blocks/xiaobai-20261112/message-open-pink.svg",closedIcon:"assets/blocks/xiaobai-20261112/message-closed-pink.svg"}
+    ];
 
     // Confirmed by the user on 2026-10-16: 8 x 8 per eye, with four corner LEDs absent.
     const emptyEyePattern = () => Array(64).fill(0);
@@ -44,30 +63,38 @@
             ] } }
           },
           { id: "combo-stop", label: "组合停止", type: "combo" },
-          { id: "combo-power", label: "组合功率", type: "combo", paramsSchema: { power: powerParam() } }
+          { id: "combo-power", label: "组合功率", type: "combo", paramsSchema: { power: powerParam("combo") } }
         ]
       },
       logic: {
         color: "var(--logic)",
         cards: [
+          { id: "send-message", label: "发送消息", type: "logic", paramsSchema: { message: {
+            label:"消息",type:"select",default:1,options:messageColors.map(option=>({
+              value:option.value,label:`${option.label}消息 ${option.value}`,bubble:`${option.label}${option.value}`,color:option.color
+            }))
+          } } },
           { id: "wait-time", label: "等待时间", type: "logic", kind: "action", paramsSchema: { duration: durationParam("等待时间") } },
-          { id: "tilt-wait", label: "等待倾倒", type: "logic", paramsSchema: {
-            direction: { label: "倾倒方向", type: "select", default: "forward", options: [
-              {value: "forward", label: "向前", bubble: "向前倾倒"},
-              {value: "backward", label: "向后", bubble: "向后倾倒"},
-              {value: "left", label: "向左", bubble: "向左倾倒"},
-              {value: "right", label: "向右", bubble: "向右倾倒"}
-            ] }
-          } },
-          { id: "loop-count", label: "循环次数", type: "logic", kind: "loop", paramsSchema: { count: { label: "次数", type: "number", default: 1, min: 1, max: 1000000, step: 1, integer: true } } },
-          { id: "loop", label: "一直循环", type: "logic", kind: "loop" },
           {
             id: "infrared-wait", label: "等待红外", type: "logic",
-            paramsSchema: {
-              comparison: { label: "条件", type: "select", default: "greater", options: [{ value: "greater", label: "大于" }, { value: "less", label: "小于" }] },
-              threshold: { label: "数值", type: "number", default: 50, min: 0, max: 100, step: 1, integer: true }
-            }
-          }
+            paramsSchema: infraredCondition()
+          },
+          { id: "tilt-wait", label: "等待倾倒", type: "logic", paramsSchema: { direction: tiltDirection() } },
+          { id: "motion-wait", label: "等待运动状态", type: "logic", paramsSchema: {
+            state: { label: "运动状态", type: "select", default: "still", options: [
+              { value: "still", label: "平稳", icon: "assets/blocks/xiaobai-20261112/motion-wait-still.svg" }, { value: "shaking", label: "持续晃动", icon: "assets/blocks/xiaobai-20261112/motion-wait-shaking.svg" },
+              { value: "up", label: "向上抬一下", icon: "assets/blocks/xiaobai-20261112/motion-wait-up.svg" }, { value: "down", label: "向下放一下", icon: "assets/blocks/xiaobai-20261112/motion-wait-down.svg" }
+            ] }
+          }, paramHelp: "平稳不限放置方向；持续晃动需持续摇动。上下按机身Z轴加速度触发：正面朝上时对应物理上下，侧放或倒置仍按机身Z轴判断。扣除重力参考后达到对应阈值即触发，无需先静止或停稳，制动也可能触发反向。持续超阈值只触发一次；新等待需解除后再次越阈值，或出现对应的新反向事件。" },
+          { id: "loop-count", label: "循环次数", type: "logic", kind: "loop", paramsSchema: { count: { label: "次数", type: "number", default: 1, min: 1, max: 1000000, step: 1, integer: true } } },
+          { id: "loop", label: "一直循环", type: "logic", kind: "loop" },
+          { id: "loop-infrared", label: "重复直到红外条件满足", type: "logic", kind: "loop", conditionalLoop: true, paramsSchema: infraredCondition(),
+            paramHelp: "重复直到红外值严格大于或小于阈值；等于阈值不满足。" + conditionalLoopHelp },
+          { id: "loop-tilt", label: "重复直到倾倒", type: "logic", kind: "loop", conditionalLoop: true, paramsSchema: { direction: tiltDirection() },
+            paramHelp: "重复直到主机向指定方向倾倒。" + conditionalLoopHelp },
+          { id: "loop-time", label: "重复直到时间达到", type: "logic", kind: "loop", conditionalLoop: true, paramsSchema: {
+            duration: { label: "累计时间", type: "number", default: 5, min: 0, max: 86400, step: 0.1, unit: "秒" }
+          }, paramHelp: "从进入本循环开始计时，重复直到达到所选时间。" + conditionalLoopHelp },
         ]
       },
       dynamic: {
@@ -93,14 +120,37 @@
     ];
 
   // Artwork belongs to the model, not to catalog cards shared by other models.
-  const artwork = "xiaobai-20261016/";
+  const artwork = "xiaobai-20261112/";
   const artworkByCard = {};
+  const conditionArtwork = { "tilt-wait": "tilt-wait-forward", "motion-wait": "motion-wait-still", "loop-infrared": "infrared-wait", "loop-tilt": "tilt-wait-forward", "loop-time": "wait-time", "self-learned-wait": "speech-wait" };
   Object.values(categories).forEach(group => group.cards.forEach(card => {
     const entry = { artStyle: "fitted" };
     if (["eye-expression", "display-number"].includes(card.id)) entry.paletteArtIcon = artwork + card.id;
-    else if (card.id !== "eye-matrix") entry.artIcon = artwork + (card.kind === "loop" ? "loop" : card.id);
-    if (card.id === "combo-continuous") entry.artIcons = Object.fromEntries(
-      ["advance", "retreat", "left", "right"].map(direction => [direction, artwork + "combo-continuous-" + direction]));
+    else if (!["eye-matrix", "send-message"].includes(card.id)) entry.artIcon = artwork + (conditionArtwork[card.id] || (card.kind === "loop" ? "loop" : card.id));
+    if (card.id === "combo-continuous") {
+      entry.artIcons = Object.fromEntries(
+        ["advance", "retreat", "left", "right"].map(direction => [direction, artwork + "combo-continuous-" + direction]));
+      entry.artIcon = entry.artIcons[card.paramsSchema.direction.default];
+      entry.optionIcons = { direction: Object.fromEntries(Object.entries(entry.artIcons).map(([value, icon]) =>
+        [value, `assets/blocks/${icon}.svg`])) };
+    }
+    if (["motor-forward", "motor-reverse", "motor-forward-continuous", "motor-reverse-continuous", "motor-stop"].includes(card.id)) {
+      entry.artParam = "port";
+      entry.artIcons = { "L/M1": artwork + card.id + "-left", "R/M2": artwork + card.id + "-right" };
+      entry.artIcon = entry.artIcons[card.paramsSchema.port.default];
+    }
+    if (card.id === "tilt-wait" || card.id === "motion-wait" || card.id === "loop-tilt") {
+      entry.artParam = card.id === "motion-wait" ? "state" : "direction";
+      entry.artIcons = Object.fromEntries(card.paramsSchema[entry.artParam].options.map(option =>
+        [option.value, artwork + `${card.id === "loop-tilt" ? "tilt-wait" : card.id}-${option.value}`]));
+      entry.artIcon = entry.artIcons[card.paramsSchema[entry.artParam].default];
+    }
+    if (card.id === 'motor-power' || card.id === 'combo-power') {
+      entry.artParam = 'power';
+      entry.artIcons = Object.fromEntries([1,2,3].map(level => [level,
+        artwork + `${card.id}-${level}`]));
+      entry.artIcon = entry.artIcons[card.paramsSchema.power.default];
+    }
     artworkByCard[card.id] = entry;
   }));
 
@@ -115,6 +165,8 @@
       {id:'remote',label:'遥控',icon:'assets/devices/remote.svg'}
     ],
     catalog:categories,legacyCards,artworkByCard,startIcon:'assets/blocks/xiaobai-20261016/start.svg',artStyle:'fitted',
+    messageColors,messageStartIcon:'assets/blocks/xiaobai-20261112/message-open-red.svg',
+    messageSendIcon:'assets/blocks/xiaobai-20261112/message-closed-red.svg',
     examples:[
       {name:'电机往返',color:'#edf5ff',items:[{id:'motor-forward'},{id:'wait-time'},{id:'motor-reverse'}]},
       {name:'重复转向',color:'#fff5dc',items:[{id:'loop-count',params:{count:4},children:[{id:'combo-forward'},{id:'combo-turn-right'}]}]},

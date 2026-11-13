@@ -304,7 +304,7 @@
       render();authorizedDevices();
     } else if(location.hash==="#editor") {
       document.title=`${document.querySelector(".brand-title").textContent} · Drluck CodeLab`;
-      updateProgramAnchor();
+      window.CardCanvas?.layout();
     }
   }
   trigger.onclick=()=>{location.hash="bluetooth";};

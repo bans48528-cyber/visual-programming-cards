@@ -58,7 +58,7 @@ async function packages(){
   const data=P.concat(h(v.manifest_hex),h(v.payload_hex||vectors.payload_hex));
   if(v.name==='valid'){eq((await verify(data)).packageSha256,vectors.package_sha256);continue;}
   if(v.name==='future_boot'){
-   const future=await verify(data);throws(()=>P.checkCompatibility(future,P.parseInfo(infoBytes())),'BOOT_VERSION');continue;
+   const future=await verify(data);throws(()=>P.checkCompatibility(future,P.parseInfo(infoBytes({mode:1}))),'BOOT_VERSION');continue;
   }
   await assert.rejects(()=>verify(data),error=>error.status===v.expected_status,`${v.name} status ${v.expected_status}`);assertions++;
  }
@@ -82,11 +82,14 @@ async function infoAndPolicy(){
  eq(P.checkCompatibility(pkg,info),{alreadyPresent:true,needsWrite:false});eq(P.checkCompatibility(pkg,info,{repair:true}),{alreadyPresent:true,needsWrite:true});
  eq(P.checkCompatibility(pkg,{...info,version:pkg.version-1}),{alreadyPresent:false,needsWrite:true});
  eq(P.checkCompatibility(pkg,{...info,imageValid:false,version:pkg.version+1}),{alreadyPresent:false,needsWrite:true},'invalid recovery Boot has no persistent antirollback floor');
- throws(()=>P.checkCompatibility(pkg,{...info,version:pkg.version+1}),'DOWNGRADE');
- throws(()=>P.checkCompatibility(pkg,{...info,imageSha256:'0'.repeat(64)}),'VERSION_COLLISION');
- throws(()=>P.checkCompatibility(pkg,{...info,imageSize:321}),'VERSION_COLLISION');
- throws(()=>P.checkCompatibility(pkg,{...info,bootVersion:0}),'BOOT_VERSION');
- for(const extra of [{boardId:259},{protocol:2}]){const unsupported=P.parseInfo60(infoBytes(extra));eq(unsupported.supported,false);throws(()=>P.checkCompatibility(pkg,unsupported),'COMPATIBILITY');}
+ // A legacy App's compiled BootVersion does not decide the actual Boot's capability.
+ eq(P.checkCompatibility(pkg,{...info,bootVersion:0,version:pkg.version+1}),{alreadyPresent:false,needsWrite:true});
+ throws(()=>P.checkCompatibility(pkg,{...info,mode:1,version:pkg.version+1}),'BOOT_CAPABILITY');
+ throws(()=>P.checkCompatibility(pkg,{...info,mode:1,imageSha256:'0'.repeat(64)}),'BOOT_CAPABILITY');
+ throws(()=>P.checkCompatibility(pkg,{...info,mode:1,imageSize:321}),'BOOT_CAPABILITY');
+ throws(()=>P.checkCompatibility(pkg,{...info,mode:1,bootVersion:0}),'BOOT_UNKNOWN');
+ const unsupported=P.parseInfo60(infoBytes({boardId:259}));eq(unsupported.supported,false);throws(()=>P.checkCompatibility(pkg,{...unsupported,mode:1}),'COMPATIBILITY');
+ throws(()=>P.parseInfo(infoBytes({protocol:3})),'INFO_SCHEMA');
 }
 async function candidates(){
  const firmware=process.env.XIAOBAI_OTA_FIRMWARE_ROOT||path.resolve(__dirname,'../../../../5月/小白机器人/LBS-XIAOBAI-AI');

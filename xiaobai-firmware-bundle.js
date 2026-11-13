@@ -6,7 +6,7 @@
   const immutable=value=>{if(value&&typeof value==='object'){for(const child of Object.values(value))immutable(child);Object.freeze(value);}return value;};
   // This pin is generated only when a signed package is bound to a new App release.
   // BEGIN GENERATED FIRMWARE RELEASE PIN
-  const METADATA=immutable({"bound":true,"app":{"applicationId":"com.xiaobai.remote","versionName":"1.2.15","versionCode":21},"firmware":{"boardId":258,"protocol":1,"version":65540},"manifestSha256":"3d44cafdcece1572f970cf2732269cad6d289bcd43fc8ca1ac21354168d380c9"});
+  const METADATA=immutable({"bound":true,"app":{"applicationId":"com.xiaobai.remote","versionCode":37,"versionName":"1.2.31"},"firmware":{"boardId":258,"protocol":1,"version":131587,"layoutId":2,"imageSha256":"7a88de8c7a02d182b40836643a4185981244f2c4aa17000608d3251b4041572e"},"manifestSha256":"c02bc3d5f546fe0c41c12e6c98338619df320665880170b971a4bf253ecae2df"});
   // END GENERATED FIRMWARE RELEASE PIN
   const MANIFEST_ASSET='assets/firmware/release.json';
   const HASH=/^[0-9a-f]{64}$/;
@@ -19,16 +19,33 @@
       fail('RELEASE_APP','App 发布身份格式无效。');
     return app;
   }
+  function releaseIdentity(release){
+    const f=release.firmware,identity={boardId:f.boardId,protocol:f.protocol,version:f.version};
+    return release.schemaVersion===1?identity:{...identity,layoutId:f.layoutId,imageSha256:f.imageSha256};
+  }
+  function packageAsset(f,schemaVersion=2){
+    const versionName=P.versionText(f.version);
+    // A new layout or payload must never overwrite a same-version archive. The
+    // package suffix also distinguishes a fresh signature of an identical image.
+    return schemaVersion===1?`assets/firmware/xiaobai_py32_${versionName}.ota`:
+      `assets/firmware/xiaobai_py32_${versionName}_l${f.layoutId}_${f.imageSha256}_p${f.packageSha256.slice(0,16)}.ota`;
+  }
   function validateRelease(release,metadata=METADATA){
-    if(!exactKeys(release,['schemaVersion','app','firmware'])||release.schemaVersion!==1)fail('RELEASE_SCHEMA','内置固件发布映射格式无效。');
+    if(!exactKeys(release,['schemaVersion','app','firmware'])||![1,2].includes(release.schemaVersion))fail('RELEASE_SCHEMA','内置固件发布映射格式无效。');
     const app=validateApp(release.app),f=release.firmware;
-    if(!exactKeys(f,['boardId','protocol','version','versionName','minBootVersion','imageSize','imageSha256','packageSize','packageSha256','asset'])||
-       f.boardId!==P.C.OTA_BOARD_ID||f.protocol!==P.C.OTA_PROTOCOL_VERSION||!uint(f.version)||!f.version||f.versionName!==P.versionText(f.version)||!uint(f.minBootVersion)||
-       !uint(f.imageSize,P.C.OTA_APP_CAPACITY)||f.imageSize<192||f.packageSize!==f.imageSize+P.C.OTA_MANIFEST_SIZE||!HASH.test(f.imageSha256)||!HASH.test(f.packageSha256)||
-       f.asset!==`assets/firmware/xiaobai_py32_${f.versionName}.ota`)
+    const keys=['boardId','protocol','version','versionName','minBootVersion','imageSize','imageSha256','packageSize','packageSha256','asset'];
+    if(release.schemaVersion===2)keys.push('layoutId','format','appBase','erasePage');
+    if(!exactKeys(f,keys))fail('RELEASE_FIRMWARE','内置固件发布信息不完整或不受支持。');
+    const layout=P.layoutOf(f);
+    if(!layout||f.boardId!==P.C.OTA_BOARD_ID||f.protocol!==P.C.OTA_PROTOCOL_VERSION||!uint(f.version)||!f.version||f.versionName!==P.versionText(f.version)||
+       !uint(f.minBootVersion)||f.minBootVersion<layout.minBootVersion||!uint(f.imageSize,layout.capacity)||f.imageSize<192||
+       f.packageSize!==f.imageSize+P.C.OTA_MANIFEST_SIZE||!HASH.test(f.imageSha256)||!HASH.test(f.packageSha256)||
+       release.schemaVersion===2&&(f.layoutId!==layout.id||f.format!==layout.format||f.appBase!==layout.appBase||f.erasePage!==layout.erasePage)||
+       f.asset!==packageAsset(f,release.schemaVersion))
       fail('RELEASE_FIRMWARE','内置固件发布信息不完整或不受支持。');
     if(!metadata?.bound||!HASH.test(metadata.manifestSha256||''))fail('FIRMWARE_MISSING','此 App 尚未绑定正式签名固件，请使用完整安装包。');
-    if(Object.keys(app).some(k=>app[k]!==metadata.app?.[k])||f.boardId!==metadata.firmware?.boardId||f.protocol!==metadata.firmware?.protocol||f.version!==metadata.firmware?.version)
+    const identity=releaseIdentity(release);
+    if(Object.keys(app).some(k=>app[k]!==metadata.app?.[k])||!exactKeys(metadata.firmware,Object.keys(identity))||Object.keys(identity).some(k=>identity[k]!==metadata.firmware[k]))
       fail('RELEASE_IDENTITY','内置固件不属于当前 App 版本。');
     return release;
   }
@@ -46,8 +63,10 @@
     }
     const bytes=Uint8Array.from(P.asBytes(packageBytes)),f=release.firmware;
     if(bytes.length!==f.packageSize)fail('BUNDLE_SIZE','内置固件长度与发布映射不一致。');
-    const pkg=await P.verifyPackage(bytes,{name:f.asset.split('/').at(-1),crypto});
-    if(pkg.boardId!==f.boardId||pkg.version!==f.version||pkg.minBootVersion!==f.minBootVersion||pkg.imageSize!==f.imageSize||pkg.imageSha256!==f.imageSha256||pkg.packageSha256!==f.packageSha256)
+    const pkg=await P.verifyPackage(bytes,{name:f.asset.split('/').slice(-1)[0],crypto});
+    const layout=P.layoutOf(f);
+    if(pkg.boardId!==f.boardId||pkg.version!==f.version||pkg.minBootVersion!==f.minBootVersion||pkg.imageSize!==f.imageSize||pkg.imageSha256!==f.imageSha256||pkg.packageSha256!==f.packageSha256||
+       pkg.layoutId!==layout.id||pkg.format!==layout.format||pkg.appBase!==layout.appBase||pkg.erasePage!==layout.erasePage)
       fail('BUNDLE_IDENTITY','内置固件内容与当前 App 发布映射不一致。');
     return{release:immutable(release),pkg,manifestSha256};
   }
@@ -64,7 +83,7 @@
         const releaseBytes=await bytes(MANIFEST_ASSET,16384);
         let release;try{release=JSON.parse(new TextDecoder().decode(releaseBytes));}catch{fail('RELEASE_SCHEMA','内置固件发布映射无法读取。');}
         validateRelease(release,metadata);
-        const packageBytes=await bytes(release.firmware.asset,P.C.OTA_MANIFEST_SIZE+P.C.OTA_APP_CAPACITY);
+        const packageBytes=await bytes(release.firmware.asset,P.C.OTA_MANIFEST_SIZE+P.layoutOf(release.firmware).capacity);
         return{releaseBytes,packageBytes};
       })().catch(e=>{inFlight=null;throw e;});
       const cached=await inFlight;
@@ -73,5 +92,5 @@
     }};
   }
   const defaultLoader=createLoader();
-  return{METADATA,MANIFEST_ASSET,validateApp,validateRelease,verify,createLoader,load:options=>defaultLoader.load(options)};
+  return{METADATA,MANIFEST_ASSET,validateApp,releaseIdentity,packageAsset,validateRelease,verify,createLoader,load:options=>defaultLoader.load(options)};
 });

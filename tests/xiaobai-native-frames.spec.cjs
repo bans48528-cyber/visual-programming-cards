@@ -3,9 +3,9 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const {spawnSync} = require('node:child_process');
-const {command, matrixChunks, OP} = require('../xiaobai-protocol.js');
-
-const root = path.resolve(__dirname, '..');
+const root = path.resolve(process.env.CARD_APP_ROOT || path.join(__dirname, '..'));
+const {command, matrixChunks, OP} = require(path.join(root, 'xiaobai-protocol.js'));
+const programFrameSource = process.env.CARD_PROGRAM_FRAME_SOURCE || path.join(root, 'android/app/src/main/java/com/cardprogramming/app/ProgramFrame.java');
 const cases = [];
 const hex = bytes => Buffer.from(bytes).toString('hex');
 const check = (expected, bytes, label) => cases.push(`${expected ? 'accept' : 'reject'}\t${hex(bytes)}\t${label}`);
@@ -74,8 +74,10 @@ for (const offset of [13, 14]) {
 }
 
 // The real Android gate must allow the new opcodes, but never malformed directions/padding.
-for(let side=0;side<256;side++)check(side>=2&&side<=5,command(1,OP.WAIT_TILT,[side]),`tilt direction ${side}`);
-for(const side of [2,3,4,5])for(const seq of [1,255]){
+// Firmware 2.0.2 defines target1 as stillness at any orientation; 2..5 retain their wire ordinals.
+check(true,Buffer.from('5a97980ac2073201000000000000008fa5','hex'),'WAIT_TILT still independent wire vector');
+for(let side=0;side<256;side++)check(side>=1&&side<=5,command(1,OP.WAIT_TILT,[side]),`tilt direction ${side}`);
+for(const side of [1,2,3,4,5])for(const seq of [1,255]){
   const bytes=command(seq,OP.WAIT_TILT,[side]);check(true,bytes,`tilt side ${side} seq ${seq}`);
   check(false,mutate(bytes,5,0),'tilt zero sequence');
   for(let offset=8;offset<15;offset++)for(const value of [1,128,255])check(false,mutate(bytes,offset,value),`tilt reserved ${offset}=${value}`);
@@ -83,6 +85,14 @@ for(const side of [2,3,4,5])for(const seq of [1,255]){
 for(const seq of [1,255]){
   const bytes=command(seq,OP.READ_TILT);check(true,bytes,'read tilt');check(false,mutate(bytes,5,0),'read tilt zero sequence');
   for(let offset=7;offset<15;offset++)for(const value of [1,128,255])check(false,mutate(bytes,offset,value),`read tilt reserved ${offset}=${value}`);
+}
+
+check(true,Buffer.from('5a97980ac225340100000000000000afa5','hex'),'WAIT_MOTION independent 2.1.0 wire vector');
+for(let kind=0;kind<256;kind++)check(kind>=1&&kind<=4,command(1,OP.WAIT_MOTION,[kind]),`motion kind ${kind}`);
+for(const kind of [1,2,3,4])for(const seq of [1,255]){
+  const bytes=command(seq,OP.WAIT_MOTION,[kind]);check(true,bytes,`motion ${kind} seq ${seq}`);
+  check(false,mutate(bytes,5,0),'motion zero sequence');
+  for(let offset=8;offset<15;offset++)for(const value of [1,128,255])check(false,mutate(bytes,offset,value),`motion reserved ${offset}=${value}`);
 }
 
 // Existing programming opcodes must continue to pass the production native gate.
@@ -105,11 +115,21 @@ for (const opcode of [OP.ENTER_PROGRAM, OP.ENTER_REMOTE, OP.HEARTBEAT, OP.QUERY_
   const bytes = command(0, opcode);
   check(true, bytes, `existing control ${opcode}`);
   check(opcode===OP.QUERY_STATUS, mutate(bytes, 5, 1), `existing control ${opcode}, nonzero seq`);
-  check(false, mutate(bytes, 7, 1), `existing control ${opcode}, nonzero padding`);
+  check(false, mutate(bytes, opcode===OP.ENTER_PROGRAM?11:7, 1), `existing control ${opcode}, nonzero padding`);
 }
 
+// Fresh online-program tokens occupy exactly bytes7..10; legacy zero entry stays valid.
+check(true,Buffer.from('5a97980ac2000178563412000000006aa5','hex'),'ENTER program token independent wire vector');
+for(let byte=0;byte<4;byte++)for(const value of [1,127,128,255]){
+  const token=[0,0,0,0];token[byte]=value;
+  const bytes=command(0,OP.ENTER_PROGRAM,token);check(true,bytes,`ENTER program token byte ${byte}=${value}`);
+  for(const seq of [1,255])check(false,mutate(bytes,5,seq),`ENTER program token requires seq0 ${byte}=${value},seq${seq}`);
+  for(let offset=11;offset<15;offset++)for(const tail of [1,128,255])check(false,mutate(bytes,offset,tail),`ENTER program token reserved ${offset}=${tail}`);
+}
+check(true,command(0,OP.ENTER_PROGRAM,[255,255,255,255]),'ENTER max uint32 program token');
+
 // App-side OTA entry remains inside the real 17-byte native whitelist.
-for(let part=0;part<256;part++)check(part<=9,command(1,0x60,[part]),`OTA INFO part ${part}`);
+for(let part=0;part<256;part++)check(part<=11,command(1,0x60,[part]),`OTA INFO part ${part}`);
 for(const opcode of [0x60,0x61])for(const seq of [1,255]){
   const bytes=command(seq,opcode);check(true,bytes,'OTA App entry');check(false,mutate(bytes,5,0),'OTA App zero sequence');
   for(let offset=opcode===0x60?8:7;offset<15;offset++)for(const value of [1,128,255])check(false,mutate(bytes,offset,value),`OTA App reserved ${offset}`);
@@ -205,8 +225,8 @@ const run = (executable, args, input) => {
 try {
   run(jdk.javac, ['-encoding', 'UTF-8', '-d', classes,
     path.join(root, 'android/app/src/main/java/com/cardprogramming/app/OtaLayout.java'),
-    path.join(root, 'android/app/src/main/java/com/cardprogramming/app/ProgramFrame.java'),
-    path.join(__dirname, 'ProgramFrameTest.java')]);
+    programFrameSource,
+    path.join(root, 'tests/ProgramFrameTest.java')]);
   process.stdout.write(run(jdk.java, ['-cp', classes, 'com.cardprogramming.app.ProgramFrameTest'], cases.join('\n') + '\n'));
 } finally {
   const target = path.resolve(classes);

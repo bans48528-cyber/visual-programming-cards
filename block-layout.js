@@ -64,7 +64,7 @@ const BlockLayout = (() => {
     }
     const start = el.classList.contains("start");
     const bubble = direct(el, ".param-bubble")[0];
-    const width = start ? 68 : 76;
+    const width = 76;
     if (bubble) {
       const bubbleWidth = Math.min(width-8, Math.max(width-16, parameterWidth(bubble)));
       bubble.style.width = `${bubbleWidth}px`;
@@ -130,7 +130,7 @@ const BlockLayout = (() => {
       bubble.style.setProperty("--param-shift", "0px");
     }
     const icon = direct(tail, ".card-icon")[0];
-    if (icon) icon.style.left = `${(tailWidth-iconSize)/2}px`;
+    if (icon) icon.style.left = `${(tailWidth-iconSize)/2+iconSize*.15}px`;
     el.style.setProperty("--loop-icon-top", `${externalY-beam-iconSize/2}px`);
     el.dataset.internalConnectorY = internalY;
     const height = Math.max(innerTop+child.height, h+(bubble ? paramOverhang : 0));

@@ -8,14 +8,11 @@
     let cardById = Object.fromEntries(flatCards.map(card => [card.id, card]));
     const chain = document.getElementById("chain");
     const palette = document.getElementById("palette");
-    const deleteOverlay = document.getElementById("deleteOverlay");
-    const emptyNote = document.getElementById("emptyNote");
     const statusEl = document.getElementById("status");
     const programArea = document.querySelector(".program-area");
     const programCanvas = document.querySelector(".program-canvas");
     programCanvas.style.overflowAnchor = "none";
     const appElement = document.querySelector(".app");
-    const topbar = document.querySelector(".topbar");
     const canvasBackgroundBtn = document.getElementById("canvasBackgroundBtn");
     function setCanvasBackground(dark) {
       document.documentElement.dataset.editorBackground = dark ? "dark" : "light";
@@ -32,12 +29,9 @@
     });
     const libraryArea = document.querySelector(".library-area");
     const tabs = document.querySelector(".tabs");
-    const startBlock = document.getElementById("startBlock");
     const undoBtn = document.getElementById("undoBtn");
     const redoBtn = document.getElementById("redoBtn");
     const paramEditor = document.getElementById("paramEditor");
-    const grabTool = document.getElementById("grabTool");
-    const stagingTab = document.getElementById("tab-staging");
     const tabSlider = document.querySelector(".tab-slider");
     const blockSounds = {
       place: new Audio("assets/sounds/block-place.wav"),
@@ -47,38 +41,69 @@
       audio.preload = "auto";
       audio.volume = 0.7;
     });
-    let categoryOrder = [...Object.keys(categories), "staging"];
+    let categoryOrder = Object.keys(categories);
     const categorySliderColors = {
-      motor: "#e9f4ff", combo: "#fce9f6", logic: "#fff0de", dynamic: "#eee7ff", staging: "#eef2f7"
+      motor: "#e9f4ff", combo: "#fce9f6", logic: "#fff0de", dynamic: "#eee7ff"
     };
 
-    let activeCategory = Object.keys(categories)[0] || "staging";
+    let activeCategory = Object.keys(categories)[0] || "";
     let program = [];
-    let stagedGroups = [];
-    let dragState = null;
-    let grabToolState = null;
-    let grabSelectionBoxState = null;
-    let grabMarkedPaths = new Set();
-    let stagingHoverTimer = null;
-    let stagedGroupPointerState = null;
+    // The document owns structure; `program` is only the selected group's view
+    // for the existing parameter editors and device-specific integrations.
+    let canvasController = null;
+    let executionLocked = false;
+    function syncCanvasProgram() {
+      if (!canvasController) return;
+      const doc = canvasController.getDocument();
+      program = doc.groups.find(group => group.id === doc.selectedGroupId)?.items || [];
+    }
+    function activeEditorItem() {
+      if (!activeParamEditor) return null;
+      if (canvasController && activeParamEditor.nodeUid)
+        return CanvasWorkspace.findNode(canvasController.getDocument(), activeParamEditor.nodeUid)?.item || null;
+      return getNodeAtPath(activeParamEditor.nodePath);
+    }
+    function openCanvasParamEditor(nodeUid, anchor) {
+      if (executionLocked) return;
+      const found = CanvasWorkspace.findNode(canvasController.getDocument(), nodeUid);
+      if (!found) return;
+      canvasController.select(found.group.id);
+      syncCanvasProgram();
+      openParamEditor(found.path, anchor);
+    }
+    function createStartVisual(message = false) {
+      const node = document.createElement('div');
+      node.className = 'block start';
+      node.dataset.cardId = message ? '__message_start__' : '__start__'; node.dataset.mode = 'palette';
+      node.setAttribute('role','button'); node.setAttribute('aria-label',message ? '添加收到消息开始' : '添加程序开始');
+      const icon = document.createElement('img');
+      icon.className = 'start-art-icon'; icon.alt = ''; icon.draggable = false;
+      icon.src = message ? CardModelSession.current.messageStartIcon : CardModelSession.current.startIcon || 'assets/blocks/start.svg';
+      icon.classList.toggle('model-art-icon',!message && CardModelSession.current.artStyle === 'fitted');
+      if (message) {
+        node.classList.add('message-start');
+
+      }
+      node.append(icon);
+      if (message) {
+        const bubble = document.createElement('span'); bubble.className = 'param-bubble option-dropdown-trigger';
+        bubble.setAttribute('aria-hidden','true'); bubble.append(createDropdownArtwork()); node.append(bubble);
+        node.classList.add('has-param-bubble');
+      }
+      BlockLayout.measure(node); return node;
+    }
     let matrixPaintState = null;
-    let blankGrabPending = null;
     let programAnchorFrame = null;
     let activeParamEditor = null;
     let activeNumberKeypad = null;
-    let paletteTransitionCleanup = null;
+    let renderedPaletteCatalog = null;
+    let renderedPaletteModel = null;
+    let paletteScrollFrame = null;
+    let paletteScrollTarget = null;
     let tabSliderAnimation = null;
     let historySnapshots = [];
     let historyIndex = -1;
     const HISTORY_LIMIT = 80;
-    const STAGING_HOVER_DELAY = 1000;
-    const BLANK_GRAB_HOLD_DELAY = 500;
-    const BLANK_GRAB_MOVE_LIMIT = 10;
-    const STAGED_GROUP_PAN_THRESHOLD = 6;
-    const STAGED_GROUP_PULL_THRESHOLD = 9;
-    const PALETTE_SWIPE_LOCK_DISTANCE = 10;
-    let paletteSwipeState = null;
-    let paletteGestureCleanup = null;
 
     function playBlockSound(type) {
       const audio = blockSounds[type];
@@ -90,162 +115,103 @@
       } catch (_) {}
     }
 
-    function renderPalette() {
-      finishPaletteTransition();
-      document.getElementById('stagingCount').textContent = stagedGroups.length;
-      stagingTab.setAttribute('aria-label', `暂存，${stagedGroups.length} 组`);
-      palette.innerHTML = "";
-      palette.classList.toggle("is-staging", activeCategory === "staging");
-      libraryArea.classList.toggle("is-staging", activeCategory === "staging");
-      if (activeCategory === "staging") {
-        stagedGroups.forEach(group => palette.appendChild(createStagedGroupElement(group)));
-        return;
+    function renderPalette(force = false) {
+      // Editing a canvas changes its document, not its catalog. Keep the actual
+      // palette nodes (and the user's scroll/drag position) alive across edits.
+      const modelId = CardModelSession.current.id;
+      if (!force && renderedPaletteCatalog === categories && renderedPaletteModel === modelId) return;
+      paletteScrollTarget = null;
+      const fragment = document.createDocumentFragment();
+      if (canvasController) {
+        const start = createStartVisual();
+        // The single start head leads the whole strip and shares its first
+        // scroll stop, so opening the first category keeps it in view.
+        start.dataset.paletteCategory = categoryOrder[0];
+        start.tabIndex = 0;
+        fragment.appendChild(start);
+        if (modelId === 'xiaobai') {
+          const messageStart = createStartVisual(true);
+          messageStart.dataset.paletteCategory = categoryOrder[0]; messageStart.tabIndex = 0;
+          fragment.appendChild(messageStart);
+        }
       }
-
-      categories[activeCategory].cards.forEach(card => {
-        const block = createBlock(card, "palette");
-        palette.appendChild(block);
-      });
+      for (const [category, group] of Object.entries(categories)) {
+        const nodes = group.cards.map(card => createBlock(card, "palette"));
+        nodes.forEach(node => {
+          node.dataset.paletteCategory = category;
+          node.tabIndex = 0;
+          fragment.appendChild(node);
+        });
+      }
+      palette.replaceChildren(fragment);
+      palette.setAttribute("role", "group");
+      palette.setAttribute("aria-label", "积木栏，左右浏览全部积木");
+      renderedPaletteCatalog = categories;
+      renderedPaletteModel = modelId;
+      palette.scrollLeft = 0;
+      updatePaletteTrailingSpace();
+      schedulePaletteScrollSync();
     }
 
     function selectCategory(category, animate = true) {
-      if (category !== "staging" && !categories[category]) return;
-      paletteGestureCleanup?.();
-      finishPaletteTransition();
-      const previousCategory = activeCategory;
-      const previousVisual = animate ? [...palette.children].map(createPaletteVisualClone) : [];
-      activeCategory = category;
-      document.querySelectorAll(".tab").forEach(tab => {
-        tab.setAttribute("aria-selected", String(tab.id === `tab-${category}`));
-      });
+      if (!categories[category]) return;
       renderPalette();
-      updateCategorySlider(animate);
-      const direction = Math.sign(categoryOrder.indexOf(category) - categoryOrder.indexOf(previousCategory));
-      if (animate && direction) animatePaletteCategory(direction, previousVisual);
+      setActiveCategory(category, animate);
+      const first = palette.querySelector(`[data-palette-category="${category}"]`);
+      if (!first) return;
+      const left = paletteCategoryLeft(first);
+      paletteScrollTarget = {category, left};
+      const smooth = animate && !window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+      palette.scrollTo({left, behavior: smooth ? "smooth" : "auto"});
+      schedulePaletteScrollSync();
     }
 
-    function startPaletteSwipe(event) {
-      if (event.pointerType !== "touch" || event.isPrimary === false || event.button > 0) return;
-      if (event.target.closest(".staged-group")) return;
-      paletteGestureCleanup?.();
-      paletteSwipeState = {
-        pointerId: event.pointerId,
-        startX: event.clientX,
-        startY: event.clientY,
-        source: event.target.closest(".block, .loop-block"),
-        scrollOnly: activeCategory === "all",
-        scrollStart: palette.scrollLeft,
-        locked: false,
-        width: palette.clientWidth,
-        offset: 0,
-        layer: null,
-        track: null
-      };
-    }
-
-    function createPaletteGesturePanel(category) {
-      const panel = document.createElement("div");
-      panel.className = "palette-transition-panel";
-      if (!category) return panel;
-      if (category === activeCategory) {
-        [...palette.children].forEach(child => panel.appendChild(createPaletteVisualClone(child)));
-        return panel;
-      }
-      if (category === "staging") {
-        stagedGroups.forEach(group => panel.appendChild(createStagedGroupElement(group)));
-      } else {
-        categories[category].cards.forEach(card => panel.appendChild(createBlock(card, "palette")));
-      }
-      return panel;
-    }
-
-    function beginPaletteGesture(state) {
-      finishPaletteTransition();
-      const index = categoryOrder.indexOf(activeCategory);
-      const layer = document.createElement("div");
-      layer.className = "palette-transition-layer palette-gesture-layer";
-      const track = document.createElement("div");
-      track.className = "palette-gesture-track";
-      track.style.width = `${state.width * 3}px`;
-      [categoryOrder[index - 1], activeCategory, categoryOrder[index + 1]]
-        .forEach(category => track.appendChild(createPaletteGesturePanel(category)));
-      layer.appendChild(track);
-      palette.appendChild(layer);
-      track.children[1].scrollLeft = palette.scrollLeft;
-      [...palette.children].forEach(child => {
-        if (child !== layer) child.style.opacity = "0";
+    function setActiveCategory(category, animate = true) {
+      activeCategory = category;
+      tabs.querySelectorAll(".tab").forEach(tab => {
+        const selected = tab.id === `tab-${category}`;
+        tab.setAttribute("aria-selected", String(selected));
+        tab.tabIndex = selected ? 0 : -1;
       });
-      state.layer = layer;
-      state.track = track;
-      state.locked = true;
-      palette.classList.add("is-scrubbing");
-      paletteGestureCleanup = () => {
-        track.getAnimations().forEach(animation => animation.cancel());
-        layer.remove();
-        [...palette.children].forEach(child => { child.style.opacity = ""; });
-        palette.classList.remove("is-scrubbing");
-        paletteGestureCleanup = null;
-      };
+      updateCategorySlider(animate);
     }
 
-    function movePaletteSwipe(event) {
-      if (!paletteSwipeState || event.pointerId !== paletteSwipeState.pointerId) return;
-      const state = paletteSwipeState;
-      const deltaX = event.clientX - state.startX;
-      const deltaY = event.clientY - state.startY;
-      if (dragState?.active || stagedGroupPointerState) { cancelPaletteSwipe(event); return; }
-      if (!state.locked) {
-        if (Math.abs(deltaX) < PALETTE_SWIPE_LOCK_DISTANCE || Math.abs(deltaX) <= Math.abs(deltaY) * 1.2) return;
-        if(state.scrollOnly) state.locked=true; else beginPaletteGesture(state);
-        if (state.source) state.source.dataset.dragged = "true";
-      }
-      event.preventDefault();
-      if(state.scrollOnly){palette.scrollLeft=state.scrollStart-deltaX;return;}
-      const index = categoryOrder.indexOf(activeCategory);
-      const hasNeighbor = deltaX < 0 ? index < categoryOrder.length - 1 : index > 0;
-      state.offset = Math.max(-state.width, Math.min(state.width, hasNeighbor ? deltaX : deltaX * .22));
-      state.track.style.transform = `translate3d(${state.offset - state.width}px,0,0)`;
+    function paletteCategoryLeft(first) {
+      const padding = parseFloat(getComputedStyle(palette).paddingLeft) || 0;
+      return Math.max(0, palette.scrollLeft + BlockLayout.clientRect(first).left - BlockLayout.clientRect(palette).left - padding);
     }
 
-    function finishPaletteSwipe(event) {
-      if (!paletteSwipeState || event.pointerId !== paletteSwipeState.pointerId) return;
-      const state = paletteSwipeState;
-      paletteSwipeState = null;
-      if (!state.locked) return;
-      if(state.scrollOnly){if(state.source)setTimeout(()=>{state.source.dataset.dragged="false";},0);return;}
-      const index = categoryOrder.indexOf(activeCategory);
-      const direction = state.offset < 0 ? 1 : -1;
-      const nextIndex = index + direction;
-      const change = nextIndex >= 0 && nextIndex < categoryOrder.length
-        && Math.abs(state.offset) >= Math.min(80, state.width * .22);
-      const finalOffset = change ? direction * -state.width : 0;
-      const from = state.offset - state.width;
-      const to = finalOffset - state.width;
-      const finish = () => {
-        if (!state.layer.isConnected) return;
-        paletteGestureCleanup?.();
-        if (change) {
-          selectCategory(categoryOrder[nextIndex], false);
-          document.getElementById(`tab-${activeCategory}`)?.scrollIntoView({
-            behavior: "auto", block: "nearest", inline: "center"
-          });
-        }
-      };
-      if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches || Math.abs(to - from) < 1) {
-        finish();
+    function updatePaletteTrailingSpace() {
+      const lastCategory = categoryOrder[categoryOrder.length - 1];
+      const first = palette.querySelector(`[data-palette-category="${lastCategory}"]`);
+      const last = palette.lastElementChild;
+      if (!first || !last) return;
+      // Give the final category just enough trailing room to align its first
+      // card, without dummy blocks or viewport-specific connection geometry.
+      const width = BlockLayout.clientRect(last).right - BlockLayout.clientRect(first).left;
+      const padding = parseFloat(getComputedStyle(palette).paddingLeft) || 0;
+      palette.style.paddingRight = `${Math.max(padding, palette.clientWidth - width - padding)}px`;
+    }
+
+    function syncPaletteScroll() {
+      paletteScrollFrame = null;
+      if (paletteScrollTarget) {
+        if (Math.abs(palette.scrollLeft - paletteScrollTarget.left) > 1) return;
+        const category = paletteScrollTarget.category;
+        paletteScrollTarget = null;
+        if (category !== activeCategory) setActiveCategory(category, false);
         return;
       }
-      const animation = state.track.animate(
-        [{ transform: `translate3d(${from}px,0,0)` }, { transform: `translate3d(${to}px,0,0)` }],
-        { duration: 180, easing: "cubic-bezier(.2,.7,.2,1)" }
-      );
-      animation.addEventListener("finish", finish, { once: true });
+      let category = categoryOrder[0];
+      for (const candidate of categoryOrder) {
+        const first = palette.querySelector(`[data-palette-category="${candidate}"]`);
+        if (first && paletteCategoryLeft(first) <= palette.scrollLeft + 2) category = candidate;
+      }
+      if (category && category !== activeCategory) setActiveCategory(category, false);
     }
 
-    function cancelPaletteSwipe(event) {
-      if (!paletteSwipeState || (event && event.pointerId !== paletteSwipeState.pointerId)) return;
-      paletteSwipeState = null;
-      paletteGestureCleanup?.();
+    function schedulePaletteScrollSync() {
+      if (paletteScrollFrame === null) paletteScrollFrame = requestAnimationFrame(syncPaletteScroll);
     }
 
     function updateCategorySlider(animate = true) {
@@ -254,7 +220,7 @@
       const targetX = selected.offsetLeft;
       const targetWidth = selected.offsetWidth;
       const targetColor = categorySliderColors[activeCategory] || "#e9f4fc";
-      const targetOpacity = activeCategory === "staging" ? 0 : 1;
+      const targetOpacity = 1;
       const tabs = tabSlider.parentElement;
       const tabsRect = tabs.getBoundingClientRect();
       const sliderRect = tabSlider.getBoundingClientRect();
@@ -271,7 +237,7 @@
         background: targetColor,
         opacity: String(targetOpacity)
       });
-      if (!animate || Math.abs(currentX - targetX) < .5) return;
+      if (!animate || window.matchMedia?.("(prefers-reduced-motion: reduce)").matches || Math.abs(currentX - targetX) < .5) return;
       tabSliderAnimation = tabSlider.animate([
         { transform: `translateX(${currentX}px)`, width: `${currentWidth}px`, backgroundColor: currentColor, opacity: currentOpacity },
         { transform: `translateX(${targetX}px)`, width: `${targetWidth}px`, backgroundColor: targetColor, opacity: targetOpacity }
@@ -279,91 +245,7 @@
       tabSliderAnimation.addEventListener("finish", () => { tabSliderAnimation = null; }, { once: true });
     }
 
-    function finishPaletteTransition() {
-      if (!paletteTransitionCleanup) return;
-      const cleanup = paletteTransitionCleanup;
-      paletteTransitionCleanup = null;
-      cleanup();
-    }
-
-    function createPaletteVisualClone(source) {
-      const clone = source.cloneNode(true);
-      clone.removeAttribute("data-card-id");
-      clone.removeAttribute("data-staged-group-id");
-      clone.style.opacity = "";
-      clone.setAttribute("aria-hidden", "true");
-      const sourceNodes = [source, ...source.querySelectorAll("*")];
-      const cloneNodes = [clone, ...clone.querySelectorAll("*")];
-      sourceNodes.forEach((node, index) => {
-        const copy = cloneNodes[index];
-        const computed = getComputedStyle(node);
-        if (computed.transform !== "none") copy.style.transform = computed.transform;
-        for (const property of ["--block-color", "--block-secondary", "--block-edge", "--loop-icon-top"]) {
-          const value = computed.getPropertyValue(property);
-          if (value) copy.style.setProperty(property, value);
-        }
-      });
-      return clone;
-    }
-
-    function animatePaletteCategory(direction, previousVisual) {
-      if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return;
-      palette.dataset.slideDirection = direction > 0 ? "forward" : "backward";
-      const liveBlocks = [...palette.children];
-      liveBlocks.forEach(block => { block.style.opacity = "0"; });
-
-      const layer = document.createElement("div");
-      layer.className = "palette-transition-layer";
-      const track = document.createElement("div");
-      track.className = "palette-transition-track";
-      const oldPanel = document.createElement("div");
-      const newPanel = document.createElement("div");
-      oldPanel.className = newPanel.className = "palette-transition-panel";
-      previousVisual.forEach(node => oldPanel.appendChild(node));
-      liveBlocks.forEach(node => newPanel.appendChild(createPaletteVisualClone(node)));
-      if (direction > 0) track.append(oldPanel, newPanel);
-      else track.append(newPanel, oldPanel);
-      layer.appendChild(track);
-      palette.appendChild(layer);
-
-      let animation;
-      const cleanup = () => {
-        animation?.cancel();
-        layer.remove();
-        liveBlocks.forEach(block => { block.style.opacity = ""; });
-      };
-      paletteTransitionCleanup = cleanup;
-      animation = track.animate(
-        direction > 0
-          ? [{ transform: "translateX(0)" }, { transform: "translateX(-50%)" }]
-          : [{ transform: "translateX(-50%)" }, { transform: "translateX(0)" }],
-        { duration: 280, easing: "cubic-bezier(.4,0,.2,1)" }
-      );
-      animation.addEventListener("finish", () => {
-        if (paletteTransitionCleanup !== cleanup) return;
-        paletteTransitionCleanup = null;
-        cleanup();
-      }, { once: true });
-    }
-
-    function createStagedGroupElement(group) {
-      const element = document.createElement("div");
-      element.className = "staged-group";
-      element.dataset.mode = "staging";
-      element.dataset.stagedGroupId = group.id;
-      element.dataset.dragged = "false";
-      element.setAttribute("role", "button");
-      element.setAttribute("aria-label", `暂存组合，${countProgramItems(group.items)}张卡片`);
-      const preview = document.createElement("div");
-      preview.className = "staged-group-preview";
-      group.items.forEach(item => preview.appendChild(createStagedPreviewNode(item)));
-      BlockLayout.sequence(preview);
-      element.appendChild(preview);
-      element.addEventListener("pointerdown", startStagedGroupPointer);
-      return element;
-    }
-
-    function createStagedPreviewNode(item) {
+    function createPreviewNode(item) {
       const preview = createProgramNode(item, []).cloneNode(true);
       cleanupClonedProgramBlock(preview);
       preview.setAttribute("aria-hidden", "true");
@@ -376,25 +258,9 @@
       return preview;
     }
 
-    function createStagedGroupDragGhost(items) {
-      const ghost = document.createElement("div");
-      ghost.className = "staged-group staged-group-drag-preview";
-      const preview = document.createElement("div");
-      preview.className = "staged-group-preview";
-      items.forEach(item => preview.appendChild(createStagedPreviewNode(item)));
-      BlockLayout.sequence(preview);
-      ghost.appendChild(preview);
-      return ghost;
-    }
-
     function renderProgram() {
-      closeParamEditor();
-      clearGrabSelection(false);
-      clearDropHints();
-      chain.querySelectorAll(".program-block").forEach(el => el.remove());
-      emptyNote.style.display = program.length ? "none" : "grid";
-      renderSequence(program, chain, [], emptyNote);
-      updateProgramAnchor();
+      if (!canvasController) return;
+      closeParamEditor(); syncCanvasProgram(); canvasController.render();
     }
 
     function renderSequence(sequence, container, sequencePath, beforeElement = null) {
@@ -407,8 +273,9 @@
 
     function createProgramNode(item, nodePath) {
       const card = cardById[item.id];
-      if (card?.kind === "loop") return createLoopBlock(item, nodePath);
-      return createBlock(card, "program", nodePath, item);
+      const node = card?.kind === "loop" ? createLoopBlock(item, nodePath) : createBlock(card, "program", nodePath, item);
+      node.dataset.nodeUid = item.uid;
+      return node;
     }
 
     function createBlock(card, mode, nodePath = [], item = null) {
@@ -426,21 +293,6 @@
       renderBlockContent(block, card, mode, item, nodePath);
       block.setAttribute("role", mode === "palette" ? "button" : "listitem");
       block.setAttribute("aria-label", mode === "palette" ? `添加${getCardDisplayLabel(card)}` : getCardDisplayLabel(card, item));
-
-      block.addEventListener("pointerdown", startDrag);
-      if (mode === "palette") {
-        block.addEventListener("click", event => {
-          if (dragState) return;
-          if (event.detail === 0 || block.dataset.dragged === "true") return;
-          addCard(card.id);
-        });
-      }
-      if (mode === "program" && card.paramsSchema && !hasMatrixParams(card)) {
-        block.addEventListener("click", () => {
-          if (dragState || block.dataset.dragged === "true") return;
-          openParamEditor(nodePath, block);
-        });
-      }
 
       return block;
     }
@@ -464,12 +316,37 @@
       BlockLayout.measure(block);
     }
 
+    function usesIconDropdown(card) {
+      return CardModelSession.current.id === 'xiaobai' && [
+        'eye-matrix','eye-expression','loop-tilt','motion-wait','tilt-wait','send-message','combo-continuous','motor-power','combo-power'
+      ].includes(card.id);
+    }
+
+    function createDropdownArtwork() {
+      const ns = 'http://www.w3.org/2000/svg';
+      const svg = document.createElementNS(ns,'svg');
+      svg.classList.add('param-dropdown-art');
+      svg.setAttribute('viewBox','32 108 436 284');
+      svg.setAttribute('aria-hidden','true');
+      const path = document.createElementNS(ns,'path');
+      path.setAttribute('transform',"matrix(1,0,0,-1,451.7775,174.58621)");
+      path.setAttribute('d',"M0 0C0-13.04-4.98-26.08-14.93-36.03L-165.75-186.86C-185.65-206.75-217.91-206.75-237.81-186.86L-388.63-36.03C-408.53-16.13-408.53 16.13-388.63 36.03-378.68 45.98-365.64 50.95-352.6 50.95-339.56 50.95-326.52 45.98-316.58 36.03L-201.78-78.77-86.98 36.03C-67.08 55.92-34.82 55.92-14.93 36.03-4.98 26.08 0 13.04 0 0");
+      path.setAttribute('fill','#fff'); path.setAttribute('stroke','currentColor');
+      path.setAttribute('stroke-width','20'); path.setAttribute('stroke-linejoin','round');
+      svg.append(path); return svg;
+    }
+
     function createParamBubble(card, mode, item, nodePath) {
       const isProgramControl = mode === "program";
       const bubble = document.createElement(isProgramControl ? "button" : "span");
       bubble.className = "param-bubble";
       bubble.classList.toggle("matrix-param-trigger", hasMatrixParams(card));
-      bubble.textContent = getParamBubbleText(card, item);
+      const iconDropdown = usesIconDropdown(card);
+      bubble.classList.toggle("option-dropdown-trigger",iconDropdown);
+      if (iconDropdown) {
+        bubble.title = getParamBubbleText(card,item) || card.label;
+        bubble.append(createDropdownArtwork());
+      } else bubble.textContent = getParamBubbleText(card, item);
 
       if (!isProgramControl) {
         bubble.setAttribute("aria-hidden", "true");
@@ -495,6 +372,13 @@
     }
 
     function createCardIcon(card, item = null) {
+      if (card.id === 'send-message') {
+        const icon = document.createElement('span'); icon.className = 'card-icon message-card-icon';
+        const selected = CardModelSession.current.messageColors?.find(option => option.value === getParamValue(card,item,'message'));
+        const image = document.createElement('img');
+        image.src = selected?.closedIcon || CardModelSession.current.messageSendIcon;
+        image.alt = ''; image.draggable = false; icon.append(image); return icon;
+      }
       if (card.icon && !["hourglass", "ultrasonic", "matrix"].includes(card.icon)) {
         const icon=document.createElement('img');icon.className='card-icon';icon.src=card.icon;icon.alt='';icon.draggable=false;return icon;
       }
@@ -502,7 +386,7 @@
       icon.className = "card-icon";
       const artwork = modelArtworkByCard[card.id] || card;
       const modelArtwork = (!item && artwork.paletteArtIcon) ||
-        artwork.artIcons?.[getParamValue(card, item, "direction")] || artwork.artIcon;
+        artwork.artIcons?.[getParamValue(card, item, artwork.artParam || "direction")] || artwork.artIcon;
       if (modelArtwork && (!hasMatrixParams(card) || !item)) {
         icon.classList.add("ai-art-icon");
         icon.classList.toggle("model-art-icon", artwork.artStyle === "fitted");
@@ -712,12 +596,6 @@
       loop.dataset.mode = "palette";
       loop.setAttribute("role", "button");
       loop.setAttribute("aria-label", `添加${card.label}`);
-      loop.addEventListener("pointerdown", startDrag);
-      loop.addEventListener("click", event => {
-        if (dragState) return;
-        if (event.detail === 0 || loop.dataset.dragged === "true") return;
-        addCard(card.id);
-      });
 
       const top = document.createElement("div");
       top.className = "loop-top";
@@ -763,7 +641,6 @@
       loop.dataset.nodePath = pathToKey(nodePath);
       loop.setAttribute("role", "listitem");
       loop.setAttribute("aria-label", `${getCardDisplayLabel(card, item)}，内部${children.length}张卡片`);
-      loop.addEventListener("pointerdown", startDrag);
 
       const top = document.createElement("div");
       top.className = "loop-top";
@@ -790,7 +667,7 @@
 
       const tail = document.createElement("div");
       tail.className = "loop-tail";
-      tail.appendChild(createCardIcon(card));
+      tail.appendChild(createCardIcon(card, item));
       if (card.paramsSchema) {
         tail.appendChild(createParamBubble(card, "program", item, nodePath));
       }
@@ -802,6 +679,8 @@
     }
 
     function addCard(cardId, sequencePath = [], insertIndex) {
+      if (executionLocked) return;
+      if (canvasController) { canvasController.add(cardId); return; }
       const card = cardById[cardId];
       const sequence = getSequenceByPath(sequencePath);
       if (!card || !sequence) return;
@@ -919,6 +798,7 @@
 
     function getParamBubbleText(card, item = null) {
       if (card.id === "self-learned-wait") return `指令${getParamValue(card, item, "slot")}`;
+      if (card.id === "loop-time") return `${formatParamNumber(getParamValue(card, item, "duration"))}秒`;
       if (card.id.endsWith("-continuous")) {
         if (card.id === "combo-continuous") return `持续${getParamOptionDisplay(card.paramsSchema.direction,getParamValue(card,item,"direction"))}`;
         const port = card.paramsSchema?.port ? getParamOptionDisplay(card.paramsSchema.port, getParamValue(card, item, "port")) : "";
@@ -974,7 +854,62 @@
       return card.label;
     }
 
+    function createMessageOptions(current, onChange, kind = 'closed') {
+      const options = document.createElement('div'); options.className = 'message-options';
+      options.setAttribute('role','group'); options.setAttribute('aria-label','消息颜色与编号');
+      for (const message of CardModelSession.current.messageColors || []) {
+        const button = document.createElement('button'); button.type = 'button';
+        button.className = 'message-option'; button.dataset.message = message.value;
+        button.classList.toggle('is-selected',current === message.value);
+        button.setAttribute('aria-pressed',String(current === message.value));
+        button.setAttribute('aria-label',`${message.label}消息 ${message.value}`);
+        button.style.setProperty('--message-color',message.color);
+        const image = document.createElement('img'); image.className = 'message-option-art';
+        image.src = kind === 'open' ? message.openIcon : message.closedIcon;
+        image.alt = ''; image.draggable = false; button.title = `${message.label}消息 ${message.value}`;
+        button.append(image); button.addEventListener('click',()=>onChange(message.value)); options.append(button);
+      }
+      return options;
+    }
+
+    function openCanvasHeadParamEditor(groupId, anchor) {
+      if (executionLocked || CardModelSession.current.id !== 'xiaobai') return;
+      const group = CanvasWorkspace.findGroup(canvasController.getDocument(),groupId);
+      if (!group?.startId || group.trigger?.type !== 'message') return;
+      closeParamEditor(); canvasController.select(groupId);
+      activeParamEditor = {headGroupId:groupId,groupId,nodePath:[]};
+      renderHeadParamEditor(anchor);
+    }
+
+    function setHeadMessage(message) {
+      if (executionLocked || !activeParamEditor?.headGroupId) return;
+      const groupId = activeParamEditor.headGroupId,doc = canvasController.getDocument();
+      const group = CanvasWorkspace.findGroup(doc,groupId);
+      if (!group?.startId || group.trigger?.type !== 'message' || group.trigger.message === message ||
+          !CardModelSession.current.messageColors?.some(option=>option.value === message)) return;
+      if (doc.groups.filter(candidate=>candidate.startId).length > 4) { setStatus('小白作品最多支持 4 个开始头，请先移除多余的开始头。'); return; }
+      try {
+        canvasController.commitExternal(current=>CanvasWorkspace.setTrigger(current,groupId,{type:'message',message}),{reason:'head-trigger'});
+        renderHeadParamEditor();
+      } catch (error) { setStatus(error.message || '无法修改消息颜色。'); }
+    }
+
+    function renderHeadParamEditor(anchor) {
+      const groupId = activeParamEditor?.headGroupId;
+      const group = CanvasWorkspace.findGroup(canvasController.getDocument(),groupId);
+      if (!group?.startId || group.trigger?.type !== 'message' || executionLocked) { closeParamEditor(); return; }
+      paramEditor.replaceChildren(); paramEditor.hidden = false;
+      paramEditor.classList.add('is-head-trigger');
+      paramEditor.setAttribute('role','dialog'); paramEditor.setAttribute('aria-label','消息颜色');
+      paramEditor.style.setProperty('--editor-color','var(--logic)');
+      paramEditor.style.setProperty('--editor-edge','#C98A01'); paramEditor.style.setProperty('--editor-secondary','#ECA100');
+      const panel = document.createElement('div'); panel.className = 'param-editor-panel message-param-editor';
+      panel.append(createMessageOptions(group.trigger.message,setHeadMessage,'open'));
+      paramEditor.append(panel); positionParamEditor(anchor || findProgramBlockByPath([]));
+    }
+
     function openParamEditor(nodePath, anchor) {
+      if (executionLocked) return;
       const item = getNodeAtPath(nodePath);
       const card = cardById[item?.id];
       if (!item || !card?.paramsSchema) return;
@@ -982,14 +917,17 @@
       cancelMatrixPaint();
       activeNumberKeypad = null;
       activeParamEditor = {
-        nodePath: [...nodePath]
+        nodePath: [...nodePath], nodeUid: item.uid,
+        groupId: canvasController?.getSelectedGroup()?.id || null
       };
       renderParamEditor(anchor);
     }
 
     function renderParamEditor(anchor) {
+      if (executionLocked) { closeParamEditor(); return; }
       if (!activeParamEditor) return;
-      const item = getNodeAtPath(activeParamEditor.nodePath);
+      if (activeParamEditor.headGroupId) { renderHeadParamEditor(anchor); return; }
+      const item = activeEditorItem();
       const card = cardById[item?.id];
       if (!item || !card?.paramsSchema) {
         closeParamEditor();
@@ -1009,6 +947,7 @@
       paramEditor.classList.toggle("is-matrix", hasMatrixParams(card));
       paramEditor.classList.toggle("is-dual-eye-matrix", card.id === "eye-matrix");
       paramEditor.classList.toggle("is-number-keypad", Boolean(activeNumberKeypad));
+      paramEditor.classList.remove('is-head-trigger');
       paramEditor.appendChild(activeNumberKeypad
         ? createNumberKeypad(card)
         : createGenericParamEditor(card, item));
@@ -1019,11 +958,17 @@
     function createGenericParamEditor(card, item) {
       const panel = document.createElement("div");
       panel.className = "param-editor-panel";
+      panel.classList.toggle("loop-param-editor", card.kind === "loop");
+      if (card.id === 'send-message') {
+        panel.classList.add('message-param-editor');
+        panel.append(createMessageOptions(getParamValue(card,item,'message'),value=>setActiveParamValue('message',value)));
+        return panel;
+      }
       if (card.id === "self-learned-wait" && window.CardLearnedCommands) {
         return window.CardLearnedCommands.createEditor({
           slot: getParamValue(card, item, "slot"),
           onSlotChange: slot => {
-            if (window.CardProgram?.running || window.CardBluetooth?.remoteConnection?.()?.learned?.getSnapshot().busy) return;
+            if (executionLocked || window.CardProgram?.running || window.CardBluetooth?.remoteConnection?.()?.learned?.getSnapshot().busy) return;
             setActiveParamValue("slot", slot);
           },
           onLayout: () => {
@@ -1039,8 +984,14 @@
       }
       if (card.id === "motor-power" || card.id === "combo-power") {
         panel.classList.add("motor-power-editor");
-        panel.appendChild(createCardIcon(card, item));
-        panel.appendChild(createSelectParamEditor(card, item, "power", card.paramsSchema.power));
+        for (const key of ["port", "power"]) {
+          const definition = card.paramsSchema[key];
+          if (!definition) continue;
+          const row = createSelectParamEditor(card, item, key, definition);
+          row.setAttribute("role", "group");
+          row.setAttribute("aria-label", definition.label || key);
+          panel.appendChild(row);
+        }
         return panel;
       }
       if (card.id === "eye-expression") {
@@ -1066,6 +1017,13 @@
           panel.appendChild(createMatrixParamEditor(card, item, key));
         }
       });
+
+      if (card.paramHelp && card.kind !== "loop") {
+        const help = document.createElement("p");
+        help.className = "param-help";
+        help.textContent = card.paramHelp;
+        panel.appendChild(help);
+      }
 
       return panel;
     }
@@ -1144,11 +1102,19 @@
         button.setAttribute("aria-pressed", String(value === currentValue));
         button.type = "button";
         button.textContent = getParamOptionDisplay(definition, value);
+        const optionIcon = modelArtworkByCard[card.id]?.optionIcons?.[key]?.[value] ||
+          (typeof option === "object" ? option.icon : null);
+        if (optionIcon) {
+          button.classList.add("has-option-art"); button.title = getParamOptionDisplay(definition, value);
+          const image = document.createElement("img"); image.className = "param-option-art";
+          image.src = optionIcon; image.alt = ""; image.draggable = false;
+          button.replaceChildren(image);
+        }
         button.setAttribute("aria-label", typeof option === "object" ? option.label : value === "L/M1" ? "左电机 L" : value === "R/M2" ? "右电机 R" : option);
         if ((card.id === "motor-power" || card.id === "combo-power") && key === "power") {
           button.classList.add("power-option");
-          button.title = `功率 ${value}%`;
-          button.replaceChildren(createPowerBars(Number(value)));
+          button.title = optionIcon ? `${value}档` : `功率 ${value}%`;
+          if (!optionIcon) button.replaceChildren(createPowerBars(Number(value)));
         }
         button.addEventListener("click", () => setActiveParamValue(key, value));
         optionRow.appendChild(button);
@@ -1211,6 +1177,7 @@
     }
 
     function startMatrixPaint(event) {
+      if (executionLocked) return;
       if (event.button > 0 || matrixPaintState || !activeParamEditor) return;
       const cell = event.target.closest(".matrix-cell");
       if (!cell || cell.disabled) return;
@@ -1218,7 +1185,7 @@
       event.stopPropagation();
 
       const grid = event.currentTarget;
-      const item = getNodeAtPath(activeParamEditor.nodePath);
+      const item = activeEditorItem();
       const card = cardById[item?.id];
       const paramKey = grid.dataset.paramKey || "pattern";
       const definition = card?.paramsSchema?.[paramKey];
@@ -1389,7 +1356,7 @@
         buttons["."].disabled = !precision || (!state.replaceNext && state.draft.includes("."));
         buttons.delete.disabled = state.draft === "";
         if (applyValue && valid && activeNumberKeypad === state && activeParamEditor) {
-          const item = getNodeAtPath(activeParamEditor.nodePath);
+          const item = activeEditorItem();
           const previous = getParamValue(card, item, state.key);
           const next = normalizeParamValue(definition, value);
           if (next !== previous) setActiveParamValue(state.key, next, false);
@@ -1445,7 +1412,7 @@
 
     function adjustActiveNumberParam(key, direction) {
       if (!activeParamEditor) return;
-      const item = getNodeAtPath(activeParamEditor.nodePath);
+      const item = activeEditorItem();
       const card = cardById[item?.id];
       const definition = card?.paramsSchema?.[key];
       if (!item || !definition) return;
@@ -1456,8 +1423,9 @@
     }
 
     function setActiveParamValue(key, value, rerenderEditor = true) {
+      if (executionLocked) return;
       if (!activeParamEditor) return;
-      const item = getNodeAtPath(activeParamEditor.nodePath);
+      const item = activeEditorItem();
       const card = cardById[item?.id];
       const definition = card?.paramsSchema?.[key];
       if (!item || !definition) return;
@@ -1485,7 +1453,8 @@
     function refreshProgramAfterLoopParamChange(nodePath) {
       const numberKeypad = activeNumberKeypad;
       renderProgram();
-      activeParamEditor = { nodePath };
+      const node = getNodeAtPath(nodePath);
+      activeParamEditor = { nodePath, nodeUid: node?.uid, groupId: canvasController?.getSelectedGroup()?.id || null };
       activeNumberKeypad = numberKeypad;
       return findProgramBlockByPath(nodePath);
     }
@@ -1503,6 +1472,15 @@
     }
 
     function findProgramBlockByPath(nodePath) {
+      if (canvasController) {
+        if (activeParamEditor?.headGroupId) {
+          const groupId = activeParamEditor.headGroupId;
+          return [...chain.querySelectorAll('.free-canvas-start')].find(head=>head.dataset.groupId === groupId) || null;
+        }
+        const item = activeParamEditor?.nodeUid && pathsEqual(nodePath, activeParamEditor.nodePath)
+          ? activeEditorItem() : getNodeAtPath(nodePath);
+        return item ? canvasController.findElement(item.uid) : null;
+      }
       return document.querySelector(`.program-block[data-node-path="${pathToKey(nodePath)}"]`);
     }
 
@@ -1584,900 +1562,10 @@
       activeParamEditor = null;
       activeNumberKeypad = null;
       paramEditor.hidden = true;
-      paramEditor.classList.remove("is-matrix", "is-dual-eye-matrix", "is-above-anchor", "is-number-keypad", "is-side-anchor", "is-right-of-anchor", "is-left-of-anchor");
+      paramEditor.classList.remove("is-matrix", "is-dual-eye-matrix", "is-above-anchor", "is-number-keypad", "is-side-anchor", "is-right-of-anchor", "is-left-of-anchor", "is-head-trigger");
       paramEditor.style.removeProperty("--param-arrow-left");
       paramEditor.style.removeProperty("--param-arrow-top");
       paramEditor.replaceChildren();
-    }
-
-    function setDeleteOverlayVisible(visible) {
-      deleteOverlay.classList.toggle("is-visible", visible);
-      deleteOverlay.classList.remove("is-hot", "is-staging");
-      deleteOverlay.textContent = "在此松手进行删除";
-      deleteOverlay.setAttribute("aria-hidden", String(!visible));
-    }
-
-    function setLibraryOverlayMode(mode) {
-      const isStaging = mode === "staging";
-      deleteOverlay.classList.toggle("is-staging", isStaging);
-      deleteOverlay.textContent = isStaging ? "暂存组合" : "在此松手进行删除";
-    }
-
-    function canStageCurrentDrag() {
-      if (!dragState?.fromProgram || !dragState.grabMovePaths?.length) return false;
-      const items = dragState.grabMovePaths.map(getNodeAtPath).filter(Boolean);
-      return items.length === dragState.grabMovePaths.length && countProgramItems(items) > 1;
-    }
-
-    function isPointOverLibraryArea(x, y) {
-      return [libraryArea, tabs].some(element => (
-        isPointInRect(x, y, BlockLayout.clientRect(element))
-      ));
-    }
-
-    function isPointInStagingZone(x, y) {
-      return canStageCurrentDrag()
-        && activeCategory === "staging"
-        && isPointOverLibraryArea(x, y);
-    }
-
-    function updateStagingAreaHover(x, y) {
-      const overLibrary = isPointOverLibraryArea(x, y);
-      if (!canStageCurrentDrag()) {
-        clearStagingAreaHover();
-        return;
-      }
-
-      if (dragState.autoSwitchedToStaging) {
-        if (!overLibrary) restoreCategoryAfterStagingExit();
-        clearStagingAreaHover();
-        return;
-      }
-
-      if (activeCategory === "staging" || !overLibrary) {
-        clearStagingAreaHover();
-        return;
-      }
-
-      stagingTab.classList.add("is-drop-hover");
-      if (stagingHoverTimer) return;
-      stagingHoverTimer = setTimeout(() => {
-        stagingHoverTimer = null;
-        if (!dragState || !canStageCurrentDrag()) return;
-        if (!isPointOverLibraryArea(dragState.lastX, dragState.lastY)) return;
-        stagingTab.classList.remove("is-drop-hover");
-        dragState.stagingReturnCategory = activeCategory;
-        dragState.autoSwitchedToStaging = true;
-        selectCategory("staging");
-        setLibraryOverlayMode("staging");
-      }, STAGING_HOVER_DELAY);
-    }
-
-    function restoreCategoryAfterStagingExit() {
-      if (!dragState?.autoSwitchedToStaging) return;
-      const returnCategory = dragState.stagingReturnCategory;
-      dragState.autoSwitchedToStaging = false;
-      dragState.stagingReturnCategory = null;
-      if (returnCategory && returnCategory !== "staging") selectCategory(returnCategory);
-      setLibraryOverlayMode("delete");
-    }
-
-    function clearStagingAreaHover() {
-      if (stagingHoverTimer) {
-        clearTimeout(stagingHoverTimer);
-        stagingHoverTimer = null;
-      }
-      stagingTab.classList.remove("is-drop-hover");
-    }
-
-    function startDrag(event) {
-      if (event.button > 0) return;
-      event.preventDefault();
-      event.stopPropagation();
-
-      if (dragState || grabToolState || grabSelectionBoxState || (event.pointerType === "touch" && event.isPrimary === false)) {
-        return;
-      }
-
-      closeParamEditor();
-      removeOrphanGhosts();
-
-      const source = event.currentTarget;
-      source.dataset.dragged = "false";
-      const rect = BlockLayout.clientRect(source);
-      const cardId = source.dataset.cardId;
-      const fromProgram = source.dataset.mode === "program";
-      const fromStaging = source.dataset.mode === "staging";
-      const stagedGroup = fromStaging
-        ? stagedGroups.find(group => group.id === source.dataset.stagedGroupId)
-        : null;
-      if (fromStaging && !stagedGroup) return;
-      const sourcePath = fromProgram ? keyToPath(source.dataset.nodePath) : null;
-      const grabMovePaths = getGrabMovePathsForSource(sourcePath);
-      const isGroupDrag = grabMovePaths.length > 1;
-      const placeholderSources = fromProgram
-        ? (isGroupDrag ? getBlocksByPaths(grabMovePaths) : [source])
-        : [];
-      if (fromProgram && grabMarkedPaths.size) {
-        clearGrabSelection(false);
-      }
-      const ghost = fromStaging
-        ? createStagedGroupDragGhost(stagedGroup.items)
-        : (isGroupDrag ? createGrabGroupGhost(grabMovePaths) : source.cloneNode(true));
-      const ghostRect = isGroupDrag ? getElementsUnionRect(placeholderSources) : rect;
-
-      ghost.classList.add("ghost");
-      if (fromProgram) {
-        ghost.style.width = `${ghostRect.width}px`;
-        ghost.style.height = `${ghostRect.height}px`;
-      }
-
-      dragState = {
-        source,
-        cardId,
-        fromProgram,
-        fromStaging,
-        stagedGroupId: stagedGroup?.id || null,
-        stagedItems: stagedGroup?.items || null,
-        sourcePath,
-        grabMovePaths,
-        placeholderSources,
-        ghost,
-        pointerId: event.pointerId,
-        pointerType: event.pointerType,
-        active: false,
-        startX: event.clientX,
-        startY: event.clientY,
-        lastX: event.clientX,
-        lastY: event.clientY,
-        autoSwitchedToStaging: false,
-        stagingReturnCategory: null,
-        canvasScrollLeft: programCanvas.scrollLeft,
-        canvasScrollTop: programCanvas.scrollTop,
-        windowScrollX: window.scrollX,
-        windowScrollY: window.scrollY,
-        lastTarget: null
-      };
-
-      if (source.setPointerCapture) source.setPointerCapture(event.pointerId);
-      source.addEventListener("pointermove", moveDrag);
-      source.addEventListener("pointerup", endDrag);
-      source.addEventListener("pointercancel", cancelDrag);
-      source.addEventListener("lostpointercapture", cancelDrag);
-      document.addEventListener("pointerup", endDrag);
-      document.addEventListener("pointercancel", cancelDrag);
-      window.addEventListener("blur", cancelDrag);
-    }
-
-    function moveDrag(event) {
-      if (!dragState) return;
-      if (!isActiveDragPointer(event)) return;
-      event.preventDefault();
-
-      const distance = Math.hypot(event.clientX - dragState.startX, event.clientY - dragState.startY);
-      const threshold = dragState.pointerType === "touch" ? 5 : 4;
-      if (!dragState.active) {
-        if (distance <= threshold) return;
-        const deltaX = event.clientX - dragState.startX;
-        const deltaY = event.clientY - dragState.startY;
-        if (dragState.pointerType === "touch" && !dragState.fromProgram && !dragState.fromStaging
-          && Math.abs(deltaX) > Math.abs(deltaY) * 1.2) return;
-        activateDrag();
-      }
-      restoreDragScroll();
-      dragState.source.dataset.dragged = "true";
-      dragState.lastX = event.clientX;
-      dragState.lastY = event.clientY;
-      moveGhost(event.clientX, event.clientY);
-
-      updateStagingAreaHover(event.clientX, event.clientY);
-      const overStaging = isPointInStagingZone(event.clientX, event.clientY);
-      const overDelete = dragState.fromProgram && !overStaging
-        && isPointInDeleteZone(event.clientX, event.clientY);
-      setLibraryOverlayMode(!overDelete && canStageCurrentDrag() && activeCategory === "staging"
-        ? "staging"
-        : "delete");
-      deleteOverlay.classList.toggle("is-hot", overDelete);
-
-      if (overStaging || overDelete) {
-        if (dragState.lastTarget) clearDropHints();
-        dragState.lastTarget = null;
-        return;
-      }
-
-      const target = findDropTarget(event.clientX, event.clientY);
-      if (isSameDropTarget(dragState.lastTarget, target)) return;
-      const preservedStartTop = target ? BlockLayout.clientRect(startBlock).top : null;
-      clearDropHints({ updateAnchor: !target });
-      dragState.lastTarget = target;
-      if (target) showDropMarker(target, preservedStartTop);
-    }
-
-    function endDrag(event) {
-      if (!dragState) return;
-      if (!isActiveDragPointer(event)) return;
-      event.preventDefault();
-      const wasActive = dragState.active;
-      restoreDragScroll();
-
-      if (dragState.autoSwitchedToStaging && !isPointOverLibraryArea(event.clientX, event.clientY)) {
-        restoreCategoryAfterStagingExit();
-      }
-
-      const movedEnough = wasActive;
-      const inStagingZone = isPointInStagingZone(event.clientX, event.clientY);
-      const inDeleteZone = dragState.fromProgram && !inStagingZone
-        && isPointInDeleteZone(event.clientX, event.clientY);
-      const target = (inStagingZone || inDeleteZone)
-        ? null
-        : findDropTarget(event.clientX, event.clientY);
-      const {
-        cardId,
-        fromProgram,
-        fromStaging,
-        stagedGroupId,
-        stagedItems,
-        source,
-        sourcePath,
-        grabMovePaths
-      } = dragState;
-
-      cleanupDrag(event);
-
-      if (!movedEnough) {
-        setTimeout(() => { source.dataset.dragged = "false"; }, 0);
-        return;
-      }
-
-      if (fromProgram && inStagingZone) {
-        const items = takeProgramNodes(grabMovePaths);
-        const itemCount = countProgramItems(items);
-        if (itemCount > 1) {
-          stagedGroups.push({
-            id: `staged-${Date.now()}-${Math.random().toString(16).slice(2)}`,
-            items
-          });
-          renderProgram();
-          renderPalette();
-          commitHistory();
-          setStatus(`已暂存 ${itemCount} 张卡片`);
-        }
-        setTimeout(() => { source.dataset.dragged = "false"; }, 0);
-        return;
-      }
-
-      if (fromProgram && inDeleteZone) {
-        const pathsToRemove = grabMovePaths?.length ? grabMovePaths : [sourcePath];
-        const removedItems = [...pathsToRemove]
-          .sort(comparePathsForRemoval)
-          .map(removeNodeAtPath)
-          .filter(Boolean);
-        if (removedItems.length) {
-          renderProgram();
-          commitHistory();
-          playBlockSound("delete");
-          setStatus(removedItems.length > 1
-            ? `已删除 ${removedItems.length} 张卡片`
-            : `已删除：${getNodeLabel(removedItems[0])}`);
-        }
-        setTimeout(() => { source.dataset.dragged = "false"; }, 0);
-        return;
-      }
-
-      if (fromStaging) {
-        if (target && insertNodesAtPath(target.sequencePath, target.index, stagedItems)) {
-          stagedGroups = stagedGroups.filter(group => group.id !== stagedGroupId);
-          renderProgram();
-          renderPalette();
-          commitHistory();
-          playBlockSound("place");
-          setStatus(`已放回 ${countProgramItems(stagedItems)} 张卡片`);
-        }
-        setTimeout(() => { source.dataset.dragged = "false"; }, 0);
-        return;
-      }
-
-      if (!target) {
-        setTimeout(() => { source.dataset.dragged = "false"; }, 0);
-        return;
-      }
-
-      if (fromProgram) {
-        if (grabMovePaths?.length > 1) {
-          const moved = moveProgramNodes(grabMovePaths, target.sequencePath, target.index);
-          if (moved) playBlockSound("place");
-          setStatus(moved ? `已同时移动 ${grabMovePaths.length} 张卡片` : "未能同时移动");
-        } else {
-          const moved = moveProgramNode(sourcePath, target.sequencePath, target.index);
-          if (moved) playBlockSound("place");
-          setStatus(moved ? "已调整位置" : "未能调整位置");
-        }
-      } else {
-        const added = insertNodeAtPath(target.sequencePath, target.index, createProgramItem(cardId));
-        if (added) playBlockSound("place");
-        setStatus(added ? `已添加：${cardById[cardId].label}` : "未能添加积木");
-      }
-
-      renderProgram();
-      commitHistory();
-      setTimeout(() => { source.dataset.dragged = "false"; }, 0);
-    }
-
-    function cancelDrag(event) {
-      if (dragState && event && "pointerId" in event && !isActiveDragPointer(event)) return;
-      cleanupDrag(event);
-    }
-
-    function activateDrag() {
-      if (!dragState || dragState.active) return;
-      dragState.active = true;
-      // Preview insertion must not move the hit targets under a stationary pointer.
-      dragState.dropGeometry = new Map([chain, ...chain.querySelectorAll(".loop-inner.sequence-zone")].map(zone => [zone, {
-        rect: BlockLayout.clientRect(zone),
-        boundaries: getDirectProgramBlocks(zone).map(block => {
-          const rect = BlockLayout.clientRect(block);
-          return rect.left + Number(block.dataset.advance) / 2;
-        })
-      }]));
-      dragState.lastX = dragState.startX;
-      dragState.lastY = dragState.startY;
-      if (dragState.fromProgram) {
-        const preserveStartTop = BlockLayout.clientRect(startBlock).top;
-        dragState.placeholderSources.forEach(block => block.classList.add("drag-source-placeholder"));
-        updateProgramAnchor({ allowDuringDrag: true, preserveStartTop });
-        setDeleteOverlayVisible(true);
-      }
-      document.body.appendChild(dragState.ghost);
-      setDragScrollLocked(true);
-      moveGhost(dragState.startX, dragState.startY);
-    }
-
-    function cleanupDrag(event) {
-      if (!dragState) return;
-
-      dragState.source.removeEventListener("pointermove", moveDrag);
-      dragState.source.removeEventListener("pointerup", endDrag);
-      dragState.source.removeEventListener("pointercancel", cancelDrag);
-      dragState.source.removeEventListener("lostpointercapture", cancelDrag);
-      document.removeEventListener("pointerup", endDrag);
-      document.removeEventListener("pointercancel", cancelDrag);
-      window.removeEventListener("blur", cancelDrag);
-      (dragState.placeholderSources || [dragState.source]).forEach(block => {
-        block.classList.remove("drag-source-placeholder");
-      });
-      if (dragState.source.hasPointerCapture?.(dragState.pointerId)) {
-        dragState.source.releasePointerCapture(dragState.pointerId);
-      }
-      dragState.ghost.remove();
-      setDeleteOverlayVisible(false);
-      clearStagingAreaHover();
-      clearDropHints();
-      restoreDragScroll();
-      setDragScrollLocked(false);
-      dragState = null;
-      updateProgramAnchor();
-    }
-
-    function isProgramBlankTarget(target) {
-      return target instanceof Element
-        && programArea.contains(target)
-        && !target.closest(".program-block, #startBlock, #grabTool, button");
-    }
-
-    function startBlankGrabHold(event) {
-      if (!isProgramBlankTarget(event.target)) return;
-      if (event.button > 0 || dragState || grabToolState || grabSelectionBoxState || blankGrabPending) return;
-      if (event.pointerType === "touch" && event.isPrimary === false) return;
-
-      blankGrabPending = {
-        pointerId: event.pointerId,
-        pointerEvent: event,
-        startX: event.clientX,
-        startY: event.clientY,
-        lastX: event.clientX,
-        lastY: event.clientY,
-        scrollLeft: programCanvas.scrollLeft,
-        scrollTop: programCanvas.scrollTop,
-        moved: false,
-        timer: setTimeout(() => activateBlankGrabSelection(event.pointerId), BLANK_GRAB_HOLD_DELAY)
-      };
-
-      document.addEventListener("pointermove", moveBlankGrabHold);
-      document.addEventListener("pointerup", endBlankGrabHold);
-      document.addEventListener("pointercancel", cancelBlankGrabHold);
-    }
-
-    function moveBlankGrabHold(event) {
-      if (!blankGrabPending || event.pointerId !== blankGrabPending.pointerId) return;
-      blankGrabPending.lastX = event.clientX;
-      blankGrabPending.lastY = event.clientY;
-      const distance = Math.hypot(
-        event.clientX - blankGrabPending.startX,
-        event.clientY - blankGrabPending.startY
-      );
-      if (!blankGrabPending.moved) {
-        if (distance <= BLANK_GRAB_MOVE_LIMIT) return;
-        blankGrabPending.moved = true;
-        clearTimeout(blankGrabPending.timer);
-        blankGrabPending.timer = null;
-        programCanvas.classList.add("is-panning");
-      }
-
-      event.preventDefault();
-      programCanvas.scrollLeft = blankGrabPending.scrollLeft
-        + blankGrabPending.startX - event.clientX;
-      programCanvas.scrollTop = blankGrabPending.scrollTop
-        + blankGrabPending.startY - event.clientY;
-    }
-
-    function endBlankGrabHold(event) {
-      if (!blankGrabPending || event.pointerId !== blankGrabPending.pointerId) return;
-      const wasTap = !blankGrabPending.moved;
-      cleanupBlankGrabHold();
-      if (wasTap && grabMarkedPaths.size) clearGrabSelection();
-    }
-
-    function cancelBlankGrabHold(event) {
-      if (!blankGrabPending || event.pointerId !== blankGrabPending.pointerId) return;
-      cleanupBlankGrabHold();
-    }
-
-    function activateBlankGrabSelection(pointerId) {
-      if (!blankGrabPending || blankGrabPending.pointerId !== pointerId) return;
-      const { startX, startY, lastX, lastY } = blankGrabPending;
-      cleanupBlankGrabHold();
-      startGrabSelectionBox(pointerId, startX, startY, lastX, lastY);
-    }
-
-    function cleanupBlankGrabHold() {
-      if (!blankGrabPending) return;
-      clearTimeout(blankGrabPending.timer);
-      document.removeEventListener("pointermove", moveBlankGrabHold);
-      document.removeEventListener("pointerup", endBlankGrabHold);
-      document.removeEventListener("pointercancel", cancelBlankGrabHold);
-      programCanvas.classList.remove("is-panning");
-      blankGrabPending = null;
-    }
-
-    function startGrabToolDrag(event, startAtPointer = false, pointerPosition = null) {
-      if (event.button > 0) return;
-      event.preventDefault();
-      event.stopPropagation();
-
-      if (dragState || grabToolState || grabSelectionBoxState || (event.pointerType === "touch" && event.isPrimary === false)) {
-        return;
-      }
-
-      closeParamEditor();
-
-      const rect = BlockLayout.clientRect(grabTool);
-      const pointerSource = startAtPointer ? programArea : grabTool;
-      const pointerX = pointerPosition?.x ?? event.clientX;
-      const pointerY = pointerPosition?.y ?? event.clientY;
-      const left = startAtPointer ? pointerX - rect.width / 2 : rect.left;
-      const top = startAtPointer ? pointerY - rect.height / 2 : rect.top;
-      grabToolState = {
-        pointerId: event.pointerId,
-        startX: pointerX,
-        startY: pointerY,
-        offsetX: pointerX - left,
-        offsetY: pointerY - top,
-        pointerSource,
-        moved: false,
-        touchedPathKeys: new Set()
-      };
-
-      grabTool.classList.add("is-dragging");
-      grabTool.style.position = "fixed";
-      grabTool.style.left = `${left}px`;
-      grabTool.style.top = `${top}px`;
-      grabTool.style.right = "auto";
-      grabTool.style.width = `${rect.width}px`;
-      grabTool.style.height = `${rect.height}px`;
-
-      setDragScrollLocked(true);
-      pointerSource.setPointerCapture?.(event.pointerId);
-      pointerSource.addEventListener("pointermove", moveGrabToolDrag);
-      pointerSource.addEventListener("pointerup", endGrabToolDrag);
-      pointerSource.addEventListener("pointercancel", cancelGrabToolDrag);
-      markCardsTouchedByGrabTool();
-    }
-
-    function startGrabSelectionBox(pointerId, startX, startY, currentX = startX, currentY = startY) {
-      if (dragState || grabToolState || grabSelectionBoxState) return;
-
-      const box = document.createElement("div");
-      box.className = "grab-selection-box";
-      box.setAttribute("aria-hidden", "true");
-      document.body.appendChild(box);
-
-      grabSelectionBoxState = {
-        pointerId,
-        startX,
-        startY,
-        currentX,
-        currentY,
-        box,
-        initialMarkedPathKeys: new Set(grabMarkedPaths)
-      };
-
-      setDragScrollLocked(true);
-      document.addEventListener("pointermove", moveGrabSelectionBox);
-      document.addEventListener("pointerup", endGrabSelectionBox);
-      document.addEventListener("pointercancel", cancelGrabSelectionBox);
-      updateGrabSelectionBox(currentX, currentY);
-      setStatus("框选卡片，松手完成标记");
-    }
-
-    function moveGrabSelectionBox(event) {
-      if (!isActiveGrabSelectionBoxPointer(event)) return;
-      event.preventDefault();
-      updateGrabSelectionBox(event.clientX, event.clientY);
-    }
-
-    function endGrabSelectionBox(event) {
-      if (!isActiveGrabSelectionBoxPointer(event)) return;
-      event.preventDefault();
-      cleanupGrabSelectionBox();
-      updateGrabMarkStatus();
-    }
-
-    function cancelGrabSelectionBox(event) {
-      if (grabSelectionBoxState && event && !isActiveGrabSelectionBoxPointer(event)) return;
-      cleanupGrabSelectionBox();
-      updateGrabMarkStatus();
-    }
-
-    function cleanupGrabSelectionBox() {
-      if (!grabSelectionBoxState) return;
-
-      document.removeEventListener("pointermove", moveGrabSelectionBox);
-      document.removeEventListener("pointerup", endGrabSelectionBox);
-      document.removeEventListener("pointercancel", cancelGrabSelectionBox);
-      grabSelectionBoxState.box.remove();
-      setDragScrollLocked(false);
-      grabSelectionBoxState = null;
-    }
-
-    function moveGrabToolDrag(event) {
-      if (!isActiveGrabToolPointer(event)) return;
-      event.preventDefault();
-
-      const distance = Math.hypot(event.clientX - grabToolState.startX, event.clientY - grabToolState.startY);
-      if (distance > 6) grabToolState.moved = true;
-
-      moveGrabTool(event.clientX, event.clientY);
-      markCardsTouchedByGrabTool();
-    }
-
-    function endGrabToolDrag(event) {
-      if (!isActiveGrabToolPointer(event)) return;
-      event.preventDefault();
-
-      cleanupGrabToolDrag(event);
-      updateGrabMarkStatus();
-    }
-
-    function cancelGrabToolDrag(event) {
-      if (grabToolState && event && !isActiveGrabToolPointer(event)) return;
-      cleanupGrabToolDrag(event);
-      updateGrabMarkStatus();
-    }
-
-    function cleanupGrabToolDrag(event) {
-      if (!grabToolState) return;
-
-      const { pointerSource } = grabToolState;
-      pointerSource.removeEventListener("pointermove", moveGrabToolDrag);
-      pointerSource.removeEventListener("pointerup", endGrabToolDrag);
-      pointerSource.removeEventListener("pointercancel", cancelGrabToolDrag);
-      if (pointerSource.hasPointerCapture?.(grabToolState.pointerId)) {
-        pointerSource.releasePointerCapture(grabToolState.pointerId);
-      }
-
-      grabTool.classList.remove("is-dragging");
-      grabTool.style.position = "";
-      grabTool.style.left = "";
-      grabTool.style.top = "";
-      grabTool.style.right = "";
-      grabTool.style.width = "";
-      grabTool.style.height = "";
-      setDragScrollLocked(false);
-      grabToolState = null;
-    }
-
-    function startStagedGroupPointer(event) {
-      if (event.button > 0 || activeCategory !== "staging" || dragState || grabToolState || grabSelectionBoxState || stagedGroupPointerState) return;
-      if (event.pointerType === "touch" && event.isPrimary === false) return;
-      event.preventDefault();
-      event.stopPropagation();
-
-      const source = event.currentTarget;
-      source.dataset.dragged = "false";
-      stagedGroupPointerState = {
-        source,
-        pointerId: event.pointerId,
-        startX: event.clientX,
-        startY: event.clientY,
-        scrollLeft: palette.scrollLeft,
-        mode: "pending"
-      };
-      source.setPointerCapture?.(event.pointerId);
-      source.addEventListener("pointermove", moveStagedGroupPointer);
-      source.addEventListener("pointerup", endStagedGroupPointer);
-      source.addEventListener("pointercancel", endStagedGroupPointer);
-    }
-
-    function moveStagedGroupPointer(event) {
-      if (!stagedGroupPointerState || event.pointerId !== stagedGroupPointerState.pointerId) return;
-      event.preventDefault();
-      event.stopPropagation();
-
-      const state = stagedGroupPointerState;
-      const deltaX = event.clientX - state.startX;
-      const deltaY = event.clientY - state.startY;
-      const absX = Math.abs(deltaX);
-      const absY = Math.abs(deltaY);
-
-      if (state.mode === "pending") {
-        if (deltaY < -STAGED_GROUP_PULL_THRESHOLD && absY > absX * 0.7) {
-          const source = state.source;
-          const startX = state.startX;
-          const startY = state.startY;
-          cleanupStagedGroupPointer();
-          startDrag(event);
-          if (dragState) {
-            dragState.startX = startX;
-            dragState.startY = startY;
-            dragState.source.dataset.dragged = "true";
-            moveDrag(event);
-          } else {
-            source.dataset.dragged = "false";
-          }
-          return;
-        }
-
-        if (absX <= STAGED_GROUP_PAN_THRESHOLD || absX < absY) return;
-        state.mode = "panning";
-        state.source.classList.add("is-panning");
-      }
-
-      if (state.mode === "panning") {
-        palette.scrollLeft = state.scrollLeft + state.startX - event.clientX;
-        if (absX > 8) state.source.dataset.dragged = "true";
-      }
-    }
-
-    function endStagedGroupPointer(event) {
-      if (!stagedGroupPointerState || event.pointerId !== stagedGroupPointerState.pointerId) return;
-      const source = stagedGroupPointerState.source;
-      cleanupStagedGroupPointer();
-      setTimeout(() => { source.dataset.dragged = "false"; }, 0);
-    }
-
-    function cleanupStagedGroupPointer() {
-      if (!stagedGroupPointerState) return;
-      const { source, pointerId } = stagedGroupPointerState;
-      source.removeEventListener("pointermove", moveStagedGroupPointer);
-      source.removeEventListener("pointerup", endStagedGroupPointer);
-      source.removeEventListener("pointercancel", endStagedGroupPointer);
-      if (source.hasPointerCapture?.(pointerId)) {
-        source.releasePointerCapture(pointerId);
-      }
-      source.classList.remove("is-panning");
-      stagedGroupPointerState = null;
-    }
-
-    function isActiveGrabToolPointer(event) {
-      return grabToolState && (!event || event.pointerId === grabToolState.pointerId);
-    }
-
-    function isActiveGrabSelectionBoxPointer(event) {
-      return grabSelectionBoxState && (!event || event.pointerId === grabSelectionBoxState.pointerId);
-    }
-
-    function moveGrabTool(x, y) {
-      if (!grabToolState) return;
-      grabTool.style.left = `${x - grabToolState.offsetX}px`;
-      grabTool.style.top = `${y - grabToolState.offsetY}px`;
-    }
-
-    function markCardsTouchedByGrabTool() {
-      if (!grabToolState) return;
-
-      const grabRect = BlockLayout.clientRect(grabTool);
-      const touchedPathKeys = new Set();
-      let changed = false;
-
-      getGrabbableBlocks().forEach(block => {
-        if (!isBlockTouchedByGrabTool(block, grabRect)) return;
-
-        const pathKey = block.dataset.nodePath;
-        if (!pathKey) return;
-
-        touchedPathKeys.add(pathKey);
-        if (grabToolState.touchedPathKeys.has(pathKey)) return;
-
-        toggleGrabMark(block, pathKey);
-        changed = true;
-      });
-
-      grabToolState.touchedPathKeys = touchedPathKeys;
-      if (changed) updateGrabMarkStatus();
-    }
-
-    function updateGrabSelectionBox(currentX, currentY) {
-      if (!grabSelectionBoxState) return;
-
-      grabSelectionBoxState.currentX = currentX;
-      grabSelectionBoxState.currentY = currentY;
-
-      const rect = getRectFromPoints(
-        grabSelectionBoxState.startX,
-        grabSelectionBoxState.startY,
-        currentX,
-        currentY
-      );
-      Object.assign(grabSelectionBoxState.box.style, {
-        left: `${rect.left}px`,
-        top: `${rect.top}px`,
-        width: `${rect.width}px`,
-        height: `${rect.height}px`
-      });
-
-      const selectedPathKeys = new Set();
-      getGrabbableBlocks().forEach(block => {
-        const pathKey = block.dataset.nodePath;
-        if (!pathKey) return;
-        if (isBlockTouchedByGrabTool(block, rect)) selectedPathKeys.add(pathKey);
-      });
-
-      grabMarkedPaths = new Set([
-        ...grabSelectionBoxState.initialMarkedPathKeys,
-        ...selectedPathKeys
-      ]);
-
-      getGrabbableBlocks().forEach(block => {
-        const pathKey = block.dataset.nodePath;
-        block.classList.toggle("grab-marked", Boolean(pathKey && grabMarkedPaths.has(pathKey)));
-      });
-    }
-
-    function getGrabbableBlocks() {
-      return [...document.querySelectorAll(".program-block:not(.drop-projection)")];
-    }
-
-    function isBlockTouchedByGrabTool(block, grabRect) {
-      if (block.classList.contains("loop-block")) {
-        const loopFrameParts = [...block.children].filter(child => (
-          child.classList.contains("loop-top") ||
-          child.classList.contains("loop-left") ||
-          child.classList.contains("loop-tail")
-        ));
-        return loopFrameParts.some(part => rectsIntersect(grabRect, BlockLayout.clientRect(part)));
-      }
-
-      return rectsIntersect(grabRect, BlockLayout.clientRect(block));
-    }
-
-    function getRectFromPoints(x1, y1, x2, y2) {
-      const left = Math.min(x1, x2);
-      const top = Math.min(y1, y2);
-      const right = Math.max(x1, x2);
-      const bottom = Math.max(y1, y2);
-      return {
-        left,
-        top,
-        right,
-        bottom,
-        width: right - left,
-        height: bottom - top
-      };
-    }
-
-    function toggleGrabMark(block, pathKey) {
-      if (grabMarkedPaths.has(pathKey)) {
-        grabMarkedPaths.delete(pathKey);
-        block.classList.remove("grab-marked");
-      } else {
-        grabMarkedPaths.add(pathKey);
-        block.classList.add("grab-marked");
-      }
-    }
-
-    function clearGrabSelection(updateStatus = true) {
-      document.querySelectorAll(".program-block.grab-marked").forEach(block => {
-        block.classList.remove("grab-marked");
-      });
-      grabMarkedPaths.clear();
-      if (updateStatus) setStatus("已清除抓取标记");
-    }
-
-    function clearGrabSelectionOnOutsidePointerDown(event) {
-      if (!grabMarkedPaths.size) return;
-      if (dragState || grabToolState || grabSelectionBoxState) return;
-      if (event.button > 0) return;
-      if (event.pointerType === "touch" && event.isPrimary === false) return;
-
-      const target = event.target instanceof Element ? event.target : null;
-      if (!target) return;
-      if (target.closest(".program-block.grab-marked")) return;
-      if (target.closest("#grabTool, #paramEditor")) return;
-      if (isProgramBlankTarget(target)) return;
-
-      clearGrabSelection();
-    }
-
-    function updateGrabMarkStatus() {
-      const count = getEffectiveGrabPaths().length;
-      setStatus(count ? `已抓取标记 ${count} 张卡片` : "没有抓取标记");
-    }
-
-    function getEffectiveGrabPaths() {
-      const paths = [...grabMarkedPaths].map(keyToPath).filter(path => path.length);
-      return paths.filter(path => (
-        !paths.some(otherPath => otherPath !== path && startsWithPath(path, otherPath))
-      ));
-    }
-
-    function getGrabMovePathsForSource(sourcePath) {
-      if (!sourcePath?.length) return [];
-      const effectivePaths = getEffectiveGrabPaths();
-      if (!effectivePaths.some(path => pathsEqual(path, sourcePath))) return [sourcePath];
-
-      const sourceParentPath = sourcePath.slice(0, -1);
-      return effectivePaths
-        .filter(path => pathsEqual(path.slice(0, -1), sourceParentPath))
-        .sort(comparePathsAscending);
-    }
-
-    function comparePathsAscending(a, b) {
-      const length = Math.min(a.length, b.length);
-      for (let index = 0; index < length; index += 1) {
-        if (a[index] !== b[index]) return a[index] - b[index];
-      }
-      return a.length - b.length;
-    }
-
-    function getBlocksByPaths(paths) {
-      return paths.map(findProgramBlockByPath).filter(Boolean);
-    }
-
-    function getElementsUnionRect(elements) {
-      const rects = elements.map(element => BlockLayout.clientRect(element));
-      if (!rects.length) return { width: 1, height: 1 };
-
-      const left = Math.min(...rects.map(rect => rect.left));
-      const right = Math.max(...rects.map(rect => rect.right));
-      const top = Math.min(...rects.map(rect => rect.top));
-      const bottom = Math.max(...rects.map(rect => rect.bottom));
-      return {
-        width: Math.max(1, right - left),
-        height: Math.max(1, bottom - top)
-      };
-    }
-
-    function createGrabGroupGhost(paths) {
-      const group = document.createElement("div");
-      group.className = "grab-group-ghost";
-      appendCleanClonedBlocks(group, paths);
-      return group;
-    }
-
-    function createGrabGroupProjection(paths) {
-      const group = document.createElement("div");
-      group.className = "grab-group-projection program-block";
-      appendCleanClonedBlocks(group, paths);
-      return group;
-    }
-
-    function appendCleanClonedBlocks(container, paths) {
-      getBlocksByPaths(paths).forEach(block => {
-        const clone = block.cloneNode(true);
-        cleanupClonedProgramBlock(clone);
-        container.appendChild(clone);
-      });
-      BlockLayout.sequence(container);
     }
 
     function cleanupClonedProgramBlock(clone) {
@@ -2488,326 +1576,18 @@
       clone.querySelectorAll("[id]").forEach(item => item.removeAttribute("id"));
     }
 
-    function comparePathsForRemoval(a, b) {
-      const length = Math.min(a.length, b.length);
-      for (let index = 0; index < length; index += 1) {
-        if (a[index] !== b[index]) return b[index] - a[index];
-      }
-      return b.length - a.length;
-    }
-
-    function isActiveDragPointer(event) {
-      return !event || event.pointerId === dragState.pointerId;
-    }
-
-    function removeOrphanGhosts() {
-      document.querySelectorAll(".ghost").forEach(ghost => {
-        if (!dragState || ghost !== dragState.ghost) ghost.remove();
-      });
-    }
-
-    function setDragScrollLocked(locked) {
-      document.body.classList.toggle("is-dragging", locked);
-      if (locked) {
-        document.addEventListener("touchmove", preventDragTouchScroll, { passive: false });
-      } else {
-        document.removeEventListener("touchmove", preventDragTouchScroll);
-      }
-    }
-
-    function preventDragTouchScroll(event) {
-      if (dragState || grabToolState || grabSelectionBoxState) event.preventDefault();
-    }
-
-    function restoreDragScroll() {
-      if (!dragState) return;
-      if (programCanvas.scrollLeft !== dragState.canvasScrollLeft) {
-        programCanvas.scrollLeft = dragState.canvasScrollLeft;
-      }
-      if (programCanvas.scrollTop !== dragState.canvasScrollTop) {
-        programCanvas.scrollTop = dragState.canvasScrollTop;
-      }
-      if (window.scrollX !== dragState.windowScrollX || window.scrollY !== dragState.windowScrollY) {
-        window.scrollTo(dragState.windowScrollX, dragState.windowScrollY);
-      }
-    }
-
-    function findDropTarget(clientX, clientY) {
-      const nestedZones = [...chain.querySelectorAll(".loop-inner.sequence-zone")]
-        .map(zone => ({ zone, rect: dragState?.dropGeometry?.get(zone)?.rect || BlockLayout.clientRect(zone) }))
-        .filter(({ rect }) => isPointInRect(clientX, clientY, rect))
-        .sort((a, b) => (a.rect.width * a.rect.height) - (b.rect.width * b.rect.height));
-
-      for (const { zone } of nestedZones) {
-        const sequencePath = keyToPath(zone.dataset.sequencePath);
-        if (isSequenceInsideDraggedItem(sequencePath)) continue;
-        return {
-          zone,
-          sequencePath,
-          index: getDropIndex(zone, clientX)
-        };
-      }
-
-      if (!isPointInRootDropArea(clientX, clientY)) return null;
-
-      return {
-        zone: chain,
-        sequencePath: [],
-        index: getDropIndex(chain, clientX)
-      };
-    }
-
-    function showDropMarker(target, preserveStartTop = BlockLayout.clientRect(startBlock).top) {
-      target.zone.classList.add("drag-over");
-
-      const marker = createDropProjection();
-
-      const blocks = getDirectProgramBlocks(target.zone);
-      const before = blocks[target.index] || getDirectEmptyNote(target.zone);
-      target.zone.insertBefore(marker, before || null);
-      updateProgramAnchor({ allowDuringDrag: true, includeDropProjection: true, preserveStartTop });
-    }
-
-    function createDropProjection() {
-      const projection = dragState.fromStaging
-        ? createStagedItemsProjection(dragState.stagedItems)
-        : (dragState.grabMovePaths?.length > 1
-          ? createGrabGroupProjection(dragState.grabMovePaths)
-          : createProjectionSourceElement().cloneNode(true));
-      projection.classList.remove("ghost", "drag-source-placeholder", "grab-marked");
-      projection.classList.add("drop-projection");
-      projection.removeAttribute("id");
-      projection.setAttribute("aria-hidden", "true");
-      projection.style.left = "";
-      projection.style.top = "";
-      projection.style.position = "";
-      projection.style.transform = "";
-      projection.style.zIndex = "";
-
-      projection.querySelectorAll("[id]").forEach(item => item.removeAttribute("id"));
-      projection.querySelectorAll(".ghost, .drag-source-placeholder").forEach(item => {
-        item.classList.remove("ghost", "drag-source-placeholder");
-      });
-      projection.querySelectorAll(".grab-marked").forEach(item => {
-        item.classList.remove("grab-marked");
-      });
-      projection.querySelectorAll(".sequence-zone").forEach(item => {
-        item.classList.remove("sequence-zone", "drag-over");
-        delete item.dataset.sequencePath;
-      });
-
-      return projection;
-    }
-
-    function createStagedItemsProjection(items) {
-      const group = document.createElement("div");
-      group.className = "grab-group-projection program-block";
-      items.forEach(item => group.appendChild(createStagedPreviewNode(item)));
-      return group;
-    }
-
-    function createProjectionSourceElement() {
-      if (dragState.fromProgram) return dragState.source;
-
-      const item = createProgramItem(dragState.cardId);
-      return createProgramNode(item, []);
-    }
-
-    function isSameDropTarget(a, b) {
-      if (!a && !b) return true;
-      if (!a || !b) return false;
-      return a.zone === b.zone && a.index === b.index && pathsEqual(a.sequencePath, b.sequencePath);
-    }
-
-    function clearDropHints({ updateAnchor = true } = {}) {
-      document.querySelectorAll(".sequence-zone.drag-over").forEach(zone => {
-        zone.classList.remove("drag-over");
-      });
-      removeMarker({ updateAnchor });
-    }
-
-    function removeMarker({ updateAnchor = true } = {}) {
-      const markers = document.querySelectorAll(".drop-projection");
-      const preserveStartTop = updateAnchor && markers.length
-        ? BlockLayout.clientRect(startBlock).top
-        : null;
-      markers.forEach(el => el.remove());
-      if (markers.length && updateAnchor) {
-        updateProgramAnchor({ allowDuringDrag: true, preserveStartTop });
-      }
-    }
-
-    function moveGhost(x, y) {
-      if (!dragState) return;
-      dragState.ghost.style.left = `${x}px`;
-      dragState.ghost.style.top = `${y}px`;
-    }
-
-    function getDropIndex(zone, pointerX) {
-      const boundaries = dragState?.dropGeometry?.get(zone)?.boundaries;
-      if (boundaries) {
-        const index = boundaries.findIndex(x => pointerX < x);
-        return index < 0 ? boundaries.length : index;
-      }
-      const blocks = getDirectProgramBlocks(zone);
-      for (let i = 0; i < blocks.length; i++) {
-        const rect = BlockLayout.clientRect(blocks[i]);
-        const advance = Number(blocks[i].dataset.advance) || rect.width;
-        if (pointerX < rect.left + advance / 2) return i;
-      }
-      return blocks.length;
-    }
-
-    function getDirectProgramBlocks(zone) {
-      return [...zone.children].filter(child => (
-        child.classList.contains("program-block") &&
-        !child.classList.contains("drop-projection")
-      ));
-    }
-
-    function getDirectEmptyNote(zone) {
-      return [...zone.children].find(child => (
-        child.classList.contains("empty-note") ||
-        child.classList.contains("loop-empty-note")
-      ));
+    // Navigation, native lifecycle and model switching share this cancellation entry.
+    function cancelDrag() {
+      canvasController?.cancel();
+      cancelMatrixPaint();
     }
 
     function scheduleProgramAnchorUpdate() {
-      if (dragState || programAnchorFrame) return;
+      if (programAnchorFrame) return;
       programAnchorFrame = requestAnimationFrame(() => {
         programAnchorFrame = null;
-        updateProgramAnchor();
+        canvasController?.layout();
       });
-    }
-
-    function updateProgramAnchor({ allowDuringDrag = false, includeDropProjection = false, preserveStartTop = null } = {}) {
-      if (dragState && !allowDuringDrag) return;
-      const programHeight = programArea.clientHeight;
-      if (!programHeight) return;
-
-      const preserveStartPosition = Number.isFinite(preserveStartTop);
-      const startTopBefore = preserveStartPosition ? preserveStartTop : 0;
-      const scrollTopBefore = programCanvas.scrollTop;
-      BlockLayout.root(chain, programHeight);
-
-      if (!preserveStartPosition) return;
-      const scrollTopAfterLayout = programCanvas.scrollTop;
-      const startTopAfter = BlockLayout.clientRect(startBlock).top;
-      const startShift = startTopAfter - startTopBefore;
-      if (Math.abs(startShift) < 0.5) return;
-
-      programCanvas.scrollTop = scrollTopAfterLayout + startShift;
-      const totalScrollShift = programCanvas.scrollTop - scrollTopBefore;
-      if (dragState && allowDuringDrag && totalScrollShift) {
-        dragState.canvasScrollTop += totalScrollShift;
-      }
-    }
-
-    function isPointInDeleteZone(x, y) {
-      const rect = BlockLayout.clientRect(deleteOverlay);
-      return isPointInRect(x, y, rect);
-    }
-
-    function isPointInRootDropArea(x, y) {
-      if (x < 0 || y < 0 || x > window.innerWidth || y > window.innerHeight) return false;
-      return ![topbar, libraryArea, tabs].some(element => (
-        element && isPointInRect(x, y, BlockLayout.clientRect(element))
-      ));
-    }
-
-    function isPointInRect(x, y, rect) {
-      return x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom;
-    }
-
-    function rectsIntersect(a, b) {
-      return a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top;
-    }
-
-    function moveProgramNode(sourcePath, targetSequencePath, targetIndex) {
-      if (!sourcePath || startsWithPath(targetSequencePath, sourcePath)
-        || !getSequenceByPath(targetSequencePath)) return false;
-
-      const sourceParentPath = sourcePath.slice(0, -1);
-      const sourceIndex = sourcePath[sourcePath.length - 1];
-      const sameSequence = pathsEqual(sourceParentPath, targetSequencePath);
-      const item = removeNodeAtPath(sourcePath);
-      if (!item) return false;
-
-      const nextTargetPath = sameSequence
-        ? targetSequencePath
-        : adjustSequencePathAfterRemoval(targetSequencePath, sourcePath);
-      const nextIndex = sameSequence && targetIndex > sourceIndex ? targetIndex - 1 : targetIndex;
-      return insertNodeAtPath(nextTargetPath, nextIndex, item);
-    }
-
-    function moveProgramNodes(sourcePaths, targetSequencePath, targetIndex) {
-      if (!sourcePaths?.length) return false;
-      if (sourcePaths.some(path => startsWithPath(targetSequencePath, path))
-        || !getSequenceByPath(targetSequencePath)) return false;
-
-      const sortedSourcePaths = [...sourcePaths].sort(comparePathsAscending);
-      const sourceParentPath = sortedSourcePaths[0].slice(0, -1);
-      const sameSourceSequence = sortedSourcePaths.every(path => pathsEqual(path.slice(0, -1), sourceParentPath));
-      if (!sameSourceSequence) return false;
-
-      const sourceSequence = getSequenceByPath(sourceParentPath);
-      if (!sourceSequence) return false;
-
-      const sourceIndices = sortedSourcePaths.map(path => path[path.length - 1]);
-      const items = sourceIndices
-        .map(index => sourceSequence[index])
-        .filter(Boolean);
-      if (!items.length) return false;
-
-      [...sourceIndices].sort((a, b) => b - a).forEach(index => {
-        sourceSequence.splice(index, 1);
-      });
-
-      const sameTargetSequence = pathsEqual(sourceParentPath, targetSequencePath);
-      const nextTargetPath = sameTargetSequence
-        ? targetSequencePath
-        : adjustSequencePathAfterMultipleRemoval(targetSequencePath, sortedSourcePaths);
-      const removedBeforeTarget = sameTargetSequence
-        ? sourceIndices.filter(index => index < targetIndex).length
-        : 0;
-      const nextIndex = targetIndex - removedBeforeTarget;
-      const targetSequence = getSequenceByPath(nextTargetPath);
-      if (!targetSequence) return false;
-
-      targetSequence.splice(clampIndex(nextIndex, targetSequence.length), 0, ...items);
-      return true;
-    }
-
-    function takeProgramNodes(sourcePaths) {
-      if (!sourcePaths?.length) return [];
-      const sortedPaths = [...sourcePaths].sort(comparePathsAscending);
-      const items = sortedPaths.map(getNodeAtPath).filter(Boolean);
-      if (items.length !== sortedPaths.length) return [];
-
-      [...sortedPaths].sort(comparePathsForRemoval).forEach(removeNodeAtPath);
-      return items;
-    }
-
-    function insertNodesAtPath(sequencePath, index, items) {
-      const sequence = getSequenceByPath(sequencePath);
-      if (!sequence || !items?.length) return false;
-      sequence.splice(clampIndex(index, sequence.length), 0, ...items);
-      return true;
-    }
-
-    function insertNodeAtPath(sequencePath, index, item) {
-      const sequence = getSequenceByPath(sequencePath);
-      if (!sequence || !item) return false;
-      sequence.splice(clampIndex(index, sequence.length), 0, item);
-      return true;
-    }
-
-    function removeNodeAtPath(nodePath) {
-      if (!nodePath?.length) return null;
-      const parentSequence = getSequenceByPath(nodePath.slice(0, -1));
-      const index = nodePath[nodePath.length - 1];
-      if (!parentSequence || index < 0 || index >= parentSequence.length) return null;
-      return parentSequence.splice(index, 1)[0];
     }
 
     function getSequenceByPath(sequencePath) {
@@ -2829,36 +1609,6 @@
       }
 
       return node;
-    }
-
-    function isSequenceInsideDraggedItem(sequencePath) {
-      if (!dragState?.fromProgram || !dragState.sourcePath) return false;
-      const draggedPaths = dragState.grabMovePaths?.length
-        ? dragState.grabMovePaths
-        : [dragState.sourcePath];
-      return draggedPaths.some(path => startsWithPath(sequencePath, path));
-    }
-
-    function adjustSequencePathAfterRemoval(sequencePath, removedNodePath) {
-      const adjusted = [...sequencePath];
-      const removedParentPath = removedNodePath.slice(0, -1);
-      const removedIndex = removedNodePath[removedNodePath.length - 1];
-
-      if (
-        adjusted.length > removedParentPath.length &&
-        pathsEqual(adjusted.slice(0, removedParentPath.length), removedParentPath) &&
-        adjusted[removedParentPath.length] > removedIndex
-      ) {
-        adjusted[removedParentPath.length] -= 1;
-      }
-
-      return adjusted;
-    }
-
-    function adjustSequencePathAfterMultipleRemoval(sequencePath, removedNodePaths) {
-      return [...removedNodePaths]
-        .sort(comparePathsForRemoval)
-        .reduce((adjustedPath, removedPath) => adjustSequencePathAfterRemoval(adjustedPath, removedPath), [...sequencePath]);
     }
 
     function normalizeSequence(rawSequence) {
@@ -2892,29 +1642,101 @@
     }
 
     function serializeWorkspaceState() {
-      return {
-        program: serializeSequence(program),
-        stagedGroups: stagedGroups.map(group => ({
-          id: group.id,
-          items: serializeSequence(group.items)
-        }))
-      };
+      return canvasController ? CanvasWorkspace.clone(canvasController.getDocument()) : CanvasWorkspace.create();
     }
 
-    function applyWorkspaceState(rawState) {
-      if (Array.isArray(rawState)) {
-        program = normalizeSequence(rawState);
-        stagedGroups = [];
-        return;
-      }
+    function applyWorkspaceState(rawState, loadOptions = {}) {
+      if (!canvasController || (executionLocked && !loadOptions.force)) return false;
+      canvasController.cancel(); closeParamEditor();
+      const options = { normalizeItem };
+      const doc = rawState?.kind === 'free-canvas' && rawState.schemaVersion === 2
+        ? CanvasWorkspace.normalize(rawState, options) : CanvasWorkspace.fromLegacy(rawState, options);
+      canvasController.load(doc, loadOptions); syncCanvasProgram();
+      return true;
+    }
 
-      program = normalizeSequence(rawState?.program);
-      stagedGroups = Array.isArray(rawState?.stagedGroups)
-        ? rawState.stagedGroups.map((group, index) => ({
-            id: group?.id || `staged-restored-${index}`,
-            items: normalizeSequence(group?.items)
-          })).filter(group => group.items.length)
-        : [];
+    // Run data is detached from the editable document. Array paths describe this
+    // snapshot only; the stable uid is the identity used to locate a visible block.
+    function getRunSnapshot(options = {}) {
+      const doc = canvasController.getDocument();
+      const xiaobai = CardModelSession.current.id === 'xiaobai';
+      const headedGroups = doc.groups.filter(group => group.startId);
+      if (xiaobai && headedGroups.length > 4) throw new Error('小白作品最多支持 4 个开始头，请先移除多余的开始头。');
+      let groups;
+      if (options.groupId !== undefined && options.groupId !== null) {
+        const group = doc.groups.find(candidate => candidate.id === options.groupId);
+        if (!group?.startId) throw new Error('请选择一个带开始头的程序组。');
+        groups = [group];
+      } else if (options.all === false) {
+        const group = doc.groups.find(candidate => candidate.id === doc.selectedGroupId);
+        if (!group?.startId) throw new Error('请选择一个带开始头的程序组。');
+        groups = [group];
+      } else groups = doc.groups.filter(group => group.startId);
+      if (!groups.length) throw new Error('请先放入带开始头的程序组。');
+      if (groups.length > 4) throw new Error('一次最多运行 4 个程序组。');
+      if (xiaobai && options.groupId == null && options.all !== false && !groups.some(group=>group.trigger === undefined))
+        throw new Error('请至少放入一个普通开始头，或点击消息开始头测试运行。');
+      groups = [...groups].sort((a, b) => a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
+      const valid = CanvasWorkspace.validate({ ...doc, groups, selectedGroupId: null });
+      if (!valid.ok) throw new Error('程序结构或积木标识无效，请检查程序组。');
+      let count = 0;
+      function copyValue(value, ancestors = new Set()) {
+        if (value === null || typeof value === 'string' || typeof value === 'boolean') return value;
+        if (typeof value === 'number' && Number.isFinite(value)) return value;
+        if (!value || typeof value !== 'object' || ancestors.has(value)) throw new Error('积木参数无效。');
+        const next = new Set(ancestors); next.add(value);
+        if (Array.isArray(value)) return value.map(entry => copyValue(entry, next));
+        const result = {};
+        for (const key of Object.keys(value)) Object.defineProperty(result, key, {
+          value: copyValue(value[key], next), enumerable: true, configurable: true, writable: true
+        });
+        return result;
+      }
+      function items(sequence, depth = 0, groupId) {
+        if (depth > 20) throw new Error('循环嵌套最多支持 20 层。');
+        return sequence.map(item => {
+          if (++count > 1000) throw new Error('一次运行合计最多支持 1000 块积木。');
+          if (!cardById[item.id]) {
+            const error = new Error('当前型号不支持此积木：' + item.id);
+            error.groupId = groupId; error.blockUid = item.uid; throw error;
+          }
+          const stored = { uid: item.uid, id: item.id, params: copyValue(item.params) };
+          if (Array.isArray(item.children)) stored.children = items(item.children, depth + 1, groupId);
+          return stored;
+        });
+      }
+      const snapshot = {
+        schemaVersion: 1,
+        modelId: CardModelSession.current.id,
+        projectId: window.CardHome?.activeProjectId || null,
+        launchOrder: groups.map(group => group.id),
+        groups: groups.map(group => {
+          if (!group.items.length) {
+            const error = new Error('开始头后还没有积木，请先添加程序。');
+            error.groupId = group.id; error.blockUid = group.startId; throw error;
+          }
+          return { groupId: group.id, startId: group.startId, items: items(group.items, 0, group.id),
+            ...(group.trigger === undefined ? {} : {trigger:copyValue(group.trigger)}) };
+        })
+      };
+      if (xiaobai && options.groupId != null) snapshot.manualGroupId = options.groupId;
+      function freeze(value) {
+        if (value && typeof value === 'object') { Object.values(value).forEach(freeze); Object.freeze(value); }
+        return value;
+      }
+      return freeze(snapshot);
+    }
+
+    function setExecutionLocked(locked) {
+      const next = Boolean(locked);
+      if (executionLocked === next) return executionLocked;
+      executionLocked = next;
+      canvasController?.setEditingLocked(executionLocked);
+      syncCanvasProgram();
+      if (executionLocked) { cancelMatrixPaint(); closeParamEditor(); }
+      appElement.classList.toggle('is-execution-locked', executionLocked);
+      updateHistoryButtons();
+      return executionLocked;
     }
 
     function getProgramSnapshot() {
@@ -2952,6 +1774,7 @@
     }
 
     function undoProgram() {
+      if (executionLocked) return;
       if (historyIndex <= 0) return;
       historyIndex -= 1;
       restoreProgramSnapshot(historySnapshots[historyIndex]);
@@ -2960,6 +1783,7 @@
     }
 
     function redoProgram() {
+      if (executionLocked) return;
       if (historyIndex < 0 || historyIndex >= historySnapshots.length - 1) return;
       historyIndex += 1;
       restoreProgramSnapshot(historySnapshots[historyIndex]);
@@ -2968,8 +1792,8 @@
     }
 
     function updateHistoryButtons() {
-      undoBtn.disabled = historyIndex <= 0;
-      redoBtn.disabled = historyIndex < 0 || historyIndex >= historySnapshots.length - 1;
+      undoBtn.disabled = executionLocked || historyIndex <= 0;
+      redoBtn.disabled = executionLocked || historyIndex < 0 || historyIndex >= historySnapshots.length - 1;
     }
 
     function saveProgram() {
@@ -2980,6 +1804,7 @@
     }
 
     function loadProgram() {
+      if (executionLocked) return false;
       if (window.CardHome) { window.CardHome.load(); return; }
       if (window.CardHome?.load()) return;
       const raw = localStorage.getItem(STORAGE_KEY) || localStorage.getItem(LEGACY_STORAGE_KEY);
@@ -3039,39 +1864,53 @@
       const tab = event.target.closest('.tab');
       if (tab) selectCategory(tab.id.replace('tab-', ''));
     });
-    palette.addEventListener("pointerdown", startPaletteSwipe, true);
-    document.addEventListener("pointermove", movePaletteSwipe, true);
-    document.addEventListener("pointerup", finishPaletteSwipe, true);
-    document.addEventListener("pointercancel", cancelPaletteSwipe, true);
+    tabs.addEventListener("keydown", event => {
+      const tab = event.target.closest('.tab');
+      if (!tab || !["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
+      event.preventDefault();
+      const index = categoryOrder.indexOf(tab.id.slice(4));
+      const next = event.key === "Home" ? 0 : event.key === "End" ? categoryOrder.length - 1 :
+        (index + (event.key === "ArrowRight" ? 1 : -1) + categoryOrder.length) % categoryOrder.length;
+      selectCategory(categoryOrder[next]);
+      document.getElementById(`tab-${categoryOrder[next]}`)?.focus({preventScroll:true});
+    });
+    palette.addEventListener("scroll", schedulePaletteScrollSync, {passive:true});
+    palette.addEventListener("wheel", () => { paletteScrollTarget = null; }, {passive:true});
+    // Register before the canvas pointer controller, which owns and captures
+    // palette drag/browse gestures. A finger takes over any tab-initiated scroll.
+    document.addEventListener("pointerdown", event => {
+      if (event.target instanceof Element && palette.contains(event.target)) paletteScrollTarget = null;
+    }, {capture:true, passive:true});
+    palette.addEventListener("keydown", event => {
+      const card = event.target.closest('[data-card-id][data-mode="palette"]');
+      if (!card || !["Enter", " "].includes(event.key)) return;
+      event.preventDefault();
+      canvasController?.add(card.dataset.cardId);
+    });
 
     document.getElementById("saveBtn").addEventListener("click", saveProgram);
-    // Use the same entry point and disabled state as the toolbar run button.
-    // Sliding across the start block must not accidentally start hardware.
-    let startBlockPress = null;
-    startBlock.addEventListener("pointerdown", event => {
-      startBlockPress = { id: event.pointerId, x: event.clientX, y: event.clientY,
-        cancelled: event.button !== 0 || event.isPrimary === false };
-    });
-    startBlock.addEventListener("pointermove", event => {
-      if (startBlockPress?.id === event.pointerId &&
-          Math.hypot(event.clientX - startBlockPress.x, event.clientY - startBlockPress.y) > 8) {
-        startBlockPress.cancelled = true;
+    const editorToolsToggle = document.getElementById("editorToolsToggle");
+    const editorMoreTools = document.getElementById("editorMoreTools");
+    let editorToolsExpanded = false;
+    // Keep the strip measurable so its width can animate in both directions.
+    editorMoreTools.hidden = false;
+    function setEditorToolsExpanded(expanded) {
+      closeParamEditor();
+      editorToolsExpanded = expanded;
+      if (!expanded && editorMoreTools.contains(document.activeElement)) editorToolsToggle.focus();
+      editorMoreTools.inert = !expanded;
+      editorMoreTools.setAttribute("aria-hidden", String(!expanded));
+      if (expanded) editorMoreTools.scrollLeft = 0;
+      editorToolsToggle.setAttribute("aria-expanded", String(expanded));
+      editorToolsToggle.title = expanded ? "收起工具栏" : "展开工具栏";
+      editorToolsToggle.setAttribute("aria-label", editorToolsToggle.title);
+      editorToolsToggle.closest(".topbar").classList.toggle("is-expanded", expanded);
+    }
+    editorToolsToggle.addEventListener("click", () => setEditorToolsExpanded(!editorToolsExpanded));
+    editorToolsToggle.closest(".topbar").addEventListener("keydown", event => {
+      if (event.key === "Escape" && editorToolsExpanded) {
+        event.preventDefault(); setEditorToolsExpanded(false); editorToolsToggle.focus();
       }
-    });
-    startBlock.addEventListener("pointerleave", event => {
-      if (startBlockPress && event.buttons) startBlockPress.cancelled = true;
-    });
-    startBlock.addEventListener("pointercancel", () => {
-      if (startBlockPress) startBlockPress.cancelled = true;
-    });
-    startBlock.addEventListener("click", event => {
-      if (event.detail !== 0 && startBlockPress?.cancelled) return;
-      document.getElementById("runProgramBtn").click();
-    });
-    startBlock.addEventListener("keydown", event => {
-      if (event.key !== "Enter" && event.key !== " ") return;
-      event.preventDefault();
-      if (!event.repeat) document.getElementById("runProgramBtn").click();
     });
     const executionControls = document.querySelector(".execution-controls");
     const executionNotice = document.getElementById("executionNotice");
@@ -3086,10 +1925,11 @@
     undoBtn.addEventListener("click", undoProgram);
     redoBtn.addEventListener("click", redoProgram);
     document.getElementById("clearBtn").addEventListener("click", () => {
+      if (executionLocked) return;
       closeParamEditor();
-      const hadContent = program.length > 0 || stagedGroups.length > 0;
+      const hadContent = canvasController.getDocument().groups.length > 0;
+      if (canvasController) { canvasController.load(CanvasWorkspace.create()); syncCanvasProgram(); }
       program = [];
-      stagedGroups = [];
       renderProgram();
       renderPalette();
       commitHistory();
@@ -3097,8 +1937,6 @@
       setStatus("已清空");
     });
 
-    grabTool?.addEventListener("pointerdown", startGrabToolDrag);
-    programArea.addEventListener("pointerdown", startBlankGrabHold);
     programArea.addEventListener("contextmenu", event => {
       event.preventDefault();
     });
@@ -3117,7 +1955,6 @@
     });
 
     document.addEventListener("pointerdown", event => {
-      clearGrabSelectionOnOutsidePointerDown(event);
       if (paramEditor.hidden) return;
       if (paramEditor.contains(event.target)) return;
       if (event.target.closest(".icon-card.program-block")) return;
@@ -3126,6 +1963,9 @@
 
     window.addEventListener("resize", () => {
       scheduleProgramAnchorUpdate();
+      paletteScrollTarget = null;
+      updatePaletteTrailingSpace();
+      schedulePaletteScrollSync();
       updateCategorySlider(false);
       if (activeParamEditor) {
         positionParamEditor(findProgramBlockByPath(activeParamEditor.nodePath));
@@ -3133,35 +1973,92 @@
     });
     if ("ResizeObserver" in window) {
       new ResizeObserver(scheduleProgramAnchorUpdate).observe(programArea);
+      new ResizeObserver(() => {
+        updatePaletteTrailingSpace();
+        schedulePaletteScrollSync();
+      }).observe(palette);
     }
 
+    canvasController = FreeCanvas.create({
+      area: programArea, viewport: programCanvas, chain, palette, library: libraryArea,
+      controls: editorMoreTools,
+      model: () => CardModelSession.current,
+      createNode: createProgramNode, createItem: createProgramItem,
+      onChange: (doc, options = {}) => {
+        syncCanvasProgram();
+        if (options.viewOnly) {
+          if (options.reason === 'viewport') closeParamEditor();
+          document.dispatchEvent(new Event('card-workspace-changed'));
+        }
+        else { renderPalette(); commitHistory(); playBlockSound(options.reason === 'delete' ? 'delete' : 'place'); }
+      },
+      onSelect: () => syncCanvasProgram(),
+      onParam: openCanvasParamEditor,
+      onHeadParam: openCanvasHeadParamEditor,
+      createDropdownArtwork,
+      onRun: groupId => window.CardProgram?.runGroup(groupId),
+      onStatus: setStatus,
+      onGesture: () => closeParamEditor(),
+      cancelLegacy: cancelMatrixPaint
+    });
+    window.CardCanvas = canvasController;
+    document.body.classList.add('free-canvas-enabled');
     renderPalette();
     updateCategorySlider(false);
     renderProgram();
     commitHistory();
 
     window.CardEditor = {
+      getWorkspace: serializeWorkspaceState,
+      setWorkspace(state) {
+        if (executionLocked || !applyWorkspaceState(state)) return false;
+        renderPalette(); renderProgram(); commitHistory(); return true;
+      },
+      getRunSnapshot,
+      setExecutionLocked,
+      get executionLocked() { return executionLocked; },
+      selectGroup(id) { canvasController.select(id); },
+      getExecutionGroup(groupId) {
+        const doc = canvasController.getDocument();
+        const selected = groupId ? doc.groups.find(g => g.id === groupId) : doc.groups.find(g => g.id === doc.selectedGroupId);
+        const headed = doc.groups.filter(g => g.startId);
+        const group = selected || (headed.length === 1 ? headed[0] : null);
+        if (!group) throw new Error('请先选择一个带开始头的程序组，或点它的开始头运行。');
+        if (!group.startId) throw new Error('当前积木组没有开始头，请先连接一个开始头。');
+        return {groupId: group.id, items: serializeSequence(group.items)};
+      },
+      findBlock(path, groupId) {
+        const doc = canvasController.getDocument();
+        let sequence = doc.groups.find(g => g.id === groupId)?.items || [];
+        let item;
+        for (const index of path) { item = sequence[index]; sequence = item?.children || []; }
+        return item ? canvasController.findElement(item.uid) : null;
+      },
+      findBlockByUid(uid) { return canvasController.findElement(uid); },
+      undo: undoProgram, redo: redoProgram,
       configure(model) {
-        cancelDrag(); closeParamEditor(); paletteGestureCleanup?.(); finishPaletteTransition();
+        // DeviceModels invokes this only after its deactivate hook has stopped the
+        // prior session. A public configure call cannot replace a running document.
+        if (executionLocked && !CardModelSession.switching) return false;
+        canvasController.cancel(); closeParamEditor();
         modelArtworkByCard = model.artworkByCard || {};
-        const startIcon = startBlock.querySelector(".start-art-icon");
-        if (startIcon) {
-          startIcon.src = model.startIcon || "assets/blocks/start.svg";
-          startIcon.classList.toggle("model-art-icon", model.artStyle === "fitted");
-        }
-        categories = model.singlePalette ? {all:{label:'积木',color:'var(--motor)',cards:Object.values(model.catalog).flatMap(group=>group.cards.map(card=>({...card,color:card.color||group.color})))}} : model.catalog; legacyCards = model.legacyCards || [];
+        // Device catalogs retain their own categories/order. Tabs locate those
+        // sections in one continuous strip, including former single palettes.
+        categories = model.catalog;
+        legacyCards = model.legacyCards || [];
         flatCards = [...Object.values(categories).flatMap(group => group.cards), ...legacyCards];
         cardById = Object.fromEntries(flatCards.map(card => [card.id, card]));
-        categoryOrder = [...Object.keys(categories), 'staging'];
-        tabs.querySelectorAll('.tab:not(#tab-staging)').forEach(tab => tab.remove());
+        categoryOrder = Object.keys(categories);
+        tabs.querySelectorAll('.tab').forEach(tab => tab.remove());
         Object.entries(categories).forEach(([id, group]) => {
           const tab = document.createElement('button'); tab.className='tab'; tab.id='tab-'+id;
           tab.type='button'; tab.setAttribute('role','tab'); tab.textContent=group.label || id;
-          tab.style.setProperty('--tab-color',group.color); tabs.insertBefore(tab,stagingTab);
+          tab.setAttribute('aria-controls','palette');
+          tab.style.setProperty('--tab-color',group.color); tabs.appendChild(tab);
         });
-        applyWorkspaceState({program:[],stagedGroups:[]});
-        historySnapshots=[];historyIndex=-1;grabMarkedPaths.clear();
-        activeCategory=categoryOrder[0];selectCategory(activeCategory,false);renderProgram();commitHistory();
+        applyWorkspaceState(CanvasWorkspace.create(), { force: true });
+        historySnapshots=[];historyIndex=-1;
+        activeCategory=categoryOrder[0];renderPalette(true);selectCategory(activeCategory,false);renderProgram();commitHistory();
       }
     };
 

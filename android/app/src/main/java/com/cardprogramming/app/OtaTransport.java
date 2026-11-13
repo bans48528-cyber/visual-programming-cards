@@ -14,12 +14,13 @@ final class OtaTransport {
     static final int MAX_PAYLOAD=OtaLayout.OTA_MAX_PAYLOAD, HEADER_BYTES=OtaLayout.OTA_FRAME_HEADER_SIZE, MAX_FRAME=OtaLayout.OTA_FRAME_MAX;
     private final byte[] buffer=new byte[MAX_FRAME];
     private int length;
-    private boolean active, sent;
+    private boolean active, sent, readOnly;
     private byte[] pending;
     private long lastRx=-1000, lastTx=-1000;
 
-    void begin() {close();active=true;}
-    void close() {active=false;sent=false;pending=null;length=0;lastRx=lastTx=-1000;}
+    void begin() {begin(false);}
+    void begin(boolean probeOnly) {close();active=true;readOnly=probeOnly;}
+    void close() {active=false;sent=false;readOnly=false;pending=null;length=0;lastRx=lastTx=-1000;}
     boolean active() {return active;}
     long delay(long now) {return Math.max(0,Math.max(lastRx+RX_QUIET_MS-now,lastTx+CHUNK_INTERVAL_MS-now));}
     void observedRx(long now) {lastRx=now;}
@@ -29,6 +30,8 @@ final class OtaTransport {
     byte[][] prepare(byte[] bytes) {
         if(!active)throw new IllegalStateException("升级通道尚未开启。");
         if(!validRequest(bytes))throw new IllegalArgumentException("无效的 XBOT 升级请求。");
+        if(readOnly && (bytes[5]&255)!=OtaLayout.OTA_OP_INFO && (bytes[5]&255)!=OtaLayout.OTA_OP_GET_UID)
+            throw new IllegalStateException("只读探测连接不能写入或启动固件。");
         if(pending!=null&&!Arrays.equals(pending,bytes))
             throw new IllegalStateException("上一条升级请求尚未收到匹配的回报。");
         if(pending==null) {pending=bytes.clone();sent=false;}
@@ -49,8 +52,10 @@ final class OtaTransport {
         if(!validFrame(b)||u32(b,8)==0)return false;
         int payload=b.length-HEADER_BYTES;
         switch(b[5]&255) {
-            case OtaLayout.OTA_OP_INFO: case OtaLayout.OTA_OP_FINISH:return payload==0;
+            case OtaLayout.OTA_OP_INFO: case OtaLayout.OTA_OP_GET_UID: case OtaLayout.OTA_OP_FINISH:return payload==0;
             case OtaLayout.OTA_OP_BEGIN:return payload==OtaLayout.OTA_MANIFEST_SIZE;
+            // Use the maximum dual-layout capacity here. JS and real Boot INFO
+            // enforce the signed target's own (legacy/compact) limits before BEGIN.
             case OtaLayout.OTA_OP_DATA:return payload>=5&&payload<=OtaLayout.OTA_DATA_MAX+4&&u32(b,HEADER_BYTES)%OtaLayout.OTA_PAGE_SIZE==0&&u32(b,HEADER_BYTES)<OtaLayout.OTA_APP_CAPACITY&&u32(b,HEADER_BYTES)+payload-4<=OtaLayout.OTA_APP_CAPACITY;
             default:return false;
         }

@@ -14,21 +14,14 @@ let checks=0;const eq=(a,b,m)=>{assert.deepEqual(a,b,m);checks++;};
    try{
     await context.addInitScript(()=>localStorage.setItem('cardDefaultModelV1','xiaobai'));
     await context.addInitScript(mockAndroid);
-    await context.addInitScript(mockFirmware,{target});
-    // Seed the preserved record once the normal App connection exists. A record
-    // at startup intentionally disables auto-connect and tests a different route.
-    await context.addInitScript(target=>{
-      mockBle.appIdentity.bootVersion=target.minBootVersion-1;const bridge=Capacitor,previous=bridge.nativePromise.bind(bridge);let seeded=false;
-      bridge.nativePromise=async(plugin,method,opts)=>{
-        const result=await previous(plugin,method,opts);
-        if(plugin==='SparkBle'&&method==='connect'&&!seeded){seeded=true;const gate=CardBluetooth.firmware;gate.session.saveBinding({deviceId:'FW-BOUND',uid:mockBle.otaUid,name:'Spark_AI',pending:target,written:true});gate.session.state.written=true;}
-        return result;
-      };
-    },target);
+    await context.addInitScript(mockFirmware,{target,version:target.version-1,bootVersion:target.minBootVersion-1});
     const page=await context.newPage(),errors=[];page.on('pageerror',e=>errors.push(e.message));
     await page.goto(base+'#home');await page.waitForFunction(()=>CardBluetooth?.firmware&&!CardPageTransition.busy);
     await page.locator('#newProject').tap();await page.waitForFunction(()=>!CardPageTransition.busy&&location.hash==='#editor');
     const dialog=page.locator('#xiaobaiFirmwareDialog');await dialog.waitFor({state:'visible'});
+    await page.waitForFunction(()=>CardBluetooth.firmware.snapshot().canUpgrade&&!CardBluetooth.firmware.snapshot().busy);
+    eq(await page.evaluate(()=>mockBle.enterRequests),0,'the compiled App Boot version cannot block or enter Boot without consent');
+    await page.locator('.firmware-confirm').tap();
     await page.waitForFunction(()=>CardBluetooth.firmware.snapshot().code==='BOOT_VERSION'&&!CardBluetooth.firmware.snapshot().busy);
     eq(await page.locator('#firmwareTitle').textContent(),'需要更新主控引导程序');
     assert.match(await page.locator('#firmwareMessage').textContent(),/通过 DAP 更新主控引导程序/);checks++;
@@ -42,8 +35,11 @@ let checks=0;const eq=(a,b,m)=>{assert.deepEqual(a,b,m);checks++;};
       binding:JSON.parse(localStorage.getItem('xiaobai:ota:binding:v1')),
       box:(()=>{const d=document.querySelector('#xiaobaiFirmwareDialog'),f=d.querySelector('footer');return{dialog:d.getBoundingClientRect().toJSON(),footer:f.getBoundingClientRect().toJSON(),scroll:d.querySelector('.firmware-content').scrollWidth,client:d.querySelector('.firmware-content').clientWidth};})()
     }));
-    eq(result.phase,'boot-update-required');eq(result.ready,false);eq(result.canUpgrade,false);eq(result.raw,[]);eq(result.enter,0);
-    eq(result.binding.deviceId,'FW-BOUND');eq(result.binding.pending.imageSha256,target.imageSha256);eq(result.binding.written,true);
+    eq(result.phase,'boot-update-required');eq(result.ready,false);eq(result.canUpgrade,false);eq(result.enter,1);
+    eq(result.raw.filter(call=>call.op===0x62||call.op===0x63),[],'actual Boot incompatibility causes no BEGIN or DATA');
+    eq(result.raw.some(call=>call.op===0x60),true,'real Boot INFO is required after ENTER');
+    eq(result.raw.some(call=>call.op===0x64),true,'idle valid Boot safely returns without writing');
+    eq(result.binding.deviceId,'FW-BOUND');eq(result.binding.pending,null);eq(result.binding.written,false);
     assert.ok(result.box.dialog.left>=0&&result.box.dialog.top>=0&&result.box.dialog.right<=viewport.width+1&&result.box.dialog.bottom<=viewport.height+1);checks++;
     assert.ok(result.box.footer.bottom<=result.box.dialog.bottom+1&&result.box.scroll<=result.box.client+1);checks++;
     await page.screenshot({path:path.join(out,`dap-required-${viewport.width}x${viewport.height}.png`)});
@@ -52,6 +48,6 @@ let checks=0;const eq=(a,b,m)=>{assert.deepEqual(a,b,m);checks++;};
    }finally{await context.close();}
   }
   console.log(`${checks} DAP-only Boot UI checks passed; real signed target remains unchanged, native BLE only synthetic.`);
-  fs.writeFileSync(path.join(out,'results.json'),JSON.stringify({checks,passed:true,target:{version:target.version,packageSha256:target.packageSha256,minBootVersion:target.minBootVersion},boundary:'Actual production UI and Gate with the current signed release bundle; synthetic native reports Boot one below its minimum. No hardware.'},null,2));
+  fs.writeFileSync(path.join(out,'results.json'),JSON.stringify({checks,passed:true,target:{version:target.version,packageSha256:target.packageSha256,minBootVersion:target.minBootVersion},boundary:'Actual production UI/Gate/Session and current signed release; user confirmation enters synthetic actual Boot one below minimum. No BEGIN/DATA or hardware.'},null,2));
  }finally{await browser.close();}
 })().catch(e=>{console.error(e);process.exitCode=1;});

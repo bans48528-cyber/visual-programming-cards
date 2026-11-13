@@ -1,0 +1,74 @@
+Drluck CodeLab / 小白 OTA 双布局源码交接
+日期：2026-11-07（Asia/Shanghai）
+
+本次仅适配源码与测试。没有发布 APK、安装、连接真实设备、刷 Boot 或刷 App。
+当前发布仍为 App 1.2.16 / versionCode 22，唯一内置签名目标仍是 PY32 1.0.4。
+现有发布 pin、发布 JSON、版本计划、原 1.1.1 签名产物、1.2.15/1.2.16 APK 均保持原值。
+
+一、冻结契约
+
+权威：LBS-XIAOBAI-AI/Shared/Ota_Layout.h 与 docs/compact_layout_protocol_20261107.txt。
+XBOT wire 版本仍为 1，帧/CRC/请求编号/签名算法不变。
+
+legacy layout 1 / manifest format 1：
+  App base 0x08004000，limit 0x0800F000，容量 45056 字节；reserved[8] 必须全零。
+compact layout 2 / manifest format 2：
+  Boot 2.0.0，12 KiB；App base 0x08003000，limit 0x0800FF00，容量 52992 字节。
+  canonical manifest 0x0800FF00、commit 0x0800FF80，各为独立 128 字节擦除页。
+  manifest offset 56 为 LE32 layoutId=2，offset 60 为 LE32 erasePage=128，最低 Boot >=2.0.0。
+  两种包均先校验原始签名、哈希、向量、地址和各自容量，不能重写旧包地址或重签旧包来冒充新布局。
+
+INFO schema 与 wire 分开处理：
+  schema 1：60 字节 / C2 10 片；schema 2：72 字节 / C2 12 片，每片 6 字节。
+  先请求 part0 并读取 offset4 LE16 schema，再决定后续片数；绝不向旧 App 盲读 part10/11。
+  schema2 保留前60字节；60=LE32 layoutId，64=LE32 activeAppBase，68=LE16 erasePage，70=LE16 capabilities。
+  capabilities bit0=旧布局，bit1=紧凑布局，bit2=降级，bit3=同版本不同镜像。
+  解析结果 protocol 恒为 wire1，schemaVersion/infoVersion 承载 INFO 版本。
+  D3 0A 仍是 data[0..3]=App version、[4..5]=boardId、[6]=INFO schema、[7]=imageValid。
+  版本通知仅作为重查提示，不建立镜像一致性或运行就绪证据。
+
+二、实际 Boot 才有最终写入决定权
+
+旧 App 的 BootVersion 是编译时常量，可能运行在已更新的 Boot 上，不能据此提前拒绝。
+App INFO 阶段仍校验板型、信息格式、设备 UID/连接 epoch 和镜像身份，但不信任其 Boot 版本/能力作为写入许可。
+用户确认后，先停止程序和学习、检查电量，ENTER，再读取实际 Boot INFO；BEGIN 前按实际 Boot 版本、支持布局和能力位校验。
+旧 Boot 不支持新 layout2、降级或同版本改镜像时，明确提示 DAP 更新；未知布局/能力不得进入写入。
+Boot 2 的本地 descriptor（0x080000C0）只用于本地构建识别，不增加手机 BLE 指令。
+首次 Boot 迁移仍要求 DAP 全量 factory，不提供 BLE 写 Boot。
+
+完整目标身份包含 boardId、version、layoutId、imageSize、imageSha256。
+版本更高、更低或相等均不直接判成功/失败；实际 Boot 支持且完整签名包兼容时，才允许用户确认后的写入。
+相同 image 的重新签名不改变运行镜像身份；packageSha256 独立约束包资源，显式 repair 才要求同镜像回写。
+
+三、恢复与安全退出
+
+恢复/重连先读取实际身份。实际镜像已完整匹配 pending 时，即使 written=false，也先做两次新的健康状态查询并清理已完成记录。
+历史 pending 可高于、低于或同版本于新目标；确认清理后才决定下一个目标，不按版本排序猜测完成。
+身份、布局、哈希不符或健康检查失败，不能清除记录或自动开始下一次写入。
+仅在尚未 BEGIN、实际 Boot idle 且 active_valid 时，空 FINISH 可无擦写退出原 App；退出已确认才清本次未写入意图。
+BEGIN 后原 commit 失效/active_invalid，不能把空 FINISH 当作撤销或回滚；保留恢复状态，从新任务零偏移重新传输。
+确认成功后恢复编程及口令状态，不自动运行用户作品。
+
+四、发布与源代码入口
+
+xiaobai-ota-protocol.js：双 manifest、INFO schema、动态片数、布局/能力、完整身份。
+android-bluetooth.js：真实 readApp 动态分片与心跳保持；Android OtaLayout/ProgramFrame/OtaTransport 同步边界。
+xiaobai-ota.js：实际 Boot 预检、pending 对账、只读启动确认与 BEGIN 前安全退出。
+xiaobai-firmware.js / xiaobai-ota-ui.js：用户确认、编译 Boot 非权威、完整镜像匹配及 DAP/未知提示。
+xiaobai-firmware-bundle.js / scripts/check-firmware-release.cjs：旧 schema1 pin 兼容，新增 schema2 完整布局映射。
+正式每个 App 版本仍只绑定唯一内置包；未来新 App 可以显式绑定兼容的旧版本或同版本不同镜像。
+新归档名携带 layout、完整 imageSHA 和 packageSHA 前缀，不覆盖同版本其他包。
+所有新绑定仍需完整固定计划和 --sha256；本次没有执行 --bind。
+同时修复 android-bluetooth.js / bluetooth.js 对已删除 updateProgramAnchor 的调用，使用 CardCanvas.layout，保留自由画布坐标。
+
+五、验证边界与后续
+
+详见同目录 OTA_DUAL_LAYOUT_VALIDATION_20261107.json、OTA_C_INTEROP_20261107.json。
+新增及更新的双布局/Session/Gate/历史/发布测试共33项；另保留旧签名包、原生传输、启动确认和当前发布绑定回归。
+网页测试使用生产 UI/Gate/Session/adapter，仅替换 native BLE/Boot 边界；未接触真实设备。
+候选 2.0.0 已只读验签：44812 字节，App 44684 字节。
+  packageSHA 6b46ae98b0b3262a232bb6b72c32eb59bb5f38b25b59a1c058e2803a7bd3e669
+  imageSHA   caccbd3505d717d4bd8c884d9eab7d93aa0e3e3b96dce292c5b26cf941773218
+候选未 pin。真实 C 模拟 Flash/签名互操作不等同于实际 DAP 迁移、GATT、断电或冷启动板测。
+尚未验证：真实 Boot2 factory 迁移、实际手机/主板 BLE、物理断电恢复、启动耗时、电机/语音行为，以及新 APK 安装。
+后续正式绑定新目标、递增 App 版本、构建或安装，须由后续发布任务明确发起。

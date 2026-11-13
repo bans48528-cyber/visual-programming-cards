@@ -108,16 +108,24 @@
       }
       this.uid=bytes.map(n=>n.toString(16).padStart(2,'0')).join('');return this.uid;
     }
-    initialize(){if(this.initializing)return this.initializing;if(this.initialized)return Promise.resolve(this.getSnapshot());return this.refresh();}
-    refresh(){
-      if(this.initializing)return this.initializing;
+    initializeStatus(){
+      if(this.busy||this.initialized)return Promise.resolve(this.getSnapshot());
+      return this.refresh({readUid:false});
+    }
+    initialize(){
+      const ready=()=>this.initialized&&(this.uid||this.legacy)?Promise.resolve(this.getSnapshot()):this.refresh();
+      return this.initializing?this.initializing.then(ready):ready();
+    }
+    refresh({readUid=true}={}){
+      if(this.initializing)return readUid&&!this.initializingReadsUid?this.initializing.then(()=>this.refresh()):this.initializing;
+      this.initializingReadsUid=readUid;
       this.session();
       const epoch=this.epoch,generation=++this.queryGeneration;
       this.query='loading';this.states.fill('unknown');this.error='';this.emit();
       const promise=(async()=>{
         try{
           await this.confirmProgram(epoch);this.assertEpoch(epoch);
-          try{await this.readUid(epoch);}catch(error){if(error.result!==2)throw error;this.legacy=true;}
+          if(readUid)try{await this.readUid(epoch);}catch(error){if(error.result!==2)throw error;this.legacy=true;}
           this.assertEpoch(epoch);
           const qid=this.allocate('xiaobai:query:counter');this.currentQuery=qid;
           const data=await this.request(OP.QUERY_LEARNED,u32(qid),this.timing.queryMs,this.matchId(qid));
@@ -219,6 +227,9 @@
       this.session();if(this.busy)throw failure('请先完成或取消口令学习。','BUSY');
       const used=references(program),epoch=this.epoch;this.preparedNeedsLearned=used.length>0;this.preparingRun=true;this.emit();
       try{
+        // Reserve the local learning/run mutex immediately. A script without
+        // learned waits requires neither UID nor learned-slot traffic.
+        if(!used.length)return this.getSnapshot();
         await this.initialize();this.assertEpoch(epoch);
         if(used.length&&this.capability!=='supported')throw failure('设备暂不支持自学习口令。','UNSUPPORTED');
         if(used.some(({slot})=>this.states[slot-1]==='unknown')){await this.refresh();this.assertEpoch(epoch);}
@@ -232,6 +243,9 @@
       this.session();this.requireFirmware();if(!this.preparingRun||this.run)throw failure('程序尚未通过口令检查。','BUSY');
       const epoch=this.epoch;
       try{
+        // The legacy direct-run API still needs a real hardware run identity;
+        // the 2.2.2 App coordinator only reserves the local prepareRun mutex.
+        if(!this.uid&&!this.legacy){await this.initialize();this.assertEpoch(epoch);}
         if(this.legacy&&!this.uid){this.run={id:0,legacy:true};return this.run;}
         const id=this.deviceNumber('run');
         try{
